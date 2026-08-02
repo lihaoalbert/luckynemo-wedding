@@ -1,0 +1,44 @@
+<view class="page">
+  <view class="hero">
+    <view class="eyebrow">意见反馈</view>
+    <view class="h1 serif">让我们做得更好</view>
+    <view class="sub">遇到的问题、想要的功能，都告诉我们吧</view>
+  </view>
+
+  <view class="type-row">
+    <view class="type-item {{type === t.key ? 'active' : ''}}"
+          wx:for="{{types}}" wx:for-item="t" wx:key="key"
+          data-key="{{t.key}}" bindtap="pickType">{{t.label}}</view>
+  </view>
+
+  <textarea class="ta" placeholder="描述一下你遇到的问题，或期待的功能…" maxlength="1000"
+            value="{{text}}" bindinput="onText" auto-height />
+
+  <view class="imgs">
+    <view class="img-wrap" wx:for="{{images}}" wx:key="path">
+      <image src="{{item.path}}" mode="aspectFill" class="thumb" data-url="{{item.path}}" bindtap="previewImg" />
+      <view class="img-status {{item.status === '完成' ? 'ok' : ''}}">{{item.status}}</view>
+      <view class="img-del" data-idx="{{index}}" catchtap="removeImage">✕</view>
+    </view>
+    <view class="img-add" wx:if="{{images.length < 3}}" bindtap="chooseImage">+<view class="add-txt">传图</view></view>
+  </view>
+
+  <button class="btn submit" bindtap="submit" loading="{{submitting}}">提交反馈</button>
+
+  <view class="history" wx:if="{{history.length}}">
+    <view class="his-title serif">我的历史反馈</view>
+    <view class="his-item" wx:for="{{history}}" wx:key="time">
+      <view class="his-head">
+        <text class="his-type">{{item.type === 'bug' ? '🐞 问题' : item.type === 'feature' ? '💡 期望' : '💬 其他'}}</text>
+        <text class="his-status {{item.status === 'done' ? 'done' : ''}}">{{item.status === 'done' ? '已解决' : '已收到'}}</text>
+      </view>
+      <view class="his-text">{{item.text}}</view>
+      <view class="his-reply" wx:if="{{item.reply}}">团队回复：{{item.reply}}</view>
+      <view class="his-imgs" wx:if="{{item.images.length}}">
+        <image wx:for="{{item.images}}" wx:for-item="img" wx:key="*this" src="{{img}}"
+               mode="aspectFill" class="his-thumb" data-url="{{img}}" bindtap="previewImg" />
+      </view>
+      <view class="his-time">{{item.time}}</view>
+    </view>
+  </view>
+</view>

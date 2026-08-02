@@ -1,0 +1,20 @@
+<view class="page">
+  <view class="hero">
+    <view class="eyebrow">Step 3 · 导演时间</view>
+    <view class="h1 serif">选个动作和神态</view>
+    <view class="sub">每组选一个，我们会按这个来「导」你们的婚纱照</view>
+  </view>
+
+  <view class="group" wx:for="{{groups}}" wx:key="name" wx:for-item="g">
+    <view class="group-name serif">{{g.name}}</view>
+    <view class="opts">
+      <view class="opt {{g.picked === opt ? 'active' : ''}}"
+            wx:for="{{g.options}}" wx:for-item="opt" wx:key="*this"
+            data-group="{{g.name}}" data-option="{{opt}}" bindtap="pick">{{opt}}</view>
+    </view>
+  </view>
+
+  <view class="dock">
+    <button class="btn" bindtap="confirm">开始生成 →</button>
+  </view>
+</view>

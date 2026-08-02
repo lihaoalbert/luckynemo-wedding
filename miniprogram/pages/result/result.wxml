@@ -1,0 +1,33 @@
+<view class="page">
+  <view class="hero">
+    <view class="eyebrow">免费第一张 · 礼成</view>
+    <view class="h1 serif">看看，是不是你们？</view>
+  </view>
+
+  <view class="photo card" bindtap="preview">
+    <image wx:if="{{photo}}" src="{{photo}}" mode="widthFix" />
+    <view wx:else class="ph">成片生成中，稍等一下下拉刷新～</view>
+  </view>
+
+  <view class="row">
+    <button class="btn ghost" bindtap="save">存到相册</button>
+    <button class="btn ghost">分享给朋友</button>
+  </view>
+
+  <view class="upcard card">
+    <view class="uptitle serif">想要更多？</view>
+    <view class="opt" bindtap="buyPer">
+      <view><b>3.9 元/张</b><view class="sub">按张付费，喜欢再要</view></view>
+      <view class="go">→</view>
+    </view>
+    <view class="opt hot" bindtap="buyPack">
+      <view><b>49 元 · 50 张</b><view class="sub">多风格多场景，最划算</view></view>
+      <view class="go">→</view>
+    </view>
+  </view>
+
+  <view class="film card" bindtap="upgrade">
+    <view class="uptitle serif">💌 还有更特别的</view>
+    <view class="sub">把你们的故事做成一支爱情短片：专属脚本、配音配乐，婚礼开场放一次，纪念日再看一次。</view>
+  </view>
+</view>

@@ -1,0 +1,7 @@
+requests>=2.31
+pyyaml>=6.0
+pillow>=10.0
+
+# 可选：人脸相似度初筛（ArcFace）。不安装也能运行，qc_face 会打印提示并自动跳过。
+# insightface>=0.7
+# numpy>=1.24

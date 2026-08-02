@@ -1,0 +1,20 @@
+.page { min-height: 100vh; padding: 0 28rpx 40rpx; }
+.hero { padding: 40rpx 0 20rpx; }
+.guide { margin-top: 16rpx; }
+.guide-title { font-size: 28rpx; font-weight: 600; margin-bottom: 10rpx; }
+.li { font-size: 26rpx; color: var(--ink-soft); margin-top: 8rpx; }
+.li.warn { color: var(--accent); }
+.files { margin-top: 28rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.file { display: flex; gap: 20rpx; align-items: center; background: var(--surface); border: 1rpx solid var(--hairline); border-radius: 20rpx; padding: 16rpx; }
+.thumb { width: 120rpx; height: 120rpx; border-radius: 16rpx; flex: none; }
+.finfo { flex: 1; }
+.fstatus { font-size: 26rpx; color: var(--ink-soft); }
+.fstatus.ok { color: #3f7d4e; }
+.bar { height: 10rpx; border-radius: 999rpx; background: var(--blush); margin-top: 10rpx; overflow: hidden; }
+.bar-i { height: 100%; background: var(--accent); border-radius: 999rpx; transition: width 0.3s; }
+.dock { margin-top: 40rpx; }
+.hint { margin-top: 16rpx; font-size: 24rpx; color: var(--ink-soft); text-align: center; }
+.section { margin-top: 32rpx; }
+.sec-title { font-size: 30rpx; font-weight: 600; margin-bottom: 4rpx; }
+.sub-btn { margin-top: 20rpx; background: var(--surface); color: var(--accent); border: 1rpx dashed var(--accent); }
+.dock .btn.gold { margin-top: 12rpx; }

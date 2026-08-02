@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>试衣间 · 徐大恩 LuckyNemo</title>
+<meta name="description" content="选一套喜欢的穿搭：一键套装，或慢慢单选。选定后我们为你生成定妆照。">
+<style>
+  :root{
+    --bg: #fdf8f4; --bg-blush: #f7ebe6; --surface: #fffdfb;
+    --ink: #3b2c28; --ink-soft: #7a635c;
+    --accent: #9d4f4a; --accent-deep: #833f3b;
+    --hairline: rgba(59,44,40,.12); --radius: 16px;
+    --serif: "Songti SC","STSong","Noto Serif CJK SC","SimSun",serif;
+    --sans: -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:96px}
+  a{color:inherit;text-decoration:none}
+  nav{position:fixed;inset:0 0 auto 0;z-index:50;height:64px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 clamp(20px,4vw,48px);background:rgba(253,248,244,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--hairline)}
+  .logo{display:flex;align-items:baseline;gap:10px}
+  .logo b{font-family:var(--serif);font-weight:600;font-size:22px;letter-spacing:.06em}
+  .logo span{font-size:10px;letter-spacing:.28em;color:var(--ink-soft);text-transform:uppercase}
+  .btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 28px;border-radius:999px;font-size:14px;
+    font-weight:500;background:var(--accent);color:#fff;letter-spacing:.04em;border:none;cursor:pointer;font-family:var(--sans);
+    transition:transform .25s,background .3s;box-shadow:0 10px 24px -12px rgba(157,79,74,.55)}
+  .btn:hover{background:var(--accent-deep);transform:translateY(-1px)}
+  .btn.ghost{background:rgba(255,253,251,.7);color:var(--ink);border:1px solid var(--hairline);box-shadow:none}
+  .btn[disabled]{opacity:.55;cursor:not-allowed;transform:none}
+  main{max-width:1080px;margin:0 auto;padding:104px clamp(16px,4vw,32px) 48px}
+  .eyebrow{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;font-weight:600}
+  h1{font-family:var(--serif);font-weight:600;font-size:clamp(28px,4.2vw,40px);line-height:1.3}
+  .sub{margin-top:12px;color:var(--ink-soft);font-size:15px;max-width:44em}
+
+  .tabs{display:flex;gap:10px;margin:32px 0 24px;flex-wrap:wrap}
+  .tab{padding:9px 20px;border-radius:999px;font-size:14px;border:1px solid var(--hairline);
+    background:var(--surface);cursor:pointer;transition:all .25s}
+  .tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+  .sets{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:22px}
+  .set{background:var(--surface);border:2px solid var(--hairline);border-radius:var(--radius);
+    overflow:hidden;cursor:pointer;transition:border-color .25s,box-shadow .25s}
+  .set:hover{box-shadow:0 12px 32px -16px rgba(59,44,40,.25)}
+  .set.selected{border-color:var(--accent)}
+  .set .imgs{display:grid;grid-template-columns:1fr 1fr}
+  .set .imgs img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;background:var(--bg-blush)}
+  .set .body{padding:14px 18px 16px}
+  .set h3{font-family:var(--serif);font-size:18px;font-weight:600;display:inline}
+  .set .style{font-size:12px;color:var(--accent);margin-left:8px}
+  .set .pitch{margin-top:6px;font-size:13px;color:var(--ink-soft)}
+  .set .items{margin-top:8px;font-size:12px;color:var(--ink-soft)}
+  .set .check{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;
+    background:var(--accent);color:#fff;display:none;align-items:center;justify-content:center;font-size:16px}
+  .set{position:relative}
+  .set.selected .check{display:flex}
+
+  /* 底部选择栏 */
+  .bar{position:fixed;left:0;right:0;bottom:0;z-index:50;background:rgba(255,253,251,.92);
+    backdrop-filter:blur(12px);border-top:1px solid var(--hairline);
+    padding:14px clamp(16px,4vw,32px);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .bar .info{flex:1;font-size:14px;min-width:200px}
+  .bar .info b{font-weight:600}
+  .bar input{font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--bg);
+    border:1px solid var(--hairline);border-radius:12px;padding:11px 14px;outline:none;width:220px}
+  .bar input:focus{border-color:var(--accent)}
+
+  .ok{display:none;text-align:center;padding:64px 0}
+  .ok h2{font-family:var(--serif);font-size:clamp(24px,4vw,32px);color:var(--accent);font-weight:600}
+  .ok p{margin-top:16px;color:var(--ink-soft);max-width:32em;margin-left:auto;margin-right:auto}
+  .err{display:none;font-size:14px;color:var(--accent-deep);background:#fdf1ef;border:1px solid var(--accent);
+    border-radius:12px;padding:12px 16px;margin-top:16px}
+  footer{border-top:1px solid var(--hairline);padding:28px;text-align:center;font-size:13px;color:var(--ink-soft);margin-top:64px}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="/"><b>徐大恩</b><span>LuckyNemo</span></a>
+  <a class="btn ghost" href="/" style="padding:9px 22px;font-size:13px">返回首页</a>
+</nav>
+
+<main id="page">
+  <p class="eyebrow">Wardrobe · 霓裳阁</p>
+  <h1>试衣间</h1>
+  <p class="sub">挑一套你们喜欢的穿搭：选一套一键成套，或者自己慢慢单选。选定之后，我们会为你们生成定妆照——婚纱照和短片里的你们，就穿这一套。选好衣服，<a href="/scenes/" style="color:var(--accent);font-weight:600">再去照相馆挑场景 →</a></p>
+
+  <div class="tabs">
+    <button class="tab active" data-mode="sets">一键套装（推荐）</button>
+    <button class="tab" data-mode="custom">自己单选</button>
+  </div>
+
+  <div class="sets" id="sets"></div>
+
+  <div class="ok" id="ok">
+    <h2>已收到你们的选择</h2>
+    <p id="ok-text">定妆照正在安排生成，完成后我们会发给你确认。</p>
+  </div>
+  <div class="err" id="err"></div>
+</main>
+
+<div class="bar" id="bar">
+  <div class="info" id="bar-info">还没有选择，点一套试试吧</div>
+  <input id="who" type="text" placeholder="微信号或订单号（用来归属选择）">
+  <button class="btn" id="submit" disabled>确认选择</button>
+</div>
+
+<footer>© 2026 徐大恩 · LuckyNemo｜霓裳阁所有服装为 AI 原创设计</footer>
+
+<script src="data.js"></script>
+<script>
+(function(){
+  var mode = 'sets';
+  var selectedSet = null;      // 套装 id
+  var custom = { dress: null, suit: null };  // 单选
+  var setsEl = document.getElementById('sets');
+  var barInfo = document.getElementById('bar-info');
+  var submitBtn = document.getElementById('submit');
+  var whoInput = document.getElementById('who');
+
+  function render(){
+    setsEl.innerHTML = '';
+    if (mode === 'sets'){
+      SETS.forEach(function(s){
+        var el = document.createElement('div');
+        el.className = 'set' + (selectedSet === s.id ? ' selected' : '');
+        el.innerHTML =
+          '<span class="check">✓</span>' +
+          '<div class="imgs"><img loading="lazy" src="' + s.dress.img + '"><img loading="lazy" src="' + s.suit.img + '"></div>' +
+          '<div class="body"><h3>' + s.name + '</h3><span class="style">' + s.style + '</span>' +
+          '<div class="pitch">' + s.pitch + '</div>' +
+          '<div class="items">她：' + s.dress.name.split('·')[1] + ' ｜ 他：' + s.suit.name.split('·')[1] + '</div></div>';
+        el.onclick = function(){ selectedSet = s.id; render(); syncBar(); };
+        setsEl.appendChild(el);
+      });
+    } else {
+      [['dress','她的服装'],['suit','他的服装']].forEach(function(pair){
+        var kind = pair[0], label = pair[1];
+        var h = document.createElement('h3');
+        h.style.cssText = 'font-family:var(--serif);margin:12px 0;font-size:17px;grid-column:1/-1';
+        h.textContent = label + '（选一件）';
+        setsEl.appendChild(h);
+        SETS.forEach(function(s){
+          var it = s[kind];
+          var el = document.createElement('div');
+          el.className = 'set' + (custom[kind] === it.id ? ' selected' : '');
+          el.innerHTML =
+            '<span class="check">✓</span>' +
+            '<div class="imgs" style="grid-template-columns:1fr"><img loading="lazy" src="' + it.img + '"></div>' +
+            '<div class="body"><h3 style="font-size:15px">' + s.name + '</h3>' +
+            '<div class="items">' + it.name.split('·')[1] + '</div></div>';
+          el.onclick = function(){ custom[kind] = custom[kind] === it.id ? null : it.id; render(); syncBar(); };
+          setsEl.appendChild(el);
+        });
+      });
+    }
+  }
+
+  function currentSelection(){
+    if (mode === 'sets' && selectedSet){
+      var s = SETS.find(function(x){ return x.id === selectedSet; });
+      return { mode: 'set', set_id: s.id, set_name: s.name,
+               dress: s.dress.id, suit: s.suit.id, accessory: s.accessory, shoes: s.shoes };
+    }
+    if (mode === 'custom' && custom.dress && custom.suit){
+      return { mode: 'custom', dress: custom.dress, suit: custom.suit };
+    }
+    return null;
+  }
+
+  function syncBar(){
+    var sel = currentSelection();
+    if (!sel){
+      barInfo.innerHTML = mode === 'sets' ? '还没有选择，点一套试试吧' : '她和他的服装各选一件';
+      submitBtn.disabled = true;
+    } else if (sel.mode === 'set'){
+      barInfo.innerHTML = '已选套装：<b>' + sel.set_name + '</b>';
+      submitBtn.disabled = false;
+    } else {
+      barInfo.innerHTML = '已单选：<b>' + sel.dress + ' + ' + sel.suit + '</b>';
+      submitBtn.disabled = false;
+    }
+  }
+
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.onclick = function(){
+      document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('active'); });
+      t.classList.add('active');
+      mode = t.dataset.mode;
+      render(); syncBar();
+    };
+  });
+
+  submitBtn.onclick = function(){
+    var sel = currentSelection();
+    var who = whoInput.value.trim();
+    var err = document.getElementById('err');
+    err.style.display = 'none';
+    if (!sel) return;
+    if (!who){
+      err.textContent = '先填微信号或订单号，选择才知道是谁的。';
+      err.style.display = 'block';
+      return;
+    }
+    submitBtn.disabled = true;
+    submitBtn.textContent = '提交中…';
+    fetch('/api/wardrobe/selection', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ contact: who, selection: sel })
+    }).then(function(r){
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      document.getElementById('sets').style.display = 'none';
+      document.querySelector('.tabs').style.display = 'none';
+      document.getElementById('bar').style.display = 'none';
+      document.getElementById('ok').style.display = 'block';
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    }).catch(function(e){
+      err.textContent = '提交失败，请稍后再试（' + e.message + '）。';
+      err.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = '确认选择';
+    });
+  };
+
+  render(); syncBar();
+})();
+</script>
+</body>
+</html>

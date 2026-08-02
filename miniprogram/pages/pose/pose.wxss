@@ -1,0 +1,15 @@
+.page { min-height: 100vh; padding: 0 28rpx 180rpx; }
+.hero { padding: 40rpx 0 20rpx; }
+.sub { font-size: 24rpx; color: var(--ink-soft); margin-top: 8rpx; }
+.group { margin-top: 28rpx; }
+.group-name { font-size: 30rpx; font-weight: 600; margin-bottom: 16rpx; }
+.opts { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.opt {
+  padding: 16rpx 28rpx; border-radius: 999rpx; font-size: 26rpx;
+  background: var(--surface); border: 1rpx solid var(--hairline); color: var(--ink);
+}
+.opt.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.dock {
+  position: fixed; left: 0; right: 0; bottom: 0; padding: 20rpx 28rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: rgba(253, 248, 244, 0.92); border-top: 1rpx solid var(--hairline);
+}

@@ -1,0 +1,16 @@
+.page { min-height: 100vh; padding: 0 28rpx 60rpx; }
+.hero { padding: 40rpx 0 20rpx; }
+.photo { padding: 0; overflow: hidden; }
+.photo image { width: 100%; display: block; }
+.ph { padding: 120rpx 40rpx; text-align: center; color: var(--ink-soft); font-size: 26rpx; }
+.row { display: flex; gap: 20rpx; margin-top: 28rpx; }
+.row .btn { flex: 1; }
+.upcard { margin-top: 32rpx; }
+.uptitle { font-size: 32rpx; font-weight: 600; margin-bottom: 16rpx; }
+.opt {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 24rpx 0; border-top: 1rpx solid var(--hairline); font-size: 28rpx;
+}
+.opt.hot b { color: var(--accent); }
+.go { color: var(--accent); font-weight: 700; }
+.film { margin-top: 28rpx; background: linear-gradient(135deg, rgba(201, 145, 63, 0.12), transparent 60%); border-color: rgba(201, 145, 63, 0.4); }

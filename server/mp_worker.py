@@ -1,0 +1,628 @@
+"""mp_worker：小程序生成任务执行器（常驻 ECS）。
+
+轮询 mp_jobs 队列，执行 free_photo / paid_photo 任务：
+取订单上传的照片（uploads 表 → OSS）→ Seedream 以选装（套装+场景）生成婚纱照
+→ 结果写回 OSS results/ 前缀 → job 标记 done 并附签名 URL。
+
+依赖：requests + PyYAML（luckynemo-toolkit 已在 /opt/luckynemo/toolkit，复用其 .env 的 ARK key）
+运行：python3 mp_worker.py（建议 systemd luckynemo-worker.service）
+"""
+from __future__ import annotations
+
+import base64
+import hashlib
+import hmac
+import json
+import os
+import re
+import sqlite3
+import sys
+import time
+import uuid
+from pathlib import Path
+from urllib.parse import quote
+
+import requests
+
+SERVER_DIR = Path(__file__).resolve().parent
+DB_PATH = SERVER_DIR / "data" / "app.db"
+TOOLKIT_ENV = Path("/opt/luckynemo/toolkit/.env")
+ARK_BASE = "https://ark.cn-beijing.volces.com"
+POLL_INTERVAL = 5
+TMP = Path("/tmp/mp_worker")
+TMP.mkdir(exist_ok=True)
+
+
+def _load_env() -> dict:
+    env = {}
+    for f in (SERVER_DIR / ".env", TOOLKIT_ENV):
+        if f.is_file():
+            for line in f.read_text().splitlines():
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, _, v = line.partition("=")
+                    env.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+    return env
+
+
+ENV = _load_env()
+ARK_KEY = ENV.get("ARK_API_KEY", "")
+SEEDREAM_MODEL = ENV.get("SEEDREAM_MODEL", "doubao-seedream-5-0-pro-260628")
+VIDU_KEY = ENV.get("VIDU_API_KEY", "")
+MINIMAX_KEY = ENV.get("MINIMAX_API_KEY", "")
+MINIMAX_BASE = ENV.get("MINIMAX_BASE_URL", "https://api.minimaxi.com/v1")
+OSS_AK = ENV.get("OSS_ACCESS_KEY_ID", "")
+OSS_SK = ENV.get("OSS_ACCESS_KEY_SECRET", "")
+OSS_BUCKET = ENV.get("OSS_BUCKET", "ibi-private")
+OSS_ENDPOINT = f"https://{OSS_BUCKET}.{ENV.get('OSS_REGION', 'oss-cn-shanghai')}.aliyuncs.com"
+
+
+def log(msg: str) -> None:
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
+
+
+def db() -> sqlite3.Connection:
+    return sqlite3.connect(DB_PATH)
+
+
+# ---------------- OSS ----------------
+def oss_sign(secret: str, s: str) -> str:
+    return base64.b64encode(hmac.new(secret.encode(), s.encode(), hashlib.sha1).digest()).decode()
+
+
+def oss_get(key: str, dest: Path) -> Path:
+    expires = str(int(time.time()) + 600)
+    resource = f"/{OSS_BUCKET}/{key}"
+    sign = oss_sign(OSS_SK, f"GET\n\n\n{expires}\n{resource}")
+    url = (f"{OSS_ENDPOINT}/{quote(key)}?Expires={expires}"
+           f"&OSSAccessKeyId={OSS_AK}&Signature={quote(sign, safe='')}")
+    r = requests.get(url, timeout=120)
+    r.raise_for_status()
+    dest.write_bytes(r.content)
+    return dest
+
+
+def oss_put_url(key: str, data: bytes, content_type: str, expire: int = 7 * 86400) -> str:
+    import email.utils
+    date = email.utils.formatdate(usegmt=True)
+    resource = f"/{OSS_BUCKET}/{key}"
+    string_to_sign = f"PUT\n\n{content_type}\n{date}\n{resource}"
+    headers = {"Date": date, "Content-Type": content_type,
+               "Authorization": f"OSS {OSS_AK}:{oss_sign(OSS_SK, string_to_sign)}"}
+    r = requests.put(f"{OSS_ENDPOINT}/{quote(key)}", data=data, headers=headers, timeout=120)
+    r.raise_for_status()
+    expires = str(int(time.time()) + expire)
+    sign = oss_sign(OSS_SK, f"GET\n\n\n{expires}\n{resource}")
+    return f"{OSS_ENDPOINT}/{quote(key)}?Expires={expires}&OSSAccessKeyId={OSS_AK}&Signature={quote(sign, safe='')}"
+
+
+# ---------------- Ark / Seedream ----------------
+def seedream(prompt: str, ref_files: list[Path]) -> bytes:
+    imgs = []
+    for p in ref_files:
+        b64 = base64.b64encode(p.read_bytes()).decode()
+        mime = "image/jpeg" if p.suffix.lower() in (".jpg", ".jpeg") else "image/png"
+        imgs.append(f"data:{mime};base64,{b64}")
+    payload = {"model": SEEDREAM_MODEL, "prompt": prompt, "size": "2K",
+               "watermark": False, "response_format": "url",
+               "negative_prompt": "纸张，书本，文件，杂物，垃圾，多余人物，多余肢体，悬空物体，"
+                                  "文字，水印，logo，畸形手，面部畸变"}
+    if imgs:
+        payload["image"] = imgs
+    r = requests.post(f"{ARK_BASE}/api/v3/images/generations", json=payload,
+                      headers={"Authorization": f"Bearer {ARK_KEY}"}, timeout=300)
+    data = r.json()
+    if r.status_code >= 300 or "error" in data:
+        raise RuntimeError(f"Seedream 失败：{json.dumps(data.get('error', data), ensure_ascii=False)[:300]}")
+    url = data["data"][0]["url"]
+    return requests.get(url, timeout=120).content
+
+
+# ---------------- 面部分析（LLM 化妆师建议） ----------------
+def analyze_face(photo: Path, makeup_name: str, gender: str = "female") -> str:
+    """多模态 LLM 分析人物原图，针对所选妆造给出个性化上妆建议（≤120字）。"""
+    if not MINIMAX_KEY:
+        return ""
+    ta = "他" if gender == "male" else "她"
+    b64 = base64.b64encode(photo.read_bytes()).decode()
+    mime = "image/jpeg" if photo.suffix.lower() in (".jpg", ".jpeg") else "image/png"
+    try:
+        r = requests.post(
+            f"{MINIMAX_BASE}/chat/completions",
+            headers={"Authorization": f"Bearer {MINIMAX_KEY}"},
+            json={"model": "abab6.5s-chat", "max_tokens": 250, "temperature": 0.4,
+                  "messages": [{"role": "user", "content": [
+                      {"type": "text", "text": (
+                          f"你是资深化妆师。观察这张脸：脸型、肤色、肤质、五官比例、需要扬长避短的地方。"
+                          f"针对「{makeup_name}」这款妆容，给出 3-4 条适合{ta}的具体上妆建议"
+                          "（如眉形走向、眼影范围、腮红位置与浓淡、唇色选择、修容取舍）。"
+                          "只输出建议本身，简洁专业，不超过120字。")},
+                      {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}]}]},
+            timeout=60,
+        )
+        advice = r.json()["choices"][0]["message"]["content"].strip()
+        log(f"面部分析建议：{advice[:60]}...")
+        return advice
+    except Exception as e:
+        log(f"面部分析失败（跳过）：{e}")
+        return ""
+
+
+def merge_face_advice(prompt: str, advice: str, notes: str = "") -> str:
+    """把 LLM 化妆建议 + 用户自定义意见融合进标准提示词。"""
+    if advice:
+        prompt += f"\n结合人物面部特征的个性化上妆建议（务必采纳）：{advice}"
+    if notes:
+        prompt += f"\n用户特别要求（优先级最高）：{notes}"
+    return prompt
+
+
+# ---------------- 定制模卡（VLM 审核/规格化/质检） ----------------
+def vlm_json(text: str, images: list[Path], max_tokens: int = 700) -> dict:
+    """多模态 LLM 调用，期望返回 JSON（容错解析）。用于定制模卡的审核、规格化与质检。"""
+    if not MINIMAX_KEY:
+        raise RuntimeError("未配置 MINIMAX_API_KEY，无法做定制模卡审核")
+    content = [{"type": "text", "text": text}]
+    for p in images:
+        b64 = base64.b64encode(p.read_bytes()).decode()
+        mime = "image/jpeg" if p.suffix.lower() in (".jpg", ".jpeg") else "image/png"
+        content.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}})
+    r = requests.post(
+        f"{MINIMAX_BASE}/chat/completions",
+        headers={"Authorization": f"Bearer {MINIMAX_KEY}"},
+        json={"model": "abab6.5s-chat", "max_tokens": max_tokens, "temperature": 0.3,
+              "messages": [{"role": "user", "content": content}]},
+        timeout=90,
+    )
+    out = r.json()["choices"][0]["message"]["content"].strip()
+    out = re.sub(r"```(?:json)?", "", out).strip()
+    try:
+        return json.loads(out)
+    except json.JSONDecodeError:
+        m = re.search(r"\{[\s\S]*\}", out)
+        if m:
+            return json.loads(m.group(0))
+        raise RuntimeError(f"VLM 返回非 JSON：{out[:120]}")
+
+
+#: 定制模卡固定画质尾缀（与模卡库 gen_variants.py 同一骨架，保证质量下限）
+MOKA_PROMPT_TAIL = ("竖版构图，真实人体比例约7.5头身，人物与地面有自然接触和投影，"
+                    "摄影级质感，无文字无水印，人物为虚拟模特面孔，"
+                    "不出现任何真实名人面孔和证件文书")
+
+
+def run_custom_moka(job_id: int, order_no: str, payload: dict) -> None:
+    """定制模卡：VLM 安全审核+意图规格化 → Seedream 生成 → VLM 质检（≤2 次重试）→ 存 diy_moka/。
+    范例图有人脸时只给 VLM 取风格、不进 Seedream 参考图（避免复刻真人肖像）。"""
+    description = str(payload.get("description") or "").strip()
+    example = None
+    keys = payload.get("example_keys") or []
+    if keys:
+        try:
+            example = oss_get(keys[0], TMP / f"{order_no}_diy_ref.jpg")
+        except Exception as e:
+            log(f"job#{job_id} 范例图下载失败，按纯文字定制：{e}")
+    if not description and not example:
+        raise RuntimeError("定制模卡需要文字描述或范例图")
+    mode = payload.get("mode") or "couple"
+    people = {"couple": "一对年轻情侣（一男一女）",
+              "solo_f": "一位年轻女性", "solo_m": "一位年轻男性"}.get(mode, "一对年轻情侣（一男一女）")
+    # 第 1 步：内容安全 + 意图规格化
+    spec = vlm_json(
+        "你是婚纱摄影模板定制师。根据用户描述" + ("和范例图" if example else "") + "完成两件事：\n"
+        f"【用户描述】{description or '（没有文字，只参考范例图）'}\n"
+        "1. 安全审核：涉及色情裸露、政治敏感、真实名人、证件文书、复刻真实人物肖像 → safe=false 并给出 reason；\n"
+        "2. 规格化：把需求改写成一段完整的中文摄影绘图提示词 prompt（场景/服装/姿势/神态/光影/色调/构图），"
+        f"画面中的人物必须是：{people}。范例图里若有人物，只提取风格元素，绝不描述其长相。"
+        "prompt 不要包含画幅/画质/水印类要求（我会另加）。\n"
+        '只输出 JSON：{"safe": true或false, "reason": "不安全时的一句话原因", '
+        '"has_face": 范例图是否含清晰人脸true或false, "prompt": "绘图提示词"}',
+        [example] if example else [])
+    if not spec.get("safe"):
+        raise RuntimeError("定制内容未通过安全审核：" + str(spec.get("reason") or "不符合内容规范"))
+    prompt = str(spec.get("prompt") or "").strip()
+    if not prompt:
+        raise RuntimeError("没能理解你的定制需求，换个说法再试试")
+    prompt_full = prompt + "，" + MOKA_PROMPT_TAIL
+    refs = [example] if (example and spec.get("has_face") is False) else []
+    log(f"job#{job_id} custom_moka 规格：{prompt[:60]}... 参考图 {len(refs)} 张")
+    # 第 2 步：生成 + VLM 质检（人数性别/畸形/文字/与需求一致性），不通过最多重试 2 次
+    last_issue = ""
+    result = None
+    for attempt in range(1, 4):
+        p = prompt_full + (f"\n上一版问题（必须避免）：{last_issue}" if last_issue else "")
+        result = seedream(p, refs)
+        gen_file = TMP / f"{order_no}_diy_gen.jpg"
+        gen_file.write_bytes(result)
+        qc = vlm_json(
+            f"质检这张婚纱摄影模板图。要求：画面中必须是{people}；五官手部无畸形；无清晰可读文字/水印。"
+            f"用户需求是「{description or prompt[:80]}」。"
+            '只输出 JSON：{"pass": true或false, "issue": "不通过的一句话原因（通过则留空）"}',
+            [gen_file], max_tokens=200)
+        if qc.get("pass"):
+            log(f"job#{job_id} custom_moka 质检通过（第 {attempt} 次）")
+            break
+        last_issue = str(qc.get("issue") or "质量不达标")[:100]
+        log(f"job#{job_id} custom_moka 质检未过（第 {attempt} 次）：{last_issue}")
+    else:
+        raise RuntimeError(f"定制模卡连续 3 次未过质检（{last_issue}），换个描述再试试")
+    key = f"diy_moka/{order_no}/{uuid.uuid4().hex[:8]}.jpg"
+    url = oss_put_url(key, result, "image/jpeg")
+    conn = db()
+    conn.execute("UPDATE mp_jobs SET status='done', result_json=?, updated_at=datetime('now') WHERE id=?",
+                 (json.dumps({"url": url, "oss_key": key, "mode": mode,
+                              "description": description, "prompt": prompt}, ensure_ascii=False), job_id))
+    conn.execute("UPDATE mp_orders SET status='done', updated_at=datetime('now') WHERE order_no=?", (order_no,))
+    conn.commit()
+    conn.close()
+    log(f"job#{job_id} custom_moka 完成 -> {key}")
+
+
+# ---------------- Vidu 参考生图（定妆照优先通道） ----------------
+VIDU_BASE = "https://api.vidu.cn/ent/v2"
+
+
+def vidu_reference2image(prompt: str, ref_files: list[Path], aspect_ratio: str = "3:4",
+                         model: str = "viduq2") -> bytes:
+    """Vidu 参考生图/图片编辑：图1人物 + 图2妆造参考 + 提示词。异步任务轮询取图。"""
+    if not VIDU_KEY:
+        raise RuntimeError("未配置 VIDU_API_KEY")
+    imgs = []
+    for p in ref_files:
+        b64 = base64.b64encode(p.read_bytes()).decode()
+        mime = "image/jpeg" if p.suffix.lower() in (".jpg", ".jpeg") else "image/png"
+        imgs.append(f"data:{mime};base64,{b64}")
+    r = requests.post(
+        f"{VIDU_BASE}/reference2image",
+        headers={"Authorization": f"Bearer {VIDU_KEY}", "Content-Type": "application/json"},
+        json={"model": model, "prompt": prompt, "images": imgs, "aspect_ratio": aspect_ratio},
+        timeout=120,
+    )
+    data = r.json()
+    if r.status_code >= 300 or "task_id" not in data:
+        raise RuntimeError(f"Vidu 创建任务失败：{json.dumps(data, ensure_ascii=False)[:300]}")
+    task_id = data["task_id"]
+    log(f"Vidu 任务 {task_id} 已创建，轮询中...")
+    for _ in range(60):  # 最长 5 分钟
+        time.sleep(5)
+        q = requests.get(f"{VIDU_BASE}/tasks/{task_id}/creations",
+                         headers={"Authorization": f"Bearer {VIDU_KEY}"}, timeout=30)
+        qd = q.json()
+        state = qd.get("state", "")
+        if state == "success":
+            urls = qd.get("creations") or []
+            img_url = urls[0].get("url") if urls else None
+            if not img_url:
+                raise RuntimeError(f"Vidu 成功但无结果图：{json.dumps(qd, ensure_ascii=False)[:300]}")
+            return requests.get(img_url, timeout=120).content
+        if state in ("failed", "fail", "error"):
+            raise RuntimeError(f"Vidu 任务失败：{json.dumps(qd, ensure_ascii=False)[:300]}")
+    raise RuntimeError("Vidu 任务超时（5 分钟未完成）")
+
+
+def makeup_with_vidu(prompt: str, ref_files: list[Path]) -> bytes:
+    """定妆照：优先 Vidu（人物照 + 红妆阁妆造图双参考），失败回退 Seedream。"""
+    if VIDU_KEY:
+        try:
+            return vidu_reference2image(prompt, ref_files)
+        except Exception as e:
+            log(f"Vidu 失败，回退 Seedream：{e}")
+    return None
+
+
+# ---------------- 任务执行 ----------------
+SITE_DIR = Path(ENV.get("SITE_DIR", "/var/www/luckynemo"))
+
+
+def scene_index() -> dict:
+    """场景资产索引：id/名称 → {name, pitch, img}（微剧情场景库）。"""
+    import re as _re
+    try:
+        js = (SITE_DIR / "scenes/data.js").read_text(encoding="utf-8")
+    except Exception:
+        return {}
+    idx = {}
+    for m in _re.finditer(r"\{[^{}]*\}", js):
+        block = m.group(0)
+        idm = _re.search(r'"id":\s*"([^"]+)"', block)
+        nm = _re.search(r'"name":\s*"([^"]+)"', block)
+        pm = _re.search(r'"pitch":\s*"([^"]+)"', block)
+        im = _re.search(r'"img":\s*"([^"]+)"', block)
+        dm = _re.search(r'"directives":\s*"([^"]+)"', block)
+        if idm and im:
+            info = {"name": nm.group(1) if nm else "",
+                    "pitch": pm.group(1) if pm else "", "img": im.group(1),
+                    "directives": dm.group(1) if dm else ""}
+            idx[idm.group(1)] = info
+            if nm:
+                idx[nm.group(1)] = info  # 对话接口可能传名称
+    return idx
+
+
+def clothing_file(img: str) -> Path | None:
+    """霓裳阁服装图本地路径（worker 与站点同机，直接读静态目录）。"""
+    if not img:
+        return None
+    p = SITE_DIR / "wardrobe" / "img" / img.replace("img/", "", 1)
+    return p if p.is_file() else None
+
+
+def asset_refs(payload: dict) -> tuple[list[Path], str]:
+    """收集服装图 + 场景图作为视觉参考，返回 (文件列表, 场景描述文本)。"""
+    refs: list[Path] = []
+    s = payload.get("set") or {}
+    for piece in ("dress", "suit"):
+        f = clothing_file(((s.get(piece) or {}).get("img") or ""))
+        if f:
+            refs.append(f)
+    idx = scene_index()
+    scene_txts = []
+    for sid in payload.get("scenes") or []:
+        info = idx.get(sid)
+        if not info:
+            continue
+        base = f"{info['name']}（{info['pitch']}）" if info["pitch"] else info["name"]
+        # 场景专属指令：道具/人物状态/光影/防穿帮（如雨景必须有手执伞）
+        if info.get("directives"):
+            base += f"，{info['directives']}"
+        scene_txts.append(base)
+        f = SITE_DIR / "scenes" / "img" / Path(info["img"]).name
+        if f.is_file():
+            refs.append(f)
+    return refs, "；".join(scene_txts)
+
+
+def order_photos(order_no: str, role: str = "A", limit: int = 4, skip_key: str = "") -> list[Path]:
+    """取成员照片：A=新娘/本人（contact=order_no），B=新郎（contact=order_no-B）。
+    skip_key：排除指定 OSS key（底照已单独下载时避免重复）。"""
+    contact = order_no if role == "A" else f"{order_no}-{role}"
+    conn = db()
+    keys = [r[0] for r in conn.execute(
+        "SELECT oss_key FROM uploads WHERE contact=? AND content_type LIKE 'image/%' ORDER BY id DESC LIMIT ?",
+        (contact, limit + 1))]
+    conn.close()
+    files = []
+    for i, key in enumerate(keys):
+        if key == skip_key:
+            continue
+        try:
+            files.append(oss_get(key, TMP / f"{order_no}_{role}_{i}.jpg"))
+        except Exception as e:
+            log(f"照片下载失败 {key}: {e}")
+        if len(files) >= limit:
+            break
+    return files
+
+
+def _anchor_or_photos(order_no: str, payload: dict, job_id: int) -> list[Path]:
+    """优先用定妆照锚点（锁定妆造后的脸），锚点缺失回退新娘原照片。"""
+    anchor_key = payload.get("anchor_key")
+    if anchor_key:
+        try:
+            log(f"job#{job_id} 使用定妆照锚点 {anchor_key}")
+            return [oss_get(anchor_key, TMP / f"{order_no}_anchor.jpg")]
+        except Exception as e:
+            log(f"锚点下载失败，回退原照片：{e}")
+    return order_photos(order_no, "A")
+
+
+def _anchor_or_photos_b(order_no: str, payload: dict, job_id: int) -> list[Path]:
+    """新郎侧：优先新郎定妆照锚点（anchor_key_b），否则新郎原照片。"""
+    anchor_key = payload.get("anchor_key_b")
+    if anchor_key:
+        try:
+            log(f"job#{job_id} 使用新郎定妆照锚点 {anchor_key}")
+            return [oss_get(anchor_key, TMP / f"{order_no}_anchor_b.jpg")]
+        except Exception as e:
+            log(f"新郎锚点下载失败，回退原照片：{e}")
+    return order_photos(order_no, "B", limit=2)
+
+
+def build_photo_prompt(payload: dict, scene_txt: str) -> str:
+    s = payload.get("set") or {}
+    dress = (s.get("dress") or {}).get("name", "白色婚纱")
+    if not scene_txt:
+        scene_txt = "柔和纯色背景"
+    makeup_txt = f"妆容为「{payload['makeup_name']}」，保持与参考定妆照一致的妆面，" if payload.get("makeup_name") else ""
+    if payload.get("mode") == "solo" and payload.get("makeup_name_b"):
+        makeup_txt = f"妆容为「{payload['makeup_name_b']}」，保持与参考定妆照一致的妆面，"
+    poses = payload.get("poses") or []
+    pose_txt = "、".join(poses) if poses else "自然微笑"
+    lock = "保持与参考图人物五官、脸型完全一致，无文字无水印，摄影级质感"
+    ref_note = "提示词后附的参考图依次为：人物、服装、场景参考，请按参考图的服装款式与场景氛围绘制，"
+    # 比例与融合（2026-07-30 用户反馈：头身比失调 + 抠图感 + 穿帮杂物）
+    proportion = ("真实人体比例：全身竖版构图，身高约7.5个头长，头部大小自然，"
+                  "脸部参考图仅用于锁定五官特征，不要参照参考图的头肩比例，")
+    fusion = ("人物光影必须与场景光源方向一致，场景的光斑与色彩也落在人物和服装上，"
+              "人物在地面有自然投影，与场景融为一体，绝无抠图合成感；"
+              "地面上只有自然场景，绝对不要出现纸张、书本、文件等任何多余物品，")
+    if payload.get("mode") == "solo":
+        if s.get("suit") and not s.get("dress"):
+            suit_name = (s.get("suit") or {}).get("name", "深色西装")
+            return (
+                f"一位年轻男性的全身写真照：他穿{suit_name.split('·')[-1]}，{makeup_txt}"
+                f"场景：{scene_txt}，动作神态：{pose_txt}，影楼级布光，"
+                f"{proportion}{fusion}{ref_note}画面中仅他一个人物，{lock}"
+            )
+        return (
+            f"一位年轻女性的全身写真照：她穿{dress.split('·')[-1]}，{makeup_txt}"
+            f"场景：{scene_txt}，动作神态：{pose_txt}，影楼级布光，"
+            f"{proportion}{fusion}{ref_note}画面中仅她一个人物，{lock}"
+        )
+    suit = (s.get("suit") or {}).get("name", "深色西装")
+    groom_makeup = f"新郎妆容为「{payload['makeup_name_b']}」，" if payload.get("makeup_name_b") else ""
+    return (
+        f"一对新婚夫妻的全身婚纱照：新娘穿{dress.split('·')[-1]}，新郎穿{suit.split('·')[-1]}，"
+        f"新娘{makeup_txt}{groom_makeup}场景：{scene_txt}，动作神态：{pose_txt}，"
+        f"{proportion}{fusion}"
+        f"参考图前两张为新娘与新郎，{ref_note}画面中仅这一男一女，{lock}"
+    )
+
+
+def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
+    if kind == "custom_moka":
+        run_custom_moka(job_id, order_no, payload)
+        return
+    result = None
+    if kind == "makeup_photo":
+        # 定妆照任务：对应成员照片（A=新娘/本人，B=新郎）+ 红妆阁配方提示词
+        role = "B" if payload.get("role") == "B" else "A"
+        # 用户指定底照：单独下载并排到参考图第一位（定妆以它为基础，其余做人脸参考）
+        base_key = payload.get("base_key")
+        photos = order_photos(order_no, role, skip_key=base_key)
+        if base_key:
+            try:
+                photos.insert(0, oss_get(base_key, TMP / f"{order_no}_{role}_base.jpg"))
+                log(f"job#{job_id} 使用用户选定底照 {base_key}")
+            except Exception as e:
+                log(f"底照下载失败，按默认顺序：{e}")
+        prompt = payload.get("makeup_prompt") or ""
+        if not prompt:
+            raise RuntimeError("makeup_photo 任务缺 makeup_prompt")
+        if not photos:
+            raise RuntimeError("订单没有可用照片（uploads 表为空）")
+        # LLM 化妆师：先分析人物原图给出个性化建议，融合进标准提示词
+        advice = analyze_face(photos[0], payload.get("makeup_name", ""), payload.get("gender", "female"))
+        prompt = merge_face_advice(prompt, advice, payload.get("makeup_notes", ""))
+        # 发型装扮：用户选了发型则允许改发型（五官脸型仍不动），否则保持原发型
+        if payload.get("hairstyle"):
+            prompt += (
+                f"\n发型要求：将人物发型调整为「{payload['hairstyle']}」，"
+                "允许改变发型，但五官、脸型、妆容仍须与人物一致"
+            )
+        # 引擎选择（内测开放）：vidu=妆效好但有漂移风险 / seedream=默认保脸（MiniMax 生图已下架）
+        engine = payload.get("engine") or "seedream"
+        style_file = SITE_DIR / "hongzhuang" / "styles" / f"{payload.get('makeup_id', '')}.png"
+        if engine == "vidu" and style_file.is_file():
+            # viduq2 图片编辑模式。男妆只发用户底图+纯文字配方（实测：发参考妆图会被小朗同化）；
+            # 女妆发用户图+红妆阁妆造参考图（漂移可接受且妆效更好）
+            male = payload.get("gender") == "male"
+            vidu_prompt = (
+                f"这是对图1照片的人物修图化妆，不是换人：严禁改变图1人物的任何五官特征、脸型、发型和年龄感。"
+                f"为{'他' if male else '她'}化上「{payload.get('makeup_name', '')}」妆容，"
+                "摘掉眼镜，正面肩部以上肖像特写，浅灰纯色背景，专业妆面照质感"
+            )
+            vidu_prompt = merge_face_advice(vidu_prompt, advice, payload.get("makeup_notes", ""))
+            if payload.get("hairstyle"):
+                vidu_prompt += f"\n发型调整为「{payload['hairstyle']}」，允许改变发型，五官脸型不变"
+            vidu_refs = photos[:1] if male else photos[:1] + [style_file]
+            result = makeup_with_vidu(vidu_prompt, vidu_refs)
+            if result is None:
+                result = seedream(prompt, photos)
+        else:
+            result = seedream(prompt, photos)
+    elif kind == "template_photo":
+        # 一键同款：定妆照锚点（缺省时回退原始上传照片——定妆后台化）+ 模板图，只换人，其他保持模板
+        photos = []
+        if payload.get("anchor_key"):
+            photos.append(oss_get(payload["anchor_key"], TMP / f"{order_no}_anchor.jpg"))
+        else:
+            photos += order_photos(order_no, "A", limit=1)
+        has_b = False
+        if payload.get("anchor_key_b"):
+            photos.append(oss_get(payload["anchor_key_b"], TMP / f"{order_no}_anchor_b.jpg"))
+            has_b = True
+        elif payload.get("mode") == "couple":
+            b_photos = order_photos(order_no, "B", limit=1)
+            photos += b_photos
+            has_b = bool(b_photos)
+        if not photos:
+            raise RuntimeError("请先上传本人照片，再做一键同款")
+        if payload.get("mode") == "couple" and not has_b:
+            raise RuntimeError("情侣模板需要新郎也上传照片（协同创作邀请他，或在对话里发他的照片）")
+        tpl = None
+        if payload.get("custom_template_key"):
+            # DIY 定制模卡：从 OSS 取（custom_moka 任务的产物）
+            tpl = oss_get(payload["custom_template_key"], TMP / f"{order_no}_diy_moka.jpg")
+        else:
+            tpl_path = SITE_DIR / "moka" / "templates" / f"{payload.get('template_id', '')}.png"
+            if not tpl_path.is_file():
+                raise RuntimeError(f"模板不存在 {payload.get('template_id')}")
+            tpl = tpl_path
+        photos.append(tpl)
+        # 微调：换服装（附加服装参考图）
+        swap_note = payload.get("swap_note", "")
+        for img in payload.get("swap_imgs") or []:
+            f = clothing_file(img)
+            if f:
+                photos.append(f)
+        prompt = (
+            "最后一张参考图是完整的摄影作品模板，前面的参考图是要替换上去的人物。"
+            "把模板中的人物替换为参考图的人物（多人时按性别一一对应替换），"
+            "严格保持模板的构图、场景、服装、妆容、道具、神态、光影、色调、背景完全不变，"
+            "只替换人物的五官与面部特征，真实人体比例约7.5头身，与场景自然融合有投影，"
+            "摄影级质感，无文字无水印"
+        )
+        if swap_note:
+            prompt += f"。特别调整：{swap_note}"
+        log(f"job#{job_id} template_photo 模板 {payload.get('template_id') or payload.get('custom_template_key')} 参考图 {len(photos)} 张")
+        result = seedream(prompt, photos)
+    elif kind == "solo_photo":
+        # 个人写真：定妆照锚点（A=本人/新娘；anchor_key_b 存在时为男士单人）+ 服装/场景视觉参考
+        if payload.get("anchor_key_b") and not payload.get("anchor_key"):
+            photos = _anchor_or_photos_b(order_no, payload, job_id)
+        else:
+            photos = _anchor_or_photos(order_no, payload, job_id)
+        extra, scene_txt = asset_refs(payload)
+        photos += extra
+        prompt = build_photo_prompt(payload, scene_txt)
+    else:
+        # 婚纱照：新娘/新郎双锚点 + 服装/场景视觉参考，脸和氛围都锁住
+        bride = _anchor_or_photos(order_no, payload, job_id)
+        groom = _anchor_or_photos_b(order_no, payload, job_id)
+        photos = (bride[:1] + groom[:2]) if bride else groom
+        extra, scene_txt = asset_refs(payload)
+        photos += extra
+        prompt = build_photo_prompt(payload, scene_txt)
+    if not photos:
+        raise RuntimeError("订单没有可用照片（uploads 表为空）")
+    if result is None:
+        log(f"job#{job_id} {kind} 参考图 {len(photos)} 张，生成中...")
+        result = seedream(prompt, photos)
+    key = f"results/{order_no}/{uuid.uuid4().hex[:8]}.jpg"
+    url = oss_put_url(key, result, "image/jpeg")
+    conn = db()
+    conn.execute("UPDATE mp_jobs SET status='done', result_json=?, updated_at=datetime('now') WHERE id=?",
+                 (json.dumps({"url": url, "oss_key": key}), job_id))
+    conn.execute("UPDATE mp_orders SET status='done', updated_at=datetime('now') WHERE order_no=?", (order_no,))
+    conn.commit()
+    conn.close()
+    log(f"job#{job_id} 完成 -> {key}")
+
+
+def fail_job(job_id: int, err: str) -> None:
+    conn = db()
+    conn.execute("UPDATE mp_jobs SET status='failed', result_json=?, updated_at=datetime('now') WHERE id=?",
+                 (json.dumps({"error": err}), job_id))
+    conn.commit()
+    conn.close()
+
+
+def main() -> None:
+    if not ARK_KEY:
+        log("缺 ARK_API_KEY，退出")
+        sys.exit(1)
+    log("mp_worker 启动")
+    while True:
+        try:
+            conn = db()
+            rows = list(conn.execute(
+                "SELECT id, order_no, kind, payload_json FROM mp_jobs WHERE status='queued' ORDER BY id LIMIT 3"))
+            conn.close()
+            for job_id, order_no, kind, payload_json in rows:
+                conn = db()
+                conn.execute("UPDATE mp_jobs SET status='running', updated_at=datetime('now') WHERE id=?", (job_id,))
+                conn.commit()
+                conn.close()
+                try:
+                    run_job(job_id, order_no, kind, json.loads(payload_json))
+                except Exception as e:
+                    log(f"job#{job_id} 失败：{e}")
+                    fail_job(job_id, str(e)[:500])
+        except Exception as e:
+            log(f"轮询异常：{e}")
+        time.sleep(POLL_INTERVAL)
+
+
+if __name__ == "__main__":
+    main()

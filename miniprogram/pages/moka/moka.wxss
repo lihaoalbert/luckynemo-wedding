@@ -1,0 +1,40 @@
+.page { min-height: 100vh; padding: 0 28rpx 60rpx; }
+.hero { padding: 40rpx 0 20rpx; }
+.sub { font-size: 24rpx; color: var(--ink-soft); margin-top: 8rpx; }
+.tabs { display: flex; gap: 16rpx; margin: 10rpx 0 28rpx; }
+.tab { padding: 14rpx 30rpx; border-radius: 999rpx; font-size: 26rpx; background: var(--surface); border: 1rpx solid var(--hairline); }
+.tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; }
+.card { background: var(--surface); border: 1rpx solid var(--hairline); border-radius: 24rpx; overflow: hidden; }
+.card image { width: 100%; aspect-ratio: 3/4; background: var(--blush); display: block; }
+.body { padding: 16rpx 18rpx 18rpx; }
+.name { font-size: 28rpx; font-weight: 600; }
+.desc { font-size: 24rpx; color: var(--ink-soft); margin-top: 6rpx; line-height: 1.5; }
+/* 确认弹层 */
+.mask {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(43,35,32,0.5);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.sheet {
+  width: 100%; max-height: 88vh; overflow-y: auto;
+  background: var(--bg); border-radius: 28rpx 28rpx 0 0;
+}
+.sheet-img { width: 100%; aspect-ratio: 16/10; background: var(--blush); display: block; }
+.sheet-body { padding: 24rpx 28rpx 40rpx; }
+.comp { display: flex; gap: 12rpx; margin-top: 10rpx; }
+.comp-k { flex: none; width: 52rpx; font-size: 22rpx; color: var(--accent); font-weight: 600; }
+.comp-v { flex: 1; font-size: 22rpx; color: var(--ink-soft); }
+.swap-sec { margin-top: 24rpx; }
+.swap-title { font-size: 24rpx; font-weight: 600; margin-bottom: 10rpx; }
+.mini-scroll { white-space: nowrap; }
+.mini-item {
+  display: inline-block; width: 110rpx; margin-right: 12rpx;
+  border: 3rpx solid var(--hairline); border-radius: 12rpx; overflow: hidden;
+  background: var(--surface); vertical-align: top;
+}
+.mini-item.active { border-color: var(--accent); }
+.mini-item image { width: 110rpx; height: 146rpx; display: block; background: var(--blush); }
+.mini-name { font-size: 18rpx; text-align: center; padding: 4rpx; white-space: normal; line-height: 1.3; }
+.btn.confirm { margin-top: 32rpx; }
+.hint { text-align: center; font-size: 22rpx; color: var(--ink-soft); margin-top: 14rpx; }

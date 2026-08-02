@@ -1,0 +1,99 @@
+<view class="page">
+  <view class="hero">
+    <view class="eyebrow">Step 1 · 红妆阁{{role === 'B' ? '（新郎）' : ''}}</view>
+    <view class="h1 serif">{{role === 'B' ? '给他也定个妆' : '先定个妆'}}</view>
+    <view class="sub">选一款心动的妆容，先出定妆照确认</view>
+  </view>
+
+  <!-- 选妆 -->
+  <view wx:if="{{phase === 'pick'}}">
+    <!-- 底照选择：定妆以哪张为基础，其余照片做人脸参考 -->
+    <view class="hair-sec" wx:if="{{uploads.length > 1}}">
+      <view class="hair-title">选一张底照<text class="hair-skip">定妆照以它为基础，其余照片做人脸参考</text></view>
+      <scroll-view scroll-x class="hair-scroll">
+        <view class="hair-item {{baseKey === u.key ? 'active' : ''}}" wx:for="{{uploads}}" wx:for-item="u" wx:key="key" data-key="{{u.key}}" bindtap="pickBase">
+          <image src="{{u.url}}" mode="aspectFill" lazy-load />
+        </view>
+      </scroll-view>
+    </view>
+
+    <view class="tabs">
+      <view class="tab {{gender === 'female' ? 'active' : ''}}" data-gender="female" bindtap="switchTab">女士妆造</view>
+      <view class="tab {{gender === 'male' ? 'active' : ''}}" data-gender="male" bindtap="switchTab">男士妆造</view>
+    </view>
+    <view class="grid">
+      <view class="set {{makeupId === item.id ? 'selected' : ''}}" wx:for="{{makeup}}" wx:key="id">
+        <image class="face-img" src="{{item.img}}" mode="aspectFill" lazy-load data-url="{{item.img}}" bindtap="previewImg" />
+        <view class="body" data-id="{{item.id}}" bindtap="pick">
+          <view class="name serif">{{item.name}} <text class="style">{{item.series}}</text></view>
+          <view class="pitch">{{item.vibe}}</view>
+          <view class="detail-toggle" data-id="{{item.id}}" catchtap="toggleDetail">{{expandedId === item.id ? '收起说明 ▲' : '妆容说明 ▼'}}</view>
+          <view class="detail" wx:if="{{expandedId === item.id}}">
+            <view class="d-slogan">{{item.spec.slogan}}</view>
+            <view class="d-row" wx:for="{{item.spec.partsList}}" wx:for-item="p" wx:key="k">
+              <text class="d-k">{{p.k}}</text><text class="d-v">{{p.v}}</text>
+            </view>
+            <view class="d-fit" wx:if="{{item.spec.face_fit}}">适合：{{item.spec.face_fit}}</view>
+          </view>
+        </view>
+        <view class="check" wx:if="{{makeupId === item.id}}">✓</view>
+      </view>
+    </view>
+    <view class="engine-row">
+      <view class="engine-label">生图引擎</view>
+      <view class="engine-item {{engine === e.key ? 'active' : ''}}" wx:for="{{engines}}" wx:for-item="e" wx:key="key" data-key="{{e.key}}" bindtap="pickEngine">
+        {{e.label}}<text class="engine-hint">{{e.hint}}</text>
+      </view>
+    </view>
+
+    <!-- 唇色（女妆可选） -->
+    <view class="hair-sec" wx:if="{{gender === 'female'}}">
+      <view class="hair-title">唇色<text class="hair-skip">默认按妆造配方</text></view>
+      <view class="lip-row">
+        <view class="lip-item {{lipColor === c ? 'active' : ''}}" wx:for="{{lipColors}}" wx:for-item="c" wx:key="*this" data-color="{{c}}" bindtap="pickLip">{{c}}</view>
+      </view>
+    </view>
+
+    <!-- 发型（可选，不选则保持原发型） -->
+    <view class="hair-sec" wx:if="{{hairstyles.length}}">
+      <view class="hair-title">发型（可选）<text class="hair-skip">{{hairstyleId ? '再点一次取消' : '不选保持原发型'}}</text></view>
+      <scroll-view scroll-x class="hair-scroll">
+        <view class="hair-item {{hairstyleId === h.id ? 'active' : ''}}" wx:for="{{hairstyles}}" wx:for-item="h" wx:key="id" data-id="{{h.id}}" bindtap="pickHairstyle">
+          <image src="{{h.img}}" mode="aspectFill" lazy-load />
+          <view class="hair-name">{{h.name}}</view>
+        </view>
+      </scroll-view>
+    </view>
+    <view class="dock">
+      <button class="btn" bindtap="confirm">就这款，出定妆照 →</button>
+      <button class="btn ghost" bindtap="skip" wx:if="{{role === 'B'}}">他不用定妆，直接去选衣服 →</button>
+    </view>
+  </view>
+
+  <!-- 生成中 -->
+  <view wx:elif="{{phase === 'waiting'}}" class="waiting">
+    <!-- 可爱的线条小人：正在化妆 -->
+    <view class="worker">
+      <view class="w-spark s1"></view>
+      <view class="w-spark s2"></view>
+      <view class="w-spark s3"></view>
+      <view class="w-head"></view>
+      <view class="w-body"></view>
+      <view class="w-arm"><view class="w-brush"></view></view>
+      <view class="w-leg"></view>
+    </view>
+    <view class="tip">{{tips[tipIdx]}}</view>
+    <view class="tip-sub">定妆照生成中，约 1 分钟</view>
+  </view>
+
+  <!-- 定妆照确认 -->
+  <view wx:else class="result">
+    <view class="done-title serif">定妆照出来啦</view>
+    <image class="photo" src="{{photo}}" mode="widthFix" bindtap="preview" />
+    <view class="hint">点开可看大图</view>
+    <view class="dock">
+      <button class="btn" bindtap="next">满意，继续 →</button>
+      <button class="btn ghost" bindtap="repick">换一款妆容</button>
+    </view>
+  </view>
+</view>

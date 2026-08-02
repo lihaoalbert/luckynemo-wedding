@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>素材上传 · 徐大恩 LuckyNemo</title>
+<meta name="description" content="上传你们的照片和视频素材：先看拍摄指引（每人 6-8 张多角度清晰照片），本页直传原图不经过微信，加密存储，交付即删。">
+<style>
+  :root{
+    --bg: #fdf8f4;
+    --bg-blush: #f7ebe6;
+    --surface: #fffdfb;
+    --ink: #3b2c28;
+    --ink-soft: #7a635c;
+    --accent: #9d4f4a;
+    --accent-deep: #833f3b;
+    --hairline: rgba(59,44,40,.12);
+    --radius: 16px;
+    --serif: "Songti SC","STSong","Noto Serif CJK SC","SimSun",serif;
+    --sans: -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.75;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  nav{
+    position:fixed;inset:0 0 auto 0;z-index:50;height:64px;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 clamp(20px,4vw,48px);
+    background:rgba(253,248,244,.82);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--hairline);
+  }
+  .logo{display:flex;align-items:baseline;gap:10px}
+  .logo b{font-family:var(--serif);font-weight:600;font-size:22px;letter-spacing:.06em}
+  .logo span{font-size:10px;letter-spacing:.28em;color:var(--ink-soft);text-transform:uppercase}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;
+    padding:12px 28px;border-radius:999px;font-size:14px;font-weight:500;
+    background:var(--accent);color:#fff;letter-spacing:.04em;
+    transition:transform .25s cubic-bezier(.16,1,.3,1),background .3s,box-shadow .3s;
+    box-shadow:0 10px 24px -12px rgba(157,79,74,.55);
+    border:none;cursor:pointer;font-family:var(--sans);
+  }
+  .btn:hover{background:var(--accent-deep);transform:translateY(-1px)}
+  .btn:active{transform:translateY(1px) scale(.98)}
+  .btn[disabled]{opacity:.55;cursor:not-allowed;transform:none}
+  .btn.ghost{background:rgba(255,253,251,.7);color:var(--ink);border:1px solid var(--hairline);box-shadow:none}
+  main{max-width:720px;margin:0 auto;padding:120px clamp(20px,5vw,32px) 96px}
+  .eyebrow{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--accent);margin-bottom:18px;font-weight:600}
+  h1{font-family:var(--serif);font-weight:600;font-size:clamp(30px,4.5vw,42px);line-height:1.3;letter-spacing:.02em}
+  .sub{margin-top:14px;color:var(--ink-soft);font-size:15px}
+  .card{margin-top:36px;display:grid;gap:18px;padding:24px 24px 26px;background:var(--surface);
+    border:1px solid var(--hairline);border-radius:var(--radius)}
+  .field{display:grid;gap:8px}
+  .field label{font-size:13px;font-weight:600}
+  .field label em{font-style:normal;color:var(--accent);margin-left:2px}
+  .field input{
+    font-family:var(--sans);font-size:15px;color:var(--ink);
+    background:var(--bg);border:1px solid var(--hairline);
+    border-radius:12px;padding:13px 16px;outline:none;width:100%;
+    transition:border-color .3s,box-shadow .3s;
+  }
+  .field input::placeholder{color:#b39c93}
+  .field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(157,79,74,.14)}
+  .field input.err{border-color:var(--accent);background:#fdf1ef}
+  .dropzone{
+    border:2px dashed var(--hairline);border-radius:var(--radius);
+    padding:44px 24px;text-align:center;color:var(--ink-soft);font-size:14px;
+    background:var(--bg);cursor:pointer;transition:border-color .3s,background .3s;
+  }
+  .dropzone:hover,.dropzone.drag{border-color:var(--accent);background:var(--bg-blush)}
+  .dropzone b{color:var(--ink);font-weight:600}
+  .dropzone .types{margin-top:8px;font-size:12px}
+  .file-list{display:grid;gap:12px}
+  .file-item{display:grid;gap:6px;font-size:13px}
+  .file-item .row{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+  .file-item .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%}
+  .file-item .status{color:var(--ink-soft);flex:none}
+  .file-item .status.ok{color:var(--accent)}
+  .file-item .status.fail{color:var(--accent-deep);font-weight:600}
+  .bar{height:6px;border-radius:99px;background:var(--bg-blush);overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:var(--accent);border-radius:99px;transition:width .2s}
+  .form-err{display:none;font-size:14px;color:var(--accent-deep);background:#fdf1ef;
+    border:1px solid var(--accent);border-radius:12px;padding:12px 16px}
+  .ok-page{display:none;text-align:center;padding:48px 0}
+  .ok-page h2{font-family:var(--serif);font-size:clamp(26px,4vw,34px);font-weight:600;color:var(--accent)}
+  .ok-page p{margin-top:16px;color:var(--ink-soft);max-width:32em;margin-left:auto;margin-right:auto}
+  .ok-page .actions{margin-top:32px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .privacy{margin-top:18px;font-size:13px;color:var(--ink-soft)}
+  /* 拍摄指引 */
+  .guide{margin-top:28px;padding:24px 24px 26px;background:var(--surface);
+    border:1px solid var(--hairline);border-radius:var(--radius);display:grid;gap:16px}
+  .guide h2{font-family:var(--serif);font-size:20px;font-weight:600}
+  .guide .why{font-size:14px;color:var(--ink-soft)}
+  .guide .why b{color:var(--accent);font-weight:600}
+  .guide figure{display:grid;gap:8px}
+  .guide figure .imgwrap{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--hairline)}
+  .guide figure img{display:block;width:100%;height:auto}
+  .guide .tag{position:absolute;top:10px;left:10px;padding:4px 12px;border-radius:999px;
+    font-size:12px;font-weight:600;color:#fff}
+  .guide .tag.ok{background:#3f7d4e}
+  .guide .tag.no{background:#b03a32}
+  .guide figcaption{font-size:13px;color:var(--ink-soft)}
+  .guide ul{list-style:none;display:grid;gap:10px;font-size:14px}
+  .guide ul li{padding-left:24px;position:relative}
+  .guide ul li::before{content:"·";position:absolute;left:8px;color:var(--accent);font-weight:700}
+  .guide .redlines{background:#fdf1ef;border:1px solid var(--accent);border-radius:12px;
+    padding:14px 16px;font-size:14px;display:grid;gap:6px}
+  .guide .redlines b{color:var(--accent-deep)}
+  .guide details{font-size:14px}
+  .guide summary{cursor:pointer;font-weight:600;color:var(--accent)}
+  footer{border-top:1px solid var(--hairline);padding:32px clamp(20px,5vw,48px) 44px;
+    font-size:13px;color:var(--ink-soft);text-align:center}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="/"><b>徐大恩</b><span>LuckyNemo</span></a>
+  <a class="btn ghost" href="/" style="padding:9px 22px;font-size:13px">返回首页</a>
+</nav>
+
+<main>
+  <p class="eyebrow">Upload</p>
+  <h1>素材上传</h1>
+  <p class="sub">照片从本页直传，<b>不要走微信发送</b>——微信会压缩分辨率，AI 就学不准你的脸了。文件加密存储，只用于本次创作，交付即删。</p>
+
+  <section class="guide" id="guide">
+    <h2>上传前，先看拍什么样的照片才合格</h2>
+    <p class="why">AI 会照着你提供的照片生成短片里的人物——<b>脸越清楚、角度越全，成片就越像你本人</b>。每人需要 6-8 张：正脸特写 2 张（一张微笑、一张放松）、45° 侧脸 2 张、90° 正侧脸 1 张、全身 1-2 张，再加 1-2 张两人都清晰的合照。</p>
+    <figure>
+      <div class="imgwrap"><span class="tag ok">✓ 合格范例</span><img src="guide_good.jpg" alt="合格范例：正脸、45度侧脸、90度侧脸，顺光、白墙、露耳、无美颜"></div>
+      <figcaption>面对窗户顺光拍 · 背景干净 · 头发别到耳后露出下颌线 · 无美颜无滤镜</figcaption>
+    </figure>
+    <figure>
+      <div class="imgwrap"><span class="tag no">✗ 这些不能用</span><img src="guide_bad.jpg" alt="错误示范：美颜磨皮、逆光脸黑、墨镜帽子遮脸、大合影脸太小"></div>
+      <figcaption>美颜磨皮过度 · 逆光脸黑 · 墨镜/帽子遮脸 · 合影里脸太小</figcaption>
+    </figure>
+    <ul>
+      <li><b>让别人帮你拍</b>，不要自拍（太近脸会变形）；手机镜头与眼睛平齐，距离一臂左右</li>
+      <li><b>白天靠窗的自然光最好</b>；不要背对窗户（逆光），不要夜景和昏暗餐厅</li>
+      <li>摘下墨镜、口罩、帽子；不化大浓妆，更不要用婚纱精修图</li>
+      <li>日常视频、求婚视频、旅行视频都欢迎，竖横屏不限，本页直接传原文件</li>
+    </ul>
+    <div class="redlines">
+      <b>三条红线（犯了就得重拍）</b>
+      <span>1. 不开美颜/磨皮/滤镜——磨皮后 AI 学到的就不是你的脸</span>
+      <span>2. 不用截图、不用朋友圈保存图、不用微信传图——一律本页传原图</span>
+      <span>3. 不用修过的婚纱照/写真——修过的等于别人</span>
+    </div>
+  </section>
+
+  <div class="card" id="upload-card">
+    <div class="field">
+      <label>微信号或订单号（用来归属素材）<em>*</em></label>
+      <input id="who" type="text" placeholder="预约时留的微信号，或 LN 开头的订单号">
+    </div>
+    <div class="dropzone" id="dropzone">
+      <b>点击选择文件</b>，或把照片/视频拖到这里（可多选）
+      <div class="types">支持图片（jpg/png/webp）与视频（mp4/mov），单文件 ≤500MB</div>
+      <input id="file-input" type="file" multiple accept="image/*,video/*" style="display:none">
+    </div>
+    <div class="file-list" id="file-list"></div>
+    <div class="form-err" id="form-err"></div>
+    <button class="btn" id="upload-btn" disabled>开始上传</button>
+    <p class="privacy">你的照片仅用于本次创作，交付后立即删除源文件，不进入任何训练集，不用于宣传。</p>
+  </div>
+
+  <div class="ok-page" id="ok-page">
+    <h2>上传完成</h2>
+    <p id="ok-text">素材已收到。</p>
+    <div class="actions">
+      <a class="btn ghost" href="/upload/">继续上传</a>
+      <a class="btn ghost" href="/">返回首页</a>
+    </div>
+  </div>
+</main>
+
+<footer>© 2026 徐大恩 · LuckyNemo｜所有 AI 生成内容按国家规定显式标识</footer>
+
+<script>
+(function(){
+  var dz = document.getElementById('dropzone');
+  var input = document.getElementById('file-input');
+  var list = document.getElementById('file-list');
+  var btn = document.getElementById('upload-btn');
+  var whoInput = document.getElementById('who');
+  var errBox = document.getElementById('form-err');
+  var MAX = 500 * 1024 * 1024;
+  var queue = [];  // {file, el, barEl, statusEl}
+
+  function fmtSize(n){
+    if (n >= 1048576) return (n/1048576).toFixed(1) + 'MB';
+    return Math.max(1, Math.round(n/1024)) + 'KB';
+  }
+  function addFiles(files){
+    errBox.style.display = 'none';
+    Array.prototype.forEach.call(files, function(f){
+      if (!/^(image|video)\//.test(f.type)) return;
+      if (f.size > MAX) {
+        errBox.textContent = f.name + ' 超过 500MB，请先压缩或联系我们。';
+        errBox.style.display = 'block';
+        return;
+      }
+      var item = document.createElement('div');
+      item.className = 'file-item';
+      item.innerHTML = '<div class="row"><span class="name"></span><span class="status"></span></div><div class="bar"><i></i></div>';
+      item.querySelector('.name').textContent = f.name + '（' + fmtSize(f.size) + '）';
+      item.querySelector('.status').textContent = '待上传';
+      list.appendChild(item);
+      queue.push({file: f, bar: item.querySelector('.bar i'), status: item.querySelector('.status'), item: item});
+    });
+    btn.disabled = queue.length === 0;
+  }
+  dz.addEventListener('click', function(){ input.click(); });
+  input.addEventListener('change', function(){ addFiles(input.files); input.value = ''; });
+  ['dragenter','dragover'].forEach(function(ev){
+    dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.add('drag'); });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.remove('drag'); });
+  });
+  dz.addEventListener('drop', function(e){ addFiles(e.dataTransfer.files); });
+
+  function signOne(entry, who){
+    var isOrder = /^LN\d{8}-/i.test(who);
+    return fetch('/api/uploads/sign', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        order_no: isOrder ? who : null,
+        contact: isOrder ? null : who,
+        filename: entry.file.name,
+        content_type: entry.file.type,
+        size: entry.file.size
+      })
+    }).then(function(r){
+      if (!r.ok) throw new Error('sign HTTP ' + r.status);
+      return r.json();
+    });
+  }
+  function postToOss(entry, signed){
+    return new Promise(function(resolve, reject){
+      var fd = new FormData();
+      fd.append('key', signed.fields.key);
+      fd.append('policy', signed.fields.policy);
+      fd.append('OSSAccessKeyId', signed.fields.OSSAccessKeyId);
+      fd.append('Signature', signed.fields.Signature);
+      fd.append('Content-Type', signed.fields['Content-Type']);
+      fd.append('file', entry.file);
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', signed.url);
+      xhr.upload.onprogress = function(e){
+        if (e.lengthComputable) entry.bar.style.width = Math.round(e.loaded / e.total * 100) + '%';
+      };
+      xhr.onload = function(){
+        if (xhr.status >= 200 && xhr.status < 300) resolve();
+        else reject(new Error('OSS HTTP ' + xhr.status));
+      };
+      xhr.onerror = function(){ reject(new Error('network error')); };
+      xhr.send(fd);
+    });
+  }
+  function uploadOne(entry, who){
+    entry.status.textContent = '签名中…';
+    return signOne(entry, who).then(function(signed){
+      entry.status.textContent = '上传中…';
+      return postToOss(entry, signed);
+    }).then(function(){
+      entry.bar.style.width = '100%';
+      entry.status.textContent = '完成';
+      entry.status.className = 'status ok';
+      return true;
+    }).catch(function(e){
+      console.error('upload failed', entry.file.name, e);
+      entry.status.textContent = '失败';
+      entry.status.className = 'status fail';
+      return false;
+    });
+  }
+  btn.addEventListener('click', function(){
+    var who = whoInput.value.trim();
+    whoInput.classList.toggle('err', !who);
+    if (!who) {
+      errBox.textContent = '先填微信号或订单号，素材才知道是谁的。';
+      errBox.style.display = 'block';
+      return;
+    }
+    btn.disabled = true; btn.textContent = '上传中…';
+    var jobs = queue.map(function(e){ return uploadOne(e, who); });
+    Promise.all(jobs).then(function(results){
+      var okCount = results.filter(Boolean).length;
+      var failCount = results.length - okCount;
+      queue = [];
+      document.getElementById('upload-card').style.display = 'none';
+      document.getElementById('ok-page').style.display = 'block';
+      document.getElementById('ok-text').textContent =
+        '成功上传 ' + okCount + ' 个文件' + (failCount ? '，' + failCount + ' 个失败可重试' : '') +
+        '。素材已加密存储，我们会尽快开始制作。';
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    });
+  });
+})();
+</script>
+</body>
+</html>

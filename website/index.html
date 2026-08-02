@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>徐大恩 LuckyNemo · AI 婚庆影像 | 把爱情，拍成电影</title>
+<meta name="description" content="上传几张照片，讲讲你们的故事。AI 创作加人工精修，为普通新人做出电影级的爱情短片与婚纱照。明码标价，不满意重做。">
+<style>
+  :root{
+    --bg: #fdf8f4;
+    --bg-blush: #f7ebe6;
+    --surface: #fffdfb;
+    --ink: #3b2c28;
+    --ink-soft: #7a635c;
+    --accent: #9d4f4a;
+    --accent-deep: #833f3b;
+    --hairline: rgba(59,44,40,.12);
+    --radius: 16px;
+    --serif: "Songti SC","STSong","Noto Serif CJK SC","SimSun",serif;
+    --sans: -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--sans);
+    background:var(--bg);
+    color:var(--ink);
+    line-height:1.75;
+    -webkit-font-smoothing:antialiased;
+    color-scheme:light;
+  }
+  img{display:block;max-width:100%}
+  a{color:inherit;text-decoration:none}
+  ::selection{background:var(--accent);color:#fff}
+
+  /* ---------- reveal on scroll ---------- */
+  .reveal{opacity:0;transform:translateY(26px);transition:opacity .9s cubic-bezier(.16,1,.3,1),transform .9s cubic-bezier(.16,1,.3,1)}
+  .reveal.in{opacity:1;transform:none}
+  .reveal[data-delay="1"]{transition-delay:.12s}
+  .reveal[data-delay="2"]{transition-delay:.24s}
+
+  /* ---------- nav ---------- */
+  nav{
+    position:fixed;inset:0 0 auto 0;z-index:50;height:64px;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 clamp(20px,4vw,48px);
+    background:rgba(253,248,244,.82);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--hairline);
+  }
+  .logo{display:flex;align-items:baseline;gap:10px}
+  .logo b{font-family:var(--serif);font-weight:600;font-size:22px;letter-spacing:.06em}
+  .logo span{font-size:10px;letter-spacing:.28em;color:var(--ink-soft);text-transform:uppercase}
+  .nav-links{display:flex;align-items:center;gap:clamp(16px,2.4vw,32px);font-size:14px}
+  .nav-links a{color:var(--ink-soft);transition:color .3s}
+  .nav-links a:hover{color:var(--ink)}
+  .nav-links a.btn{color:#fff}
+  .nav-links a.btn:hover{color:#fff}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;
+    padding:12px 28px;border-radius:999px;font-size:14px;font-weight:500;
+    background:var(--accent);color:#fff;letter-spacing:.04em;
+    transition:transform .25s cubic-bezier(.16,1,.3,1),background .3s,box-shadow .3s;
+    box-shadow:0 10px 24px -12px rgba(157,79,74,.55);
+    border:none;cursor:pointer;font-family:var(--sans);
+  }
+  .btn:hover{background:var(--accent-deep);transform:translateY(-1px)}
+  .btn:active{transform:translateY(1px) scale(.98)}
+  .btn.nav{padding:9px 22px;font-size:13px}
+  .btn.ghost{
+    background:rgba(255,253,251,.7);color:var(--ink);
+    border:1px solid var(--hairline);box-shadow:none;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  }
+  .btn.ghost:hover{background:#fff}
+
+  /* ---------- hero ---------- */
+  header{
+    position:relative;min-height:100dvh;display:flex;align-items:flex-end;
+    overflow:hidden;
+  }
+  .hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 38%}
+  .hero-scrim{
+    position:absolute;inset:0;
+    background:
+      linear-gradient(to top, rgba(253,248,244,.96) 0%, rgba(253,248,244,.55) 26%, rgba(253,248,244,0) 55%),
+      linear-gradient(100deg, rgba(253,248,244,.72) 0%, rgba(253,248,244,0) 60%);
+  }
+  .hero-inner{
+    position:relative;z-index:1;width:100%;
+    max-width:1200px;margin:0 auto;
+    padding:0 clamp(20px,5vw,56px) clamp(56px,9vh,96px);
+  }
+  .hero-inner h1{
+    font-family:var(--serif);font-weight:600;
+    font-size:clamp(40px,6.4vw,76px);
+    line-height:1.18;letter-spacing:.02em;
+    max-width:12em;
+  }
+  .hero-inner p{
+    margin-top:20px;max-width:34em;
+    font-size:clamp(15px,1.4vw,17px);color:var(--ink-soft);
+  }
+  .hero-cta{display:flex;flex-wrap:wrap;gap:14px;margin-top:32px}
+
+  /* ---------- shared section shell ---------- */
+  section{padding:clamp(72px,10vw,130px) clamp(20px,5vw,56px)}
+  .wrap{max-width:1200px;margin:0 auto}
+  .eyebrow{
+    font-size:11px;letter-spacing:.32em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:18px;font-weight:600;
+  }
+  h2{
+    font-family:var(--serif);font-weight:600;
+    font-size:clamp(28px,3.6vw,44px);line-height:1.3;letter-spacing:.02em;
+    max-width:16em;
+  }
+  .section-sub{margin-top:14px;color:var(--ink-soft);max-width:40em;font-size:15px}
+
+  /* ---------- value strip ---------- */
+  .values{border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);padding-top:34px;padding-bottom:34px}
+  .values .wrap{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+  .value{display:flex;align-items:baseline;gap:12px;font-size:15px}
+  .value svg{flex:none;position:relative;top:2px}
+  .value b{font-weight:600}
+
+  /* ---------- marquee gallery ---------- */
+  .gallery{padding-left:0;padding-right:0;overflow:hidden}
+  .gallery .head{padding:0 clamp(20px,5vw,56px)}
+  .marquee{margin-top:44px;display:flex;gap:18px;width:max-content;animation:scroll 60s linear infinite}
+  .marquee img{
+    width:clamp(180px,22vw,300px);aspect-ratio:3/4;object-fit:cover;
+    border-radius:var(--radius);
+    transition:transform .6s cubic-bezier(.16,1,.3,1);
+  }
+  .marquee img:hover{transform:scale(1.03)}
+  @keyframes scroll{to{transform:translateX(-50%)}}
+
+  /* ---------- services bento ---------- */
+  .bento{display:grid;grid-template-columns:1.35fr 1fr;grid-template-rows:auto auto;gap:20px;margin-top:52px}
+  .cell{
+    position:relative;border-radius:var(--radius);overflow:hidden;
+    background:var(--surface);border:1px solid var(--hairline);
+    display:flex;flex-direction:column;
+  }
+  .cell.big{grid-row:span 2}
+  .cell .ph{overflow:hidden;flex:1;min-height:180px}
+  .cell .ph img{width:100%;height:100%;object-fit:cover;transition:transform .8s cubic-bezier(.16,1,.3,1)}
+  .cell:hover .ph img{transform:scale(1.045)}
+  .cell.big .ph{min-height:340px}
+  .cell .txt{padding:26px 28px 28px}
+  .cell h3{font-family:var(--serif);font-size:22px;font-weight:600;letter-spacing:.02em}
+  .cell p{margin-top:8px;font-size:14px;color:var(--ink-soft)}
+  .cell .price{display:inline-block;margin-top:14px;font-size:13px;font-weight:600;color:var(--accent);letter-spacing:.05em}
+
+  /* ---------- process ---------- */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(24px,4vw,48px);margin-top:56px}
+  .step{border-top:1px solid var(--hairline);padding-top:26px}
+  .step .num{font-family:var(--serif);font-size:clamp(44px,5vw,64px);line-height:1;color:var(--accent);opacity:.85}
+  .step h3{margin-top:16px;font-size:17px;font-weight:600}
+  .step p{margin-top:8px;font-size:14px;color:var(--ink-soft)}
+
+  /* ---------- guarantee ---------- */
+  .guarantee{background:var(--bg-blush)}
+  .g-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:52px}
+  .g-card{
+    background:var(--surface);border:1px solid var(--hairline);
+    border-radius:var(--radius);padding:30px 32px;
+  }
+  .g-card h3{font-size:17px;font-weight:600;display:flex;align-items:center;gap:10px}
+  .g-card p{margin-top:10px;font-size:14px;color:var(--ink-soft)}
+
+  /* ---------- pricing ---------- */
+  .tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:56px;align-items:stretch}
+  .tier{
+    background:var(--surface);border:1px solid var(--hairline);
+    border-radius:var(--radius);padding:34px 32px;
+    display:flex;flex-direction:column;
+    transition:transform .4s cubic-bezier(.16,1,.3,1),box-shadow .4s;
+  }
+  .tier:hover{transform:translateY(-4px);box-shadow:0 24px 48px -28px rgba(59,44,40,.28)}
+  .tier.hot{border-color:var(--accent);position:relative}
+  .tier .tag{
+    position:absolute;top:-13px;left:50%;transform:translateX(-50%);
+    background:var(--accent);color:#fff;font-size:12px;font-weight:600;
+    padding:4px 16px;border-radius:999px;letter-spacing:.08em;white-space:nowrap;
+  }
+  .tier h3{font-family:var(--serif);font-size:20px;font-weight:600}
+  .tier .amount{margin-top:14px;font-family:var(--serif);font-size:40px;font-weight:600;line-height:1}
+  .tier .amount small{font-size:14px;font-family:var(--sans);font-weight:400;color:var(--ink-soft)}
+  .tier ul{list-style:none;margin:22px 0 28px;flex:1}
+  .tier li{font-size:14px;color:var(--ink-soft);padding:7px 0;display:flex;gap:10px}
+  .tier li::before{content:"✓";flex:none;color:var(--accent);font-weight:600}
+  .tier .btn{width:100%}
+
+  /* ---------- contact ---------- */
+  .contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(32px,5vw,72px);align-items:center}
+  .contact-photo{border-radius:var(--radius);overflow:hidden;aspect-ratio:4/5;max-height:560px}
+  .contact-photo img{width:100%;height:100%;object-fit:cover}
+  form{margin-top:36px;display:grid;gap:18px;max-width:420px}
+  .field{display:grid;gap:8px}
+  .field label{font-size:13px;font-weight:600}
+  .field input{
+    font-family:var(--sans);font-size:15px;color:var(--ink);
+    background:var(--surface);border:1px solid var(--hairline);
+    border-radius:12px;padding:13px 16px;outline:none;
+    transition:border-color .3s,box-shadow .3s;
+  }
+  .field input::placeholder{color:#b39c93}
+  .field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(157,79,74,.14)}
+  .form-note{font-size:13px;color:var(--ink-soft)}
+  .form-ok{
+    display:none;margin-top:36px;max-width:420px;padding:26px 28px;
+    background:var(--surface);border:1px solid var(--accent);border-radius:var(--radius);
+  }
+  .form-ok h3{font-family:var(--serif);font-size:19px;font-weight:600;color:var(--accent)}
+  .form-ok p{margin-top:8px;font-size:14px;color:var(--ink-soft)}
+
+  /* ---------- footer ---------- */
+  footer{
+    border-top:1px solid var(--hairline);
+    padding:44px clamp(20px,5vw,56px) 52px;
+    font-size:13px;color:var(--ink-soft);
+  }
+  footer .wrap{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:baseline}
+  footer .fbrand{font-family:var(--serif);font-size:16px;color:var(--ink);font-weight:600}
+  footer .fnote{margin-top:14px;font-size:12px;line-height:1.9;max-width:52em}
+
+  /* ---------- responsive ---------- */
+  @media (max-width:900px){
+    .bento{grid-template-columns:1fr}
+    .cell.big{grid-row:auto}
+    .cell.big .ph{min-height:240px}
+    .steps,.tiers,.values .wrap,.g-grid{grid-template-columns:1fr}
+    .contact-grid{grid-template-columns:1fr}
+    .contact-photo{order:2;aspect-ratio:16/10}
+    .nav-links a:not(.btn){display:none}
+  }
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    .reveal{opacity:1;transform:none;transition:none}
+    .marquee{animation:none;flex-wrap:wrap;width:auto;justify-content:center}
+    *{transition-duration:.01ms !important}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="#top"><b>徐大恩</b><span>LuckyNemo</span></a>
+  <div class="nav-links">
+    <a href="/demo2/">作品</a>
+    <a href="#services">服务</a>
+    <a href="#promise">保障</a>
+    <a href="#pricing">价格</a>
+    <a class="btn nav" href="#contact">预约咨询</a>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header id="top">
+  <img class="hero-img" src="assets/img/hero.jpg" alt="夕阳下相拥的新人" fetchpriority="high">
+  <div class="hero-scrim"></div>
+  <div class="hero-inner">
+    <h1 class="reveal in">把爱情，<br>拍成电影</h1>
+    <p class="reveal in" data-delay="1">上传几张照片，讲讲你们的故事。AI 创作加人工精修，百元预算，留下电影级的纪念。</p>
+    <div class="hero-cta reveal in" data-delay="2">
+      <a class="btn" href="#contact">预约咨询</a>
+      <a class="btn ghost" href="#works">看看作品</a>
+    </div>
+  </div>
+</header>
+
+<!-- ============ VALUE STRIP ============ -->
+<section class="values">
+  <div class="wrap">
+    <div class="value reveal">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9d4f4a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8-6.1-3.5-6.1 3.5 1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+      <span><b>明码标价</b>，价格写在这一页上，没有隐形消费</span>
+    </div>
+    <div class="value reveal" data-delay="1">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9d4f4a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+      <span><b>不满意就重做</b>，改到你觉得"这就是我"</span>
+    </div>
+    <div class="value reveal" data-delay="2">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9d4f4a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      <span><b>源照片交付即删</b>，不进入任何训练集</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ GALLERY ============ -->
+<section class="gallery" id="works">
+  <div class="wrap head">
+    <p class="eyebrow">Portfolio</p>
+    <h2 class="reveal">每一对新人，都有一种光</h2>
+    <p class="section-sub">两条完整叙事短片 + 三套婚纱套图已上线。<a href="/demo2/" style="color:var(--accent);font-weight:600">进入样片中心 →</a></p>
+  </div>
+  <div class="marquee" aria-hidden="true">
+    <img src="assets/img/gal-1.jpg" alt="" loading="lazy">
+    <img src="assets/img/gal-2.jpg" alt="" loading="lazy">
+    <img src="assets/img/gal-3.jpg" alt="" loading="lazy">
+    <img src="assets/img/gal-4.jpg" alt="" loading="lazy">
+    <img src="assets/img/gal-5.jpg" alt="" loading="lazy">
+    <img src="assets/img/gal-6.jpg" alt="" loading="lazy">
+    <img src="assets/img/gal-7.jpg" alt="" loading="lazy">
+    <img src="assets/img/gal-8.jpg" alt="" loading="lazy">
+    <!-- 循环复制一份，保证无缝滚动 -->
+    <img src="assets/img/gal-1.jpg" alt="" loading="lazy">
+    <img src="assets/img/gal-2.jpg" alt="" loading="lazy">
+    <img src="assets/img/gal-3.jpg" alt="" loading="lazy">
+    <img src="assets/img/gal-4.jpg" alt="" loading="lazy">
+    <img src="assets/img/gal-5.jpg" alt="" loading="lazy">
+    <img src="assets/img/gal-6.jpg" alt="" loading="lazy">
+    <img src="assets/img/gal-7.jpg" alt="" loading="lazy">
+    <img src="assets/img/gal-8.jpg" alt="" loading="lazy">
+  </div>
+</section>
+
+<!-- ============ SERVICES ============ -->
+<section id="services">
+  <div class="wrap">
+    <p class="eyebrow">Services</p>
+    <h2 class="reveal">三样东西，替你们留住这一天</h2>
+    <div class="bento">
+      <div class="cell big reveal">
+        <div class="ph"><img src="assets/img/svc-film.jpg" alt="深情对视的新人" loading="lazy"></div>
+        <div class="txt">
+          <h3>爱情叙事短片</h3>
+          <p>把你们从相识到相爱的故事，做成一支 2-3 分钟的短片。专属脚本、配音与配乐，婚礼开场放一次，往后每个纪念日再看一次。</p>
+          <span class="price">¥999 起</span>
+        </div>
+      </div>
+      <div class="cell reveal" data-delay="1">
+        <div class="ph"><img src="assets/img/svc-photo.jpg" alt="身着婚纱的新娘" loading="lazy"></div>
+        <div class="txt">
+          <h3>AI 婚纱照</h3>
+          <p>几张生活照，生成一组婚纱照。不用请假旅拍，最快 48 小时出片。</p>
+          <span class="price">¥29.9 起</span>
+        </div>
+      </div>
+      <div class="cell reveal" data-delay="2">
+        <div class="ph"><img src="assets/img/svc-license.jpg" alt="婚戒特写" loading="lazy"></div>
+        <div class="txt">
+          <h3>领证纪念</h3>
+          <p>登记那天的仪式感，一组纪念照加一段 15 秒小视频。</p>
+          <span class="price">¥99 起</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PROCESS ============ -->
+<section>
+  <div class="wrap">
+    <h2 class="reveal">不用出门，三步就好</h2>
+    <div class="steps">
+      <div class="step reveal">
+        <div class="num">壹</div>
+        <h3>聊聊你们</h3>
+        <p>加上微信，说说你们的故事、婚期和喜欢的风格。</p>
+      </div>
+      <div class="step reveal" data-delay="1">
+        <div class="num">贰</div>
+        <h3>发几张照片</h3>
+        <p>每人 4-6 张清晰的正脸生活照，线上发过来就行。</p>
+      </div>
+      <div class="step reveal" data-delay="2">
+        <div class="num">叁</div>
+        <h3>收一份作品</h3>
+        <p>初稿最快 48 小时交付，改到你满意为止。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ GUARANTEE ============ -->
+<section class="guarantee" id="promise">
+  <div class="wrap">
+    <h2 class="reveal">把担心的事，先说清楚</h2>
+    <div class="g-grid">
+      <div class="g-card reveal">
+        <h3>像，才交付</h3>
+        <p>相似度不达标就重做，直到你觉得"这就是我"。我们有专人逐张品控，不让翻车片出门。</p>
+      </div>
+      <div class="g-card reveal" data-delay="1">
+        <h3>明码标价</h3>
+        <p>所有价格写在这一页上。没有低价引流再加价，没有套餐外的隐形消费。</p>
+      </div>
+      <div class="g-card reveal">
+        <h3>隐私安全</h3>
+        <p>你的照片仅用于本次创作，交付后立即删除源文件，不进入任何训练集，不用于宣传。</p>
+      </div>
+      <div class="g-card reveal" data-delay="1">
+        <h3>规范标识</h3>
+        <p>所有 AI 生成内容按国家规定显式标识，平台发布、婚礼投屏都合规放心。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRICING ============ -->
+<section id="pricing">
+  <div class="wrap">
+    <p class="eyebrow">Pricing</p>
+    <h2 class="reveal">价格清清楚楚</h2>
+    <div class="tiers">
+      <div class="tier reveal">
+        <h3>尝鲜</h3>
+        <div class="amount">¥29.9</div>
+        <ul>
+          <li>1 张精修 AI 婚纱照</li>
+          <li>体验完整服务流程</li>
+          <li>24 小时出片</li>
+        </ul>
+        <a class="btn ghost" href="#contact">预约咨询</a>
+      </div>
+      <div class="tier hot reveal" data-delay="1">
+        <span class="tag">最多人选</span>
+        <h3>婚纱套图</h3>
+        <div class="amount">¥299</div>
+        <ul>
+          <li>10 张精修套图</li>
+          <li>3 种风格场景任选</li>
+          <li>附电子请柬裁切版</li>
+          <li>48 小时出片</li>
+        </ul>
+        <a class="btn" href="#contact">预约咨询</a>
+      </div>
+      <div class="tier reveal" data-delay="2">
+        <h3>爱情短片</h3>
+        <div class="amount">¥999 <small>起</small></div>
+        <ul>
+          <li>60-90 秒爱情叙事短片</li>
+          <li>专属脚本、配音与配乐</li>
+          <li>适配婚礼开场大屏</li>
+          <li>两次免费修改</li>
+        </ul>
+        <a class="btn ghost" href="#contact">预约咨询</a>
+      </div>
+      <div class="tier reveal" data-delay="3">
+        <h3>短片 Pro</h3>
+        <div class="amount">¥1999</div>
+        <ul>
+          <li>2-3 分钟深度共创短片</li>
+          <li>剧本共创：梗概确认后再制作</li>
+          <li>定妆照满意再付定金（30%）</li>
+          <li>24 小时加急交付</li>
+        </ul>
+        <a class="btn ghost" href="#contact">预约咨询</a>
+      </div>
+      <div class="tier reveal" data-delay="4">
+        <h3>旗舰双片</h3>
+        <div class="amount">¥3999</div>
+        <ul>
+          <li>爱情短片 + 感恩父母片</li>
+          <li>爱情、亲情两支全情绪影片</li>
+          <li>定妆照满意再付定金（30%）</li>
+          <li>婚礼开场双片连放</li>
+        </ul>
+        <a class="btn ghost" href="#contact">预约咨询</a>
+      </div>
+      <div class="tier reveal" data-delay="5">
+        <h3>领证快道</h3>
+        <div class="amount">¥99</div>
+        <ul>
+          <li>登记照升级纪念照（3 选 1）</li>
+          <li>或 15 秒领证纪念小视频</li>
+          <li>2 小时极速交付</li>
+          <li>当天发圈刚刚好</li>
+        </ul>
+        <a class="btn ghost" href="#contact">预约咨询</a>
+      </div>
+    </div>
+    <p class="section-sub reveal" data-delay="2" style="margin-top:22px;font-size:13px">
+      婚礼现场扫码下单立减 ¥200；转介绍双方各得 ¥100 抵扣。
+      旺季（5 月/10 月）价格上浮 20%，24 小时加急 +50%。所有 AI 生成内容按国家规定显式标识。
+    </p>
+  </div>
+</section>
+
+<!-- ============ CONTACT ============ -->
+<section id="contact" class="guarantee">
+  <div class="wrap contact-grid">
+    <div>
+      <h2 class="reveal">婚期定了的话，<br>现在就可以聊聊</h2>
+      <p class="section-sub reveal" data-delay="1">留下你的联系方式，我们会在 24 小时内加你微信。也可以直接添加客服微信：LuckyNemo2026</p>
+      <p class="section-sub reveal" data-delay="1" style="margin-top:10px">
+        已预约？<a href="/story/" style="color:var(--accent);text-decoration:underline;text-underline-offset:3px">点这里填爱情故事问卷 →</a><br>
+        <a href="/upload/" style="color:var(--accent);text-decoration:underline;text-underline-offset:3px">点这里上传照片素材 →</a>
+      </p>
+      <form id="lead-form" class="reveal" data-delay="2" novalidate>
+        <div class="field">
+          <label for="f-name">怎么称呼你</label>
+          <input id="f-name" name="name" type="text" placeholder="比如：小陈" required>
+        </div>
+        <div class="field">
+          <label for="f-wechat">微信号或手机号</label>
+          <input id="f-wechat" name="contact" type="text" placeholder="方便我们联系到你" required>
+        </div>
+        <div class="field">
+          <label for="f-date">婚期（选填）</label>
+          <input id="f-date" name="date" type="text" placeholder="比如：2026 年 10 月">
+        </div>
+        <button class="btn" type="submit">预约咨询</button>
+        <p class="form-note">提交即表示同意我们仅将联系方式用于本次服务沟通。</p>
+      </form>
+      <div class="form-ok" id="form-ok">
+        <h3>收到啦</h3>
+        <p>感谢信任。我们会尽快加你微信，聊聊你们的故事。</p>
+      </div>
+    </div>
+    <div class="contact-photo reveal" data-delay="1">
+      <img src="assets/img/contact.jpg" alt="牵手的新人" loading="lazy">
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <div class="fbrand">徐大恩 · LuckyNemo</div>
+      <div class="fnote">
+        AI 婚庆影像工作室。本站展示影像均为 AI 辅助创作或授权样片，所有交付内容按《人工智能生成合成内容标识办法》规范标识。<br>
+        © 2026 LuckyNemo. All rights reserved.<!-- TODO: 上线前补充 ICP 备案号 -->
+      </div>
+    </div>
+    <a href="#top">回到顶部 ↑</a>
+  </div>
+</footer>
+
+<script>
+  // 滚动渐显：IntersectionObserver，无 scroll 监听
+  (function(){
+    var els = document.querySelectorAll('.reveal:not(.in)');
+    if (!('IntersectionObserver' in window)) {
+      els.forEach(function(el){ el.classList.add('in'); });
+      return;
+    }
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.15 });
+    els.forEach(function(el){ io.observe(el); });
+  })();
+
+  // 表单：真实提交到 /api/leads；失败时保留前端成功提示并 console 报错（不让用户流失）
+  (function(){
+    var form = document.getElementById('lead-form');
+    var ok = document.getElementById('form-ok');
+    form.addEventListener('submit', function(ev){
+      ev.preventDefault();
+      var name = document.getElementById('f-name');
+      var contact = document.getElementById('f-wechat');
+      var date = document.getElementById('f-date');
+      var valid = true;
+      [name, contact].forEach(function(input){
+        input.style.borderColor = input.value.trim() ? '' : '#9d4f4a';
+        if (!input.value.trim()) valid = false;
+      });
+      if (!valid) return;
+      fetch('/api/leads', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          name: name.value.trim(),
+          contact: contact.value.trim(),
+          date: date.value.trim() || null
+        })
+      }).then(function(r){
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).then(function(data){
+        if (data && data.order_no) {
+          ok.querySelector('p').textContent =
+            '感谢信任。我们会尽快加你微信，聊聊你们的故事。你的预约编号：' + data.order_no + '（上传素材时可凭它关联）';
+        }
+      }).catch(function(e){
+        console.error('lead submit failed', e);
+      }).finally(function(){
+        form.style.display = 'none';
+        ok.style.display = 'block';
+      });
+    });
+  })();
+</script>
+</body>
+</html>

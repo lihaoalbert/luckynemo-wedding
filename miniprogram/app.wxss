@@ -1,0 +1,41 @@
+/** 徐大恩 LuckyNemo 小程序设计系统：温暖、热情、婚礼感 */
+page {
+  --bg: #fdf8f4;
+  --blush: #f7ebe6;
+  --surface: #fffdfb;
+  --ink: #3b2c28;
+  --ink-soft: #7a635c;
+  --accent: #9d4f4a;
+  --gold: #c9913f;
+  --hairline: rgba(59, 44, 40, 0.12);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", sans-serif;
+  line-height: 1.7;
+}
+.serif { font-family: "Songti SC", "STSong", serif; }
+.eyebrow {
+  font-size: 20rpx; letter-spacing: 8rpx; color: var(--accent); font-weight: 600;
+  text-transform: uppercase;
+}
+.h1 { font-size: 52rpx; font-weight: 600; line-height: 1.3; }
+.sub { font-size: 26rpx; color: var(--ink-soft); }
+.card {
+  background: var(--surface); border: 1rpx solid var(--hairline);
+  border-radius: 28rpx; padding: 32rpx;
+}
+.btn {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent); color: #fff; border-radius: 999rpx;
+  font-size: 28rpx; font-weight: 500; padding: 24rpx 48rpx;
+  box-shadow: 0 16rpx 40rpx -16rpx rgba(157, 79, 74, 0.55);
+}
+.btn.ghost { background: rgba(255, 253, 251, 0.7); color: var(--ink); border: 1rpx solid var(--hairline); box-shadow: none; }
+.btn.gold { background: var(--gold); }
+.btn[disabled] { opacity: 0.5; }
+.bubble {
+  max-width: 78%; padding: 22rpx 28rpx; border-radius: 28rpx;
+  font-size: 28rpx; line-height: 1.7;
+}
+.bubble.ai { background: var(--surface); border: 1rpx solid var(--hairline); border-top-left-radius: 8rpx; align-self: flex-start; }
+.bubble.me { background: var(--accent); color: #fff; border-top-right-radius: 8rpx; align-self: flex-end; }

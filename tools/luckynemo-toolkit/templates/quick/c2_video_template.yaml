@@ -1,0 +1,18 @@
+# C2 15 秒领证小视频模板
+# 结构：1-2 个 Seedance Mini 镜头（照片动态化）+ 日期字幕 + 固定片尾 AI 标识
+ratio: "9:16"            # 竖版，朋友圈/抖音
+max_shots: 2
+subtitle_fontsize: 48    # 日期字幕字号（烧录在画面底部）
+end_card_text: "本片由 AI 生成"
+end_card_duration: 2.5   # 秒，合规要求 ≥2
+shots:
+  - id: 1
+    duration: 8
+    video_prompt: >-
+      照片缓缓动起来：两人相视而笑，微风吹动发丝和衣角，
+      镜头极缓慢推进，画面温暖有呼吸感，保持人物五官不变。
+  - id: 2
+    duration: 7
+    video_prompt: >-
+      两人牵手走出民政局大门，阳光洒下来，回头向镜头挥手微笑，
+      镜头缓慢后退拉远，温暖纪实感，保持人物五官不变。

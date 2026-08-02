@@ -1,0 +1,52 @@
+<view class="page">
+  <view class="hero">
+    <view class="eyebrow">Step 2 · 照片</view>
+    <view class="h1 serif">脸越清楚，越像你</view>
+  </view>
+
+  <view class="card guide" bindtap="toggleGuide">
+    <view class="guide-title">📸 拍摄指引（点我{{guideShow ? '收起' : '展开'}}）</view>
+    <block wx:if="{{guideShow}}">
+      <view class="li">✓ 别人帮你拍，别自拍；手机与眼平齐，一臂距离</view>
+      <view class="li">✓ 白天靠窗顺光，背景干净，摘墨镜帽子</view>
+      <view class="li">✓ 需要：正脸 2 张 + 45° 侧脸 2 张 + 90° 侧脸 1 张</view>
+      <view class="li warn">✗ 不开美颜磨皮（磨皮后学的就不是你的脸）</view>
+      <view class="li warn">✗ 不用截图/朋友圈保存图，要原图</view>
+    </block>
+  </view>
+
+  <!-- 她的照片（A：定妆/写真的主角） -->
+  <view class="section" wx:if="{{myRole === 'A'}}">
+    <view class="sec-title serif">{{mode === 'couple' ? '她的照片（新娘）' : '你的照片'}}</view>
+    <view class="files">
+      <view class="file" wx:for="{{files}}" wx:key="index" wx:if="{{item.role === 'A'}}">
+        <image src="{{item.path}}" mode="aspectFill" class="thumb" />
+        <view class="finfo">
+          <view class="fstatus {{item.status === '完成' ? 'ok' : ''}}">{{item.status}}</view>
+          <view class="bar"><view class="bar-i" style="width: {{item.progress}}%"></view></view>
+        </view>
+      </view>
+    </view>
+    <button class="btn sub-btn" bindtap="chooseA">+ 上传{{mode === 'couple' ? '她的' : ''}}照片</button>
+  </view>
+
+  <!-- 他的照片（B：婚纱照；B 端设备只显示这个区） -->
+  <view class="section" wx:if="{{mode === 'couple'}}">
+    <view class="sec-title serif">{{myRole === 'B' ? '你的照片（新郎）' : '他的照片（新郎）'}}</view>
+    <view class="files">
+      <view class="file" wx:for="{{files}}" wx:key="index" wx:if="{{item.role === 'B'}}">
+        <image src="{{item.path}}" mode="aspectFill" class="thumb" />
+        <view class="finfo">
+          <view class="fstatus {{item.status === '完成' ? 'ok' : ''}}">{{item.status}}</view>
+          <view class="bar"><view class="bar-i" style="width: {{item.progress}}%"></view></view>
+        </view>
+      </view>
+    </view>
+    <button class="btn sub-btn" bindtap="chooseB">+ 上传{{myRole === 'B' ? '你的' : '他的'}}照片</button>
+  </view>
+
+  <view class="dock">
+    <button class="btn gold" bindtap="goMakeup" wx:if="{{hasDone}}">照片传好了，去定妆 →</button>
+    <view class="hint">照片直传加密存储，交付即删</view>
+  </view>
+</view>

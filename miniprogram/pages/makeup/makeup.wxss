@@ -1,0 +1,117 @@
+.page { min-height: 100vh; padding: 0 28rpx 200rpx; }
+.hero { padding: 40rpx 0 20rpx; }
+.sub { font-size: 24rpx; color: var(--ink-soft); margin-top: 8rpx; }
+.tabs { display: flex; gap: 16rpx; margin: 10rpx 0 28rpx; }
+.tab { padding: 14rpx 30rpx; border-radius: 999rpx; font-size: 26rpx; background: var(--surface); border: 1rpx solid var(--hairline); }
+.tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; }
+.set { position: relative; background: var(--surface); border: 3rpx solid var(--hairline); border-radius: 24rpx; overflow: hidden; }
+.set.selected { border-color: var(--accent); }
+.face-img { width: 100%; aspect-ratio: 3/4; background: var(--blush); }
+.body { padding: 16rpx 18rpx 18rpx; }
+.name { font-size: 28rpx; font-weight: 600; }
+.style { font-size: 22rpx; color: var(--accent); margin-left: 8rpx; }
+.pitch { font-size: 24rpx; color: var(--ink-soft); margin-top: 6rpx; }
+.detail-toggle { margin-top: 12rpx; font-size: 22rpx; color: var(--accent); }
+.engine-row {
+  display: flex; align-items: center; gap: 12rpx;
+  margin-top: 28rpx; padding: 16rpx 20rpx;
+  background: var(--surface); border: 1rpx solid var(--hairline); border-radius: 16rpx;
+}
+.engine-label { font-size: 22rpx; color: var(--ink-soft); flex: none; }
+.engine-item {
+  flex: 1; text-align: center; padding: 10rpx 0; border-radius: 12rpx;
+  font-size: 24rpx; color: var(--ink); border: 1rpx solid transparent;
+}
+.engine-item.active { background: #f9eeec; border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.engine-hint { display: block; font-size: 18rpx; color: var(--ink-soft); margin-top: 2rpx; }
+/* 发型选择 */
+.hair-sec { margin-top: 24rpx; }
+.hair-title { font-size: 26rpx; font-weight: 600; margin-bottom: 12rpx; }
+.hair-skip { font-size: 20rpx; color: var(--ink-soft); font-weight: 400; margin-left: 12rpx; }
+.hair-scroll { white-space: nowrap; }
+.hair-item {
+  display: inline-block; width: 130rpx; margin-right: 14rpx;
+  border: 3rpx solid var(--hairline); border-radius: 14rpx; overflow: hidden;
+  background: var(--surface); vertical-align: top;
+}
+.hair-item.active { border-color: var(--accent); }
+.hair-item image { width: 130rpx; height: 172rpx; display: block; background: var(--blush); }
+.hair-name { font-size: 20rpx; text-align: center; padding: 6rpx 4rpx; color: var(--ink); white-space: normal; }
+/* 唇色快选 */
+.lip-row { display: flex; gap: 14rpx; flex-wrap: wrap; }
+.lip-item {
+  padding: 12rpx 26rpx; border-radius: 999rpx; font-size: 24rpx;
+  background: var(--surface); border: 1rpx solid var(--hairline); color: var(--ink);
+}
+.lip-item.active { background: #f9eeec; border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.detail { margin-top: 12rpx; padding-top: 12rpx; border-top: 1rpx dashed var(--hairline); }
+.d-slogan { font-size: 24rpx; color: var(--ink); font-weight: 500; margin-bottom: 10rpx; }
+.d-row { display: flex; gap: 12rpx; margin-top: 8rpx; }
+.d-k { flex: none; width: 52rpx; font-size: 22rpx; color: var(--accent); font-weight: 600; }
+.d-v { flex: 1; font-size: 22rpx; color: var(--ink-soft); line-height: 1.6; }
+.d-fit { margin-top: 10rpx; font-size: 22rpx; color: var(--ink-soft); line-height: 1.6; }
+.check {
+  position: absolute; top: 14rpx; right: 14rpx; width: 44rpx; height: 44rpx;
+  border-radius: 50%; background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 28rpx;
+}
+.waiting { display: flex; flex-direction: column; align-items: center; padding-top: 100rpx; }
+/* 可爱的线条小人（化妆中） */
+.worker { position: relative; width: 160rpx; height: 220rpx; }
+.w-head {
+  position: absolute; left: 50%; top: 10rpx; margin-left: -36rpx;
+  width: 72rpx; height: 72rpx; border-radius: 50%;
+  border: 6rpx solid #c0736a; background: #fff;
+  animation: bob 1.6s ease-in-out infinite;
+}
+.w-body {
+  position: absolute; left: 50%; top: 90rpx; margin-left: -3rpx;
+  width: 6rpx; height: 80rpx; background: #c0736a; border-radius: 3rpx;
+}
+.w-leg {
+  position: absolute; left: 50%; top: 166rpx; margin-left: -22rpx;
+  width: 44rpx; height: 50rpx;
+  border-left: 6rpx solid #c0736a; border-right: 6rpx solid #c0736a;
+  border-radius: 0 0 12rpx 12rpx;
+}
+.w-arm {
+  position: absolute; left: 50%; top: 100rpx; margin-left: 2rpx;
+  width: 60rpx; height: 6rpx; background: #c0736a; border-radius: 3rpx;
+  transform-origin: left center;
+  animation: brushWork 1.2s ease-in-out infinite;
+}
+.w-brush {
+  position: absolute; right: -14rpx; top: -16rpx;
+  width: 20rpx; height: 34rpx; border-radius: 8rpx;
+  background: linear-gradient(#e8b4ac 40%, #c0736a 40%);
+}
+.w-spark {
+  position: absolute; width: 14rpx; height: 14rpx; border-radius: 50%;
+  background: #e8b4ac; opacity: 0;
+  animation: sparkle 1.6s ease-in-out infinite;
+}
+.w-spark.s1 { left: 6rpx; top: 40rpx; animation-delay: 0s; }
+.w-spark.s2 { right: 10rpx; top: 20rpx; animation-delay: .5s; }
+.w-spark.s3 { right: 0; top: 90rpx; animation-delay: 1s; }
+@keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(8rpx); } }
+@keyframes brushWork {
+  0%,100% { transform: rotate(-35deg); }
+  50% { transform: rotate(-75deg); }
+}
+@keyframes sparkle {
+  0%,100% { opacity: 0; transform: scale(.4); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+.tip { margin-top: 32rpx; font-size: 28rpx; color: var(--ink); }
+.tip-sub { margin-top: 10rpx; font-size: 24rpx; color: var(--ink-soft); }
+.result { display: flex; flex-direction: column; align-items: center; }
+.done-title { font-size: 36rpx; font-weight: 600; margin: 30rpx 0 20rpx; }
+.photo { width: 100%; border-radius: 24rpx; background: var(--blush); }
+.hint { font-size: 22rpx; color: var(--ink-soft); margin-top: 12rpx; }
+.dock {
+  position: fixed; left: 0; right: 0; bottom: 0; padding: 20rpx 28rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: rgba(253, 248, 244, 0.92); border-top: 1rpx solid var(--hairline);
+  display: flex; flex-direction: column; gap: 16rpx;
+}
+.btn.ghost { background: transparent; color: var(--accent); border: 1rpx solid var(--accent); }

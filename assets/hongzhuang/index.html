@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>红妆阁 · 标准妆造库</title>
+<style>
+  :root {
+    --bg: #faf7f4;
+    --ink: #2b2320;
+    --muted: #8a7f78;
+    --accent: #c0736a;
+    --card: #ffffff;
+    --line: #ece4de;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Songti SC", serif;
+    background: var(--bg); color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    text-align: center; padding: 48px 24px 32px;
+  }
+  header .brand {
+    font-size: 13px; letter-spacing: 0.35em; color: var(--accent);
+    text-transform: uppercase; margin-bottom: 12px;
+  }
+  header h1 { font-size: 32px; font-weight: 600; letter-spacing: 0.08em; }
+  header p { margin-top: 12px; font-size: 14px; color: var(--muted); line-height: 1.8; }
+  .anchor-strip {
+    display: flex; align-items: center; justify-content: center; gap: 16px;
+    margin: 8px auto 0; max-width: 560px; padding: 14px 20px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  }
+  .anchor-strip img { width: 56px; height: 75px; object-fit: cover; border-radius: 8px; }
+  .anchor-strip .txt { font-size: 13px; color: var(--muted); line-height: 1.7; text-align: left; }
+  .anchor-strip .txt b { color: var(--ink); }
+  nav {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+    padding: 12px 16px; background: rgba(250,247,244,0.92);
+    backdrop-filter: blur(8px); border-bottom: 1px solid var(--line);
+  }
+  nav a {
+    font-size: 13px; color: var(--muted); text-decoration: none;
+    padding: 6px 16px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--card);
+  }
+  nav a:active { background: var(--accent); color: #fff; }
+  .gender-tabs { display: flex; justify-content: center; gap: 12px; margin-top: 20px; }
+  .gtab {
+    font-size: 15px; padding: 10px 32px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--card); color: var(--muted);
+    cursor: pointer; font-family: inherit;
+  }
+  .gtab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  main { max-width: 1080px; margin: 0 auto; padding: 24px 20px 80px; }
+  section.series { margin-top: 40px; }
+  section.series h2 {
+    font-size: 20px; font-weight: 600; letter-spacing: 0.12em;
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  section.series h2 span { font-size: 13px; color: var(--muted); font-weight: 400; letter-spacing: 0; }
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px; margin-top: 18px;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    overflow: hidden; transition: transform .2s ease, box-shadow .2s ease;
+    cursor: pointer;
+  }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(43,35,32,0.08); }
+  .card img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; background: #f0ebe6; }
+  .card .body { padding: 14px 16px 16px; }
+  .card .code { font-size: 11px; color: var(--accent); letter-spacing: 0.15em; }
+  .card h3 { font-size: 17px; margin: 4px 0 6px; }
+  .card .vibe { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .card .tags { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .card .tags i {
+    font-style: normal; font-size: 11px; color: var(--accent);
+    background: #f9eeec; border-radius: 999px; padding: 3px 10px;
+  }
+  .card .more { margin-top: 10px; font-size: 12px; color: var(--accent); }
+
+  /* 妆容说明书弹窗 */
+  .modal-mask {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(43,35,32,0.45); backdrop-filter: blur(4px);
+    display: none; align-items: flex-end; justify-content: center;
+  }
+  .modal-mask.open { display: flex; }
+  .modal {
+    background: var(--bg); width: 100%; max-width: 720px; max-height: 92vh;
+    border-radius: 20px 20px 0 0; overflow-y: auto;
+    padding: 0 0 40px; animation: rise .25s ease;
+  }
+  @media (min-width: 640px) {
+    .modal-mask { align-items: center; }
+    .modal { border-radius: 20px; max-height: 88vh; }
+  }
+  @keyframes rise { from { transform: translateY(30px); opacity: 0; } }
+  .modal .close {
+    position: sticky; top: 12px; margin-left: calc(100% - 52px);
+    width: 40px; height: 40px; border-radius: 50%; border: none;
+    background: rgba(255,255,255,0.9); font-size: 18px; color: var(--ink);
+    cursor: pointer; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  }
+  .modal .hero { text-align: center; padding: 0 24px; margin-top: -20px; }
+  .modal .hero img {
+    width: 200px; border-radius: 14px; box-shadow: 0 8px 24px rgba(43,35,32,0.15);
+  }
+  .modal .hero .code { margin-top: 14px; font-size: 11px; color: var(--accent); letter-spacing: 0.2em; }
+  .modal .hero h2 { font-size: 24px; margin: 6px 0 4px; }
+  .modal .hero .slogan { font-size: 14px; color: var(--muted); }
+  .modal .hero .kw { margin-top: 12px; display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
+  .modal .hero .kw i {
+    font-style: normal; font-size: 12px; color: var(--accent);
+    background: #f9eeec; border-radius: 999px; padding: 4px 14px;
+  }
+  .modal section { padding: 0 24px; margin-top: 28px; }
+  .modal section h4 {
+    font-size: 15px; letter-spacing: 0.15em; color: var(--ink);
+    border-left: 3px solid var(--accent); padding-left: 10px; margin-bottom: 14px;
+  }
+  .part { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px dashed var(--line); }
+  .part:last-child { border-bottom: none; }
+  .part .label {
+    flex: none; width: 44px; font-size: 13px; font-weight: 600; color: var(--accent);
+  }
+  .part .desc { font-size: 13px; color: #5a4f48; line-height: 1.8; }
+  .swatches { display: flex; flex-direction: column; gap: 10px; }
+  .sw-row { display: flex; align-items: center; gap: 10px; }
+  .sw-row .sw-label { flex: none; width: 44px; font-size: 12px; color: var(--muted); }
+  .sw {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: #5a4f48;
+  }
+  .sw b {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.08); display: inline-block;
+  }
+  .steps { counter-reset: step; }
+  .steps li {
+    list-style: none; font-size: 13px; color: #5a4f48; line-height: 1.8;
+    padding: 6px 0 6px 34px; position: relative;
+  }
+  .steps li::before {
+    counter-increment: step; content: counter(step);
+    position: absolute; left: 0; top: 8px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent); color: #fff; font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .fit-note {
+    font-size: 13px; color: #5a4f48; line-height: 1.8;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px 16px;
+  }
+  .fit-note b { color: var(--accent); }
+
+  /* 全屏原图灯箱 */
+  .lightbox {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(20,16,14,0.92);
+    display: none; align-items: center; justify-content: center;
+    cursor: zoom-out; padding: 24px;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox img {
+    max-width: 100%; max-height: 100%;
+    border-radius: 8px; box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+    animation: rise .2s ease;
+  }
+  .lightbox .tip {
+    position: absolute; bottom: 18px; left: 0; right: 0;
+    text-align: center; color: rgba(255,255,255,0.6); font-size: 12px;
+    pointer-events: none;
+  }
+  .card img, .modal .hero img { cursor: zoom-in; }
+  footer {
+    text-align: center; font-size: 12px; color: var(--muted);
+    padding: 32px 20px 48px; line-height: 2;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">LuckyNemo · Makeup Library</div>
+  <h1>红 妆 阁</h1>
+  <p>同一标准模特，12 款妆造。你看到的唯一差别，就是妆容本身。<br>选一款你心动的，我们再把它化到你自己的脸上。</p>
+  <div class="anchor-strip">
+    <img src="model_anchor.png" alt="标准模特小霓素颜">
+    <img src="model_male_anchor.png" alt="标准模特小朗素颜">
+    <div class="txt"><b>标准模特「小霓」「小朗」</b> · 全部妆造图使用同一虚拟面孔生成，<br>保证公平对比；选定后将 1:1 迁移到你本人脸上（只改妆，不改脸）。</div>
+  </div>
+</header>
+
+<nav>
+  <a href="#fresh" data-g="female">清新系</a>
+  <a href="#elegant" data-g="female">气质系</a>
+  <a href="#bridal" data-g="female">新娘系</a>
+  <a href="#bold" data-g="female">个性系</a>
+  <a href="#male" data-g="male">男士系</a>
+</nav>
+
+<div class="gender-tabs">
+  <button class="gtab active" data-gender="female">女士妆造</button>
+  <button class="gtab" data-gender="male">男士妆造</button>
+</div>
+
+<main>
+  <section class="series" id="fresh" data-g="female">
+    <h2>清新系 <span>减龄主打 · 海马体同款审美</span></h2>
+    <div class="grid" data-series="清新系"></div>
+  </section>
+  <section class="series" id="elegant" data-g="female">
+    <h2>气质系 <span>低饱和 · 高级感</span></h2>
+    <div class="grid" data-series="气质系"></div>
+  </section>
+  <section class="series" id="bridal" data-g="female">
+    <h2>新娘系 <span>婚礼当天的稳妥之选</span></h2>
+    <div class="grid" data-series="新娘系"></div>
+  </section>
+  <section class="series" id="bold" data-g="female">
+    <h2>个性系 <span>浓妆爱好者的两席</span></h2>
+    <div class="grid" data-series="个性系"></div>
+  </section>
+  <section class="series" id="male" data-g="male" style="display:none">
+    <h2>男士系 <span>克制为上 · 清爽精神</span></h2>
+    <div class="grid" data-series="男士系"></div>
+  </section>
+</main>
+
+<footer>
+  红妆阁 v1.3 · LuckyNemo 内部资产库<br>
+  妆造迁移承诺：只改妆，不改脸 —— 你的五官和脸型，一丝不动。
+</footer>
+
+<div class="modal-mask" id="mask" onclick="if(event.target===this)closeSpec()">
+  <div class="modal" id="modal"></div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" alt="原图">
+  <div class="tip">点击任意处关闭</div>
+</div>
+
+<script>
+let STYLES = [];
+
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  if (!document.getElementById('mask').classList.contains('open')) {
+    document.body.style.overflow = '';
+  }
+}
+
+function openSpec(s) {
+  const parts = Object.entries(s.spec.parts).map(([k, v]) =>
+    '<div class="part"><div class="label">' + k + '</div><div class="desc">' + v + '</div></div>'
+  ).join('');
+  const colors = Object.entries(s.spec.colors).map(([k, arr]) =>
+    '<div class="sw-row"><div class="sw-label">' + k + '</div>' +
+    arr.map(c => '<span class="sw"><b style="background:' + c.hex + '"></b>' + c.name + '</span>').join('') +
+    '</div>'
+  ).join('');
+  const steps = s.spec.steps.map(t => '<li>' + t + '</li>').join('');
+  document.getElementById('modal').innerHTML =
+    '<button class="close" onclick="closeSpec()">✕</button>' +
+    '<div class="hero">' +
+      '<img src="' + s.file + '" alt="' + s.name + '" onclick="openLightbox(\'' + s.file + '\');event.stopPropagation()">' +
+      '<div class="code">' + s.id.toUpperCase() + ' · ' + s.series + '</div>' +
+      '<h2>' + s.name + '</h2>' +
+      '<div class="slogan">' + s.spec.slogan + '</div>' +
+      '<div class="kw">' + s.spec.keywords.map(k => '<i>' + k + '</i>').join('') + '</div>' +
+    '</div>' +
+    '<section><h4>妆容重点解析</h4>' + parts + '</section>' +
+    '<section><h4>色彩推荐</h4><div class="swatches">' + colors + '</div></section>' +
+    '<section><h4>妆容步骤建议</h4><ol class="steps">' + steps + '</ol></section>' +
+    '<section><h4>适合人群</h4><div class="fit-note">' + s.spec.face_fit +
+      '<br><b>迁移承诺：</b>选定后我们将此妆容 1:1 化到你本人脸上，只改妆，不改五官和脸型。</div></section>';
+  document.getElementById('mask').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeSpec() {
+  document.getElementById('mask').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeLightbox(); closeSpec(); }
+});
+
+fetch('index.json').then(r => r.json()).then(data => {
+  STYLES = data.styles;
+  const grids = {};
+  document.querySelectorAll('.grid').forEach(g => grids[g.dataset.series] = g);
+  data.styles.forEach(s => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const img = document.createElement('img');
+    img.loading = 'lazy';
+    img.src = s.file;
+    img.alt = s.name;
+    img.onclick = (e) => { e.stopPropagation(); openLightbox(s.file); };
+    const body = document.createElement('div');
+    body.className = 'body';
+    body.innerHTML =
+        '<div class="code">' + s.id.toUpperCase() + ' · ' + s.series + '</div>' +
+        '<h3>' + s.name + '</h3>' +
+        '<div class="vibe">' + s.vibe + '</div>' +
+        '<div class="tags">' + s.suitable.map(t => '<i>' + t + '</i>').join('') + '</div>' +
+        '<div class="more">查看妆容说明书 →</div>';
+    card.appendChild(img);
+    card.appendChild(body);
+    card.onclick = () => openSpec(s);
+    (grids[s.series] || grids['清新系']).appendChild(card);
+  });
+
+  // 女士/男士 Tab：切换显示对应系列区块和导航
+  function applyGender(g) {
+    document.querySelectorAll('.gtab').forEach(b =>
+      b.classList.toggle('active', b.dataset.gender === g));
+    document.querySelectorAll('section.series').forEach(sec => {
+      sec.style.display = sec.dataset.g === g ? '' : 'none';
+    });
+    document.querySelectorAll('nav a').forEach(a => {
+      a.style.display = a.dataset.g === g ? '' : 'none';
+    });
+  }
+  document.querySelectorAll('.gtab').forEach(b =>
+    b.addEventListener('click', () => applyGender(b.dataset.gender)));
+  applyGender('female');
+});
+</script>
+
+</body>
+</html>

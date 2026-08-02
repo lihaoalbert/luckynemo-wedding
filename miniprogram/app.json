@@ -1,0 +1,49 @@
+{
+  "pages": [
+    "pages/chat/chat",
+    "pages/upload/upload",
+    "pages/makeup/makeup",
+    "pages/wardrobe/wardrobe",
+    "pages/pose/pose",
+    "pages/generating/generating",
+    "pages/result/result",
+    "pages/webview/webview",
+    "pages/me/me",
+    "pages/feedback/feedback",
+    "pages/moka/moka"
+  ],
+  "tabBar": {
+    "color": "#8a7f78",
+    "selectedColor": "#c0736a",
+    "backgroundColor": "#fdf8f4",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/chat/chat",
+        "text": "创作",
+        "iconPath": "assets/tabbar/create.png",
+        "selectedIconPath": "assets/tabbar/create_active.png"
+      },
+      {
+        "pagePath": "pages/me/me",
+        "text": "我的",
+        "iconPath": "assets/tabbar/me.png",
+        "selectedIconPath": "assets/tabbar/me_active.png"
+      }
+    ]
+  },
+  "window": {
+    "navigationBarBackgroundColor": "#fdf8f4",
+    "navigationBarTitleText": "徐大恩 LuckyNemo",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#fdf8f4"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "plugins": {
+    "WechatSI": {
+      "version": "0.3.5",
+      "provider": "wx069ba97219f66d99"
+    }
+  }
+}

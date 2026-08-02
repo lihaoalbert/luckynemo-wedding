@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>照相馆 · 徐大恩 LuckyNemo</title>
+<meta name="description" content="选几个有故事的场景：每个场景都像在讲你们的故事。选定后我们为你们拍摄婚纱照。">
+<style>
+  :root{
+    --bg: #fdf8f4; --bg-blush: #f7ebe6; --surface: #fffdfb;
+    --ink: #3b2c28; --ink-soft: #7a635c;
+    --accent: #9d4f4a; --accent-deep: #833f3b;
+    --hairline: rgba(59,44,40,.12); --radius: 16px;
+    --serif: "Songti SC","STSong","Noto Serif CJK SC","SimSun",serif;
+    --sans: -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:96px}
+  a{color:inherit;text-decoration:none}
+  nav{position:fixed;inset:0 0 auto 0;z-index:50;height:64px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 clamp(20px,4vw,48px);background:rgba(253,248,244,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--hairline)}
+  .logo{display:flex;align-items:baseline;gap:10px}
+  .logo b{font-family:var(--serif);font-weight:600;font-size:22px;letter-spacing:.06em}
+  .logo span{font-size:10px;letter-spacing:.28em;color:var(--ink-soft);text-transform:uppercase}
+  .btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 28px;border-radius:999px;font-size:14px;
+    font-weight:500;background:var(--accent);color:#fff;letter-spacing:.04em;border:none;cursor:pointer;font-family:var(--sans);
+    transition:transform .25s,background .3s;box-shadow:0 10px 24px -12px rgba(157,79,74,.55)}
+  .btn:hover{background:var(--accent-deep);transform:translateY(-1px)}
+  .btn.ghost{background:rgba(255,253,251,.7);color:var(--ink);border:1px solid var(--hairline);box-shadow:none}
+  .btn[disabled]{opacity:.55;cursor:not-allowed;transform:none}
+  main{max-width:1080px;margin:0 auto;padding:104px clamp(16px,4vw,32px) 48px}
+  .eyebrow{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;font-weight:600}
+  h1{font-family:var(--serif);font-weight:600;font-size:clamp(28px,4.2vw,40px);line-height:1.3}
+  .sub{margin-top:12px;color:var(--ink-soft);font-size:15px;max-width:44em}
+  .group-name{font-family:var(--serif);font-size:20px;font-weight:600;margin:36px 0 16px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+  .scene{position:relative;background:var(--surface);border:2px solid var(--hairline);border-radius:var(--radius);
+    overflow:hidden;cursor:pointer;transition:border-color .25s,box-shadow .25s}
+  .scene:hover{box-shadow:0 12px 32px -16px rgba(59,44,40,.25)}
+  .scene.selected{border-color:var(--accent)}
+  .scene img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--bg-blush)}
+  .scene .body{padding:12px 16px 14px}
+  .scene h3{font-family:var(--serif);font-size:16px;font-weight:600;display:inline}
+  .scene .pitch{margin-top:4px;font-size:13px;color:var(--ink-soft)}
+  .scene .check{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;
+    background:var(--accent);color:#fff;display:none;align-items:center;justify-content:center;font-size:16px}
+  .scene.selected .check{display:flex}
+  .bar{position:fixed;left:0;right:0;bottom:0;z-index:50;background:rgba(255,253,251,.92);
+    backdrop-filter:blur(12px);border-top:1px solid var(--hairline);
+    padding:14px clamp(16px,4vw,32px);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .bar .info{flex:1;font-size:14px;min-width:200px}
+  .bar .info b{font-weight:600}
+  .bar input{font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--bg);
+    border:1px solid var(--hairline);border-radius:12px;padding:11px 14px;outline:none;width:220px}
+  .bar input:focus{border-color:var(--accent)}
+  .ok{display:none;text-align:center;padding:64px 0}
+  .ok h2{font-family:var(--serif);font-size:clamp(24px,4vw,32px);color:var(--accent);font-weight:600}
+  .ok p{margin-top:16px;color:var(--ink-soft);max-width:32em;margin-left:auto;margin-right:auto}
+  .err{display:none;font-size:14px;color:var(--accent-deep);background:#fdf1ef;border:1px solid var(--accent);
+    border-radius:12px;padding:12px 16px;margin-top:16px}
+  footer{border-top:1px solid var(--hairline);padding:28px;text-align:center;font-size:13px;color:var(--ink-soft);margin-top:64px}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="/"><b>徐大恩</b><span>LuckyNemo</span></a>
+  <a class="btn ghost" href="/" style="padding:9px 22px;font-size:13px">返回首页</a>
+</nav>
+
+<main id="page">
+  <p class="eyebrow">Photo Studio · 微剧情场景</p>
+  <h1>照相馆</h1>
+  <p class="sub">婚纱照不只是合影，是每个场景都像在讲你们的故事。挑 3-5 个打动你们的场景（可多选），我们穿着你们选定的那套衣服，去这些故事里拍照。还没选衣服？<a href="/wardrobe/" style="color:var(--accent);font-weight:600">先去试衣间 →</a></p>
+  <div id="groups"></div>
+  <div class="ok" id="ok">
+    <h2>已收到你们的选择</h2>
+    <p>场景已锁定，拍摄（生成）完成后我们会把婚纱照发给你品控。</p>
+  </div>
+  <div class="err" id="err"></div>
+</main>
+
+<div class="bar" id="bar">
+  <div class="info" id="bar-info">还没有选择，点几个有感觉的场景</div>
+  <input id="who" type="text" placeholder="微信号或订单号（用来归属选择）">
+  <button class="btn" id="submit" disabled>确认选择</button>
+</div>
+
+<footer>© 2026 徐大恩 · LuckyNemo｜所有场景为 AI 原创生成</footer>
+
+<script src="data.js"></script>
+<script>
+(function(){
+  var selected = {};
+  var groupsEl = document.getElementById('groups');
+  var barInfo = document.getElementById('bar-info');
+  var submitBtn = document.getElementById('submit');
+  var whoInput = document.getElementById('who');
+
+  function render(){
+    groupsEl.innerHTML = '';
+    SCENE_GROUPS.forEach(function(g){
+      var h = document.createElement('h2');
+      h.className = 'group-name';
+      h.textContent = g.name;
+      groupsEl.appendChild(h);
+      var grid = document.createElement('div');
+      grid.className = 'grid';
+      g.ids.forEach(function(id){
+        var sc = SCENES.find(function(x){ return x.id === id; });
+        var el = document.createElement('div');
+        el.className = 'scene' + (selected[id] ? ' selected' : '');
+        el.innerHTML =
+          '<span class="check">✓</span>' +
+          '<img loading="lazy" src="' + sc.img + '" alt="' + sc.name + '">' +
+          '<div class="body"><h3>' + sc.name + '</h3><div class="pitch">「' + sc.pitch + '」</div></div>';
+        el.onclick = function(){
+          if (selected[id]) delete selected[id]; else selected[id] = true;
+          render(); syncBar();
+        };
+        grid.appendChild(el);
+      });
+      groupsEl.appendChild(grid);
+    });
+  }
+
+  function syncBar(){
+    var ids = Object.keys(selected);
+    if (!ids.length){
+      barInfo.textContent = '还没有选择，点几个有感觉的场景';
+      submitBtn.disabled = true;
+    } else {
+      barInfo.innerHTML = '已选 <b>' + ids.length + '</b> 个场景';
+      submitBtn.disabled = false;
+    }
+  }
+
+  submitBtn.onclick = function(){
+    var ids = Object.keys(selected);
+    var who = whoInput.value.trim();
+    var err = document.getElementById('err');
+    err.style.display = 'none';
+    if (!ids.length) return;
+    if (!who){
+      err.textContent = '先填微信号或订单号，选择才知道是谁的。';
+      err.style.display = 'block';
+      return;
+    }
+    submitBtn.disabled = true;
+    submitBtn.textContent = '提交中…';
+    fetch('/api/wardrobe/selection', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ contact: who, selection: { mode: 'scenes', scenes: ids } })
+    }).then(function(r){
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      document.getElementById('groups').style.display = 'none';
+      document.getElementById('bar').style.display = 'none';
+      document.getElementById('ok').style.display = 'block';
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    }).catch(function(e){
+      err.textContent = '提交失败，请稍后再试（' + e.message + '）。';
+      err.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = '确认选择';
+    });
+  };
+
+  render(); syncBar();
+})();
+</script>
+</body>
+</html>

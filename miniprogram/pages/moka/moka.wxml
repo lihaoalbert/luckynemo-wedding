@@ -1,0 +1,57 @@
+<view class="page">
+  <view class="hero">
+    <view class="eyebrow">模卡库 · 一键同款</view>
+    <view class="h1 serif">看中哪张，就拍哪张</view>
+    <view class="sub">每张都含搭配好的场景、服装、妆容、姿势——你只负责美</view>
+  </view>
+
+  <view class="tabs">
+    <view class="tab {{tab === t.key ? 'active' : ''}}" wx:for="{{tabs}}" wx:for-item="t" wx:key="key" data-key="{{t.key}}" bindtap="switchTab">{{t.label}}</view>
+  </view>
+
+  <view class="grid">
+    <view class="card" wx:for="{{templates}}" wx:key="id" wx:if="{{item.mode === tab}}" data-id="{{item.id}}" bindtap="pick">
+      <image src="{{item.img}}" mode="aspectFill" lazy-load data-url="{{item.img}}" catchtap="previewImg" />
+      <view class="body">
+        <view class="name serif">{{item.title}}</view>
+        <view class="desc">{{item.desc}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 确认弹层：大图 + 一键同款 + 微调 -->
+  <view class="mask" wx:if="{{picked}}" bindtap="closePick">
+    <view class="sheet" catchtap="noop">
+      <image class="sheet-img" src="{{picked.img}}" mode="aspectFill" data-url="{{picked.img}}" bindtap="previewImg" />
+      <view class="sheet-body">
+        <view class="name serif">{{picked.title}}</view>
+        <view class="comp" wx:for="{{picked.componentsList}}" wx:for-item="c" wx:key="k">
+          <text class="comp-k">{{c.k}}</text><text class="comp-v">{{c.v}}</text>
+        </view>
+
+        <view class="swap-sec" wx:if="{{anchors.length > 1}}">
+          <view class="swap-title">微调 · 换妆容</view>
+          <scroll-view scroll-x class="mini-scroll">
+            <view class="mini-item {{swapAnchorKey === a.key ? 'active' : ''}}" wx:for="{{anchors}}" wx:for-item="a" wx:key="key" data-key="{{a.key}}" bindtap="swapAnchor">
+              <image src="{{a.url}}" mode="aspectFill" />
+              <view class="mini-name">{{a.name}}</view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <view class="swap-sec">
+          <view class="swap-title">微调 · 换服装</view>
+          <scroll-view scroll-x class="mini-scroll">
+            <view class="mini-item {{swapSetId === s.id ? 'active' : ''}}" wx:for="{{sets}}" wx:for-item="s" wx:key="id" data-id="{{s.id}}" bindtap="swapSet">
+              <image src="{{s.dressImg}}" mode="aspectFill" />
+              <view class="mini-name">{{s.name}}</view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <button class="btn confirm" bindtap="confirm">一键同款 →</button>
+        <view class="hint">保持模板的构图/场景/服装/神态不变，只把人换成你</view>
+      </view>
+    </view>
+  </view>
+</view>

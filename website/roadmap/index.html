@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>战略路线图 · 徐大恩 LuckyNemo（本地版）</title>
+<style>
+  :root{
+    --bg: #14110f; --surface: #1e1a17; --surface2: #26211d;
+    --ink: #f0e9e2; --ink-soft: #a89c90;
+    --gold: #dfa547; --gold-dim: rgba(223,165,71,.16);
+    --accent: #c96a5e; --green: #5aa872; --amber: #c98a2d;
+    --hairline: rgba(240,233,226,.1);
+    --serif: "Songti SC","STSong","Noto Serif CJK SC","SimSun",serif;
+    --sans: -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.75;-webkit-font-smoothing:antialiased}
+  main{max-width:1000px;margin:0 auto;padding:56px clamp(16px,4vw,32px) 80px}
+  .eyebrow{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;font-weight:600}
+  h1{font-family:var(--serif);font-weight:600;font-size:clamp(30px,4.4vw,44px);line-height:1.25}
+  .goal{margin-top:12px;font-size:clamp(15px,1.8vw,18px);color:var(--gold);font-weight:600}
+  .stamp{margin-top:6px;font-size:12px;color:var(--ink-soft)}
+
+  .thesis{margin-top:32px;padding:24px 26px;background:linear-gradient(135deg,var(--gold-dim),transparent 60%);
+    border:1px solid rgba(223,165,71,.35);border-radius:18px}
+  .thesis h2{font-family:var(--serif);font-size:21px;color:var(--gold);margin-bottom:10px}
+  .thesis h2::before{content:"👑 "}
+  .thesis p{font-size:15px;line-height:1.9}
+  .thesis .sub2{margin-top:10px;font-size:14px;color:var(--ink-soft)}
+
+  .crux{margin-top:28px}
+  .crux h2, .cog h2{font-family:var(--serif);font-size:20px;margin-bottom:14px}
+  .crux-grid{display:grid;gap:10px}
+  .crux-item{display:flex;gap:14px;padding:14px 18px;background:var(--surface);border:1px solid var(--hairline);border-radius:14px;align-items:baseline}
+  .level{flex:none;font-size:12px;font-weight:700;padding:2px 10px;border-radius:999px}
+  .level.致命{background:rgba(201,106,94,.2);color:var(--accent)}
+  .level.重{background:rgba(201,138,45,.18);color:var(--amber)}
+  .level.中{background:var(--surface2);color:var(--ink-soft)}
+  .crux-item b{font-size:15px}
+  .crux-item .d{font-size:13px;color:var(--ink-soft);margin-top:2px}
+
+  .cog{margin-top:28px;padding:20px 24px;background:var(--surface);border:1px solid var(--hairline);border-radius:16px}
+  .cog ol{margin-left:20px;display:grid;gap:8px;font-size:14px}
+  .cog li::marker{color:var(--gold);font-weight:700}
+
+  .route{margin-top:36px}
+  .route-head{display:flex;align-items:center;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--hairline)}
+  .route-head h2{font-family:var(--serif);font-size:20px}
+  .route.main .route-head h2{color:var(--gold)}
+  .route.main .route-head h2::before{content:"★ ";font-size:18px}
+  .route .count{font-size:12px;color:var(--ink-soft)}
+  .items{margin-top:14px;display:grid;gap:8px}
+  .item{display:flex;align-items:center;gap:12px;padding:11px 16px;border-radius:12px;cursor:pointer;
+    border:1px solid var(--hairline);background:var(--surface);transition:all .2s;user-select:none}
+  .item:hover{border-color:rgba(240,233,226,.3)}
+  .item.critical{border-color:rgba(223,165,71,.4);background:linear-gradient(90deg,var(--gold-dim),transparent 50%)}
+  .dot{flex:none;width:14px;height:14px;border-radius:50%;border:2px solid var(--ink-soft);transition:all .3s;opacity:.5}
+  .item.done .dot{background:var(--green);border-color:var(--green);opacity:1;box-shadow:0 0 10px rgba(90,168,114,.5)}
+  .item.doing .dot{background:var(--amber);border-color:var(--amber);opacity:1;animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(201,138,45,.5)}50%{box-shadow:0 0 0 7px rgba(201,138,45,0)}}
+  .item.done .txt{color:var(--ink-soft)}
+  .txt{font-size:14px;flex:1}
+  .iid{font-size:11px;color:var(--ink-soft);font-weight:600;letter-spacing:.06em;margin-right:10px;text-transform:uppercase}
+  .badge{flex:none;font-size:11px;font-weight:700;color:var(--gold);letter-spacing:.05em}
+  .badge::before{content:"★ 关键"}
+
+  table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--hairline);vertical-align:top}
+  th{font-size:12px;letter-spacing:.08em;color:var(--ink-soft);font-weight:600}
+  .st{flex:none;display:inline-block;padding:2px 12px;border-radius:999px;font-size:12px;font-weight:600}
+  .st.done{background:rgba(90,168,114,.18);color:var(--green)}
+  .st.doing{background:rgba(201,138,45,.18);color:var(--amber)}
+  .st.todo{background:var(--surface2);color:var(--ink-soft)}
+
+  .note{margin-top:36px;padding:16px 22px;background:var(--surface);border:1px solid var(--hairline);
+    border-radius:14px;font-size:13px;color:var(--ink-soft)}
+  .note b{color:var(--ink)}
+  .legend{display:flex;gap:18px;margin-top:18px;font-size:12px;color:var(--ink-soft);flex-wrap:wrap}
+  .legend .dot{display:inline-block;vertical-align:-2px;margin-right:6px;opacity:1}
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Strategy · Local</p>
+  <h1>战略路线图</h1>
+  <p class="goal" id="goal"></p>
+  <p class="stamp">官方状态最后更新：<span id="stamp"></span> ｜ 本页为本地私有版，"路线图"特指此文件</p>
+
+  <div class="thesis">
+    <h2>胜负手</h2>
+    <p id="thesis"></p>
+    <p class="sub2">三条路线都服务这个判断：主线造飞轮，技术线除摩擦，市场线验证假设。</p>
+  </div>
+
+  <div class="crux">
+    <h2>已知核心困难（按致命程度）</h2>
+    <div class="crux-grid" id="crux"></div>
+  </div>
+
+  <div class="cog">
+    <h2>认知突破（给自己的五条）</h2>
+    <ol id="cog"></ol>
+  </div>
+
+  <div id="routes"></div>
+
+  <div class="route">
+    <div class="route-head"><h2>假设验证板</h2><span class="count">首批 50 单是主考场</span></div>
+    <table>
+      <thead><tr><th>假设</th><th>验证方法</th><th>达标线</th><th>状态</th></tr></thead>
+      <tbody id="hyp"></tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <span><span class="dot" style="background:var(--green);border-color:var(--green)"></span>已完成</span>
+    <span><span class="dot" style="background:var(--amber);border-color:var(--amber)"></span>进行中</span>
+    <span><span class="dot"></span>未开始</span>
+    <span><span class="badge"></span>胜负手/卡点</span>
+  </div>
+
+  <div class="note">
+    <b>认知一致机制</b>：官方状态存于 <code>website/roadmap/state.js</code>（唯一事实源），Kimi 维护。
+    点击条目可切换本地状态（只存在自己浏览器）；要改成官方状态，把进展告诉 Kimi 即可——我会更新 state.json 并同步记忆。以后说「路线图」，就是指这个文件。
+  </div>
+</main>
+
+<script src="state.js"></script>
+<script>
+(async function(){
+  const state = ROADMAP_STATE;
+  const LS_KEY = 'roadmap-local-v2';
+  const local = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+
+  document.getElementById('goal').textContent = state.vision.goal;
+  document.getElementById('thesis').textContent = state.vision.thesis;
+  document.getElementById('stamp').textContent = state.updated_at;
+
+  const crux = document.getElementById('crux');
+  state.crux.forEach(function(c){
+    const el = document.createElement('div');
+    el.className = 'crux-item';
+    el.innerHTML = '<span class="level ' + c.level + '">' + c.level + '</span>' +
+                   '<div><b>' + c.title + '</b><div class="d">' + c.detail + '</div></div>';
+    crux.appendChild(el);
+  });
+
+  const cog = document.getElementById('cog');
+  state.cognitive.forEach(function(c){
+    const li = document.createElement('li');
+    li.textContent = c;
+    cog.appendChild(li);
+  });
+
+  const routesEl = document.getElementById('routes');
+  const order = ['main','tech','market','side'];
+  order.forEach(function(key){
+    const r = state.routes[key];
+    const sec = document.createElement('div');
+    sec.className = 'route' + (key === 'main' ? ' main' : '');
+    const doneCount = r.items.filter(i => (local[i.id] || i.status) === 'done').length;
+    sec.innerHTML = '<div class="route-head"><h2>' + r.name + '</h2>' +
+                    '<span class="count">' + doneCount + ' / ' + r.items.length + ' 完成</span></div>';
+    const items = document.createElement('div');
+    items.className = 'items';
+    r.items.forEach(function(it){
+      const eff = local[it.id] || it.status;
+      const el = document.createElement('div');
+      el.className = 'item ' + eff + (it.critical ? ' critical' : '');
+      el.dataset.id = it.id;
+      el.innerHTML = '<span class="dot"></span><span class="txt"><span class="iid">' + it.id + '</span>' + it.title + '</span>' +
+                     (it.critical ? '<span class="badge"></span>' : '');
+      el.onclick = function(){
+        const cur = local[it.id] || it.status;
+        local[it.id] = cur === 'done' ? 'todo' : 'done';
+        localStorage.setItem(LS_KEY, JSON.stringify(local));
+        el.className = 'item ' + local[it.id] + (it.critical ? ' critical' : '');
+      };
+      items.appendChild(el);
+    });
+    sec.appendChild(items);
+    routesEl.appendChild(sec);
+  });
+
+  const stMap = { done: ['done','已验证'], doing: ['doing','验证中'], todo: ['todo','未验证'] };
+  const hyp = document.getElementById('hyp');
+  state.hypotheses.forEach(function(h){
+    const s = stMap[local[h.id] || h.status];
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + h.text + '</td><td>' + h.method + '</td><td>' + h.target + '</td>' +
+                   '<td><span class="st ' + s[0] + '">' + s[1] + '</span></td>';
+    hyp.appendChild(tr);
+  });
+})();
+</script>
+</body>
+</html>

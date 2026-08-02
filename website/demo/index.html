@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LuckyNemo Studio · AI 影像作品集</title>
+<meta name="description" content="LuckyNemo Studio AI 视频作品集:3D 卡通、AI 真人剧、商业广告、竖屏短剧、古装正剧、粘土动画,全流程 AI 制作。">
+<meta property="og:title" content="LuckyNemo Studio · AI 影像作品集">
+<meta property="og:description" content="从卡通 IP 到真人短剧,全流程 AI 视频制作。">
+<meta property="og:image" content="assets/05-mansion-night.jpg">
+<style>
+  :root {
+    --bg: #0c0c0e;
+    --bg-raised: #141416;
+    --line: rgba(255, 255, 255, 0.09);
+    --text: #f2f1ee;
+    --text-dim: #9b9a96;
+    --text-faint: #6a6966;
+    --accent: #dfa547;
+    --accent-ink: #14100a;
+    --maxw: 1320px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "PingFang SC", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--accent); color: var(--accent-ink); }
+  a { color: inherit; text-decoration: none; }
+  img, video { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+  /* ---------- nav ---------- */
+  .nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 40;
+    height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 clamp(20px, 4vw, 48px);
+    background: linear-gradient(rgba(12, 12, 14, 0.85), rgba(12, 12, 14, 0));
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+  .nav .brand {
+    font-weight: 700; font-size: 15px; letter-spacing: 0.14em;
+  }
+  .nav .brand span { color: var(--accent); }
+  .nav .links { display: flex; align-items: center; gap: clamp(16px, 3vw, 36px); font-size: 14px; }
+  .nav .links a:not(.btn) { color: var(--text-dim); transition: color 0.25s; white-space: nowrap; }
+  .nav .links a:not(.btn):hover { color: var(--text); }
+  @media (max-width: 560px) {
+    .nav .links a:not(.btn) { display: none; }
+  }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 10px 22px;
+    font-size: 14px; font-weight: 600; letter-spacing: 0.04em;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { background: #eec06a; }
+  .btn-ghost { border-color: rgba(255, 255, 255, 0.28); color: var(--text); background: rgba(12, 12, 14, 0.35); }
+  .btn-ghost:hover { border-color: var(--text); }
+  .nav .btn { padding: 8px 18px; }
+
+  /* ---------- hero ---------- */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex; align-items: flex-end;
+    overflow: hidden;
+  }
+  .hero .media { position: absolute; inset: 0; }
+  .hero .scrim {
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(to top, rgba(12, 12, 14, 0.92) 0%, rgba(12, 12, 14, 0.35) 45%, rgba(12, 12, 14, 0.25) 100%),
+      linear-gradient(100deg, rgba(12, 12, 14, 0.75) 0%, rgba(12, 12, 14, 0.1) 60%);
+  }
+  .hero .inner {
+    position: relative;
+    width: 100%; max-width: var(--maxw);
+    margin: 0 auto;
+    padding: 0 clamp(20px, 4vw, 48px) clamp(56px, 9vh, 96px);
+  }
+  .hero .eyebrow {
+    font-size: 12px; letter-spacing: 0.28em; color: var(--accent);
+    text-transform: uppercase; font-weight: 600;
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-size: clamp(34px, 5.6vw, 68px);
+    line-height: 1.12; letter-spacing: -0.01em; font-weight: 700;
+    max-width: 14em;
+  }
+  .hero .sub {
+    margin-top: 18px;
+    font-size: clamp(15px, 1.4vw, 18px);
+    color: var(--text-dim);
+    max-width: 34em;
+  }
+  .hero .cta { margin-top: 32px; display: flex; gap: 14px; flex-wrap: wrap; }
+  .hero .btn { padding: 13px 28px; font-size: 15px; }
+
+  /* ---------- sections ---------- */
+  section { padding: clamp(72px, 11vh, 128px) clamp(20px, 4vw, 48px); }
+  .wrap { max-width: var(--maxw); margin: 0 auto; }
+  .section-head { margin-bottom: clamp(36px, 6vh, 64px); }
+  .section-head h2 {
+    font-size: clamp(26px, 3.4vw, 42px);
+    letter-spacing: -0.01em; line-height: 1.2; font-weight: 700;
+  }
+  .section-head p { margin-top: 12px; color: var(--text-dim); max-width: 40em; font-size: 15px; }
+
+  /* ---------- works: masonry ---------- */
+  .works { background: var(--bg); }
+  .masonry { columns: 1; column-gap: 20px; }
+  @media (min-width: 700px) { .masonry { columns: 2; } }
+  @media (min-width: 1100px) { .masonry { columns: 3; } }
+  .work { break-inside: avoid; margin-bottom: 20px; }
+  .work .frame {
+    position: relative; overflow: hidden; background: var(--bg-raised);
+    cursor: pointer;
+  }
+  .work .frame video { transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+  .work .frame:hover video { transform: scale(1.03); }
+  .work .frame::after {
+    content: "";
+    position: absolute; inset: 0;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    pointer-events: none;
+  }
+  .work .play {
+    position: absolute; top: 50%; left: 50%;
+    width: 56px; height: 56px;
+    transform: translate(-50%, -50%) scale(0.85);
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(12, 12, 14, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+  }
+  .work .play svg { width: 18px; height: 18px; fill: var(--text); margin-left: 2px; }
+  .work .frame:hover .play, .work .frame:focus-visible .play { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .work .meta { padding: 14px 2px 6px; }
+  .work .meta h3 { font-size: 16px; font-weight: 600; letter-spacing: 0.01em; }
+  .work .meta p { margin-top: 3px; font-size: 13px; color: var(--text-faint); }
+
+  /* ---------- marquee ---------- */
+  .strip {
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 22px 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .strip .track {
+    display: inline-flex; align-items: center;
+    animation: marquee 36s linear infinite;
+  }
+  .strip .item {
+    font-size: 15px; letter-spacing: 0.12em; color: var(--text-dim);
+    padding: 0 18px;
+  }
+  .strip .dot {
+    width: 5px; height: 5px; background: var(--accent);
+    transform: rotate(45deg); flex: none;
+  }
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  /* ---------- process ---------- */
+  .process .steps {
+    display: grid; grid-template-columns: 1fr; gap: 40px;
+  }
+  @media (min-width: 800px) {
+    .process .steps { grid-template-columns: repeat(3, 1fr); gap: 0; }
+    .process .step { padding: 0 36px; border-left: 1px solid var(--line); }
+    .process .step:first-child { padding-left: 0; border-left: none; }
+  }
+  .process .step h3 {
+    font-size: clamp(22px, 2.2vw, 28px); font-weight: 700; letter-spacing: -0.01em;
+  }
+  .process .step h3 em { font-style: normal; color: var(--accent); }
+  .process .step p { margin-top: 12px; color: var(--text-dim); font-size: 15px; }
+
+  /* ---------- contact ---------- */
+  .contact { border-top: 1px solid var(--line); }
+  .contact .inner { max-width: 820px; }
+  .contact h2 {
+    font-size: clamp(30px, 4.4vw, 56px);
+    line-height: 1.15; letter-spacing: -0.01em; font-weight: 700;
+  }
+  .contact .sub { margin-top: 16px; color: var(--text-dim); font-size: 16px; }
+  .contact .cta { margin-top: 32px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+  .contact .btn { padding: 14px 30px; font-size: 15px; }
+  .contact .channels { margin-top: 28px; font-size: 14px; color: var(--text-faint); }
+  .contact .channels a { color: var(--text-dim); border-bottom: 1px solid var(--line); transition: color 0.25s, border-color 0.25s; }
+  .contact .channels a:hover { color: var(--text); border-color: var(--text-dim); }
+
+  footer {
+    padding: 28px clamp(20px, 4vw, 48px);
+    border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    font-size: 13px; color: var(--text-faint);
+  }
+
+  /* ---------- modal player ---------- */
+  .player {
+    position: fixed; inset: 0; z-index: 60;
+    display: none;
+    align-items: center; justify-content: center;
+    background: rgba(8, 8, 9, 0.92);
+    padding: clamp(12px, 3vw, 40px);
+  }
+  .player.open { display: flex; }
+  .player .box {
+    position: relative;
+    max-width: min(1100px, 100%);
+    max-height: 100%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .player video {
+    max-width: 100%; max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+    width: auto; height: auto;
+    background: #000;
+    outline: 1px solid var(--line);
+  }
+  .player .caption {
+    position: absolute; left: 0; bottom: -34px;
+    font-size: 13px; color: var(--text-dim);
+  }
+  .player .close {
+    position: absolute; top: -44px; right: 0;
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: 1px solid rgba(255, 255, 255, 0.25);
+    color: var(--text); cursor: pointer;
+    transition: border-color 0.25s;
+  }
+  .player .close:hover { border-color: var(--text); }
+  .player .close svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; }
+  body.locked { overflow: hidden; }
+
+  /* ---------- reveal ---------- */
+  .reveal { opacity: 0; transform: translateY(26px); transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+  .reveal.in { opacity: 1; transform: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .strip .track { animation: none; }
+    .reveal { opacity: 1; transform: none; transition: none; }
+    .work .frame video { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a class="brand" href="#top">LUCKYNEMO<span>&nbsp;STUDIO</span></a>
+  <div class="links">
+    <a href="#works">作品</a>
+    <a href="#process">流程</a>
+    <a class="btn btn-primary" href="#contact">聊聊合作</a>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="media">
+    <video id="heroVideo" src="assets/hero-loop.mp4" poster="assets/05-mansion-night.jpg" autoplay muted loop playsinline></video>
+  </div>
+  <div class="scrim"></div>
+  <div class="inner">
+    <p class="eyebrow">AI Video Production</p>
+    <h1>用 AI 拍好每一条片子</h1>
+    <p class="sub">从卡通 IP 到真人短剧,从商业广告到古装正剧,全流程 AI 视频制作。</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#works">看看作品</a>
+      <a class="btn btn-ghost" href="#contact">聊聊合作</a>
+    </div>
+  </div>
+</header>
+
+<section class="works" id="works">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <h2>精选作品</h2>
+      <p>八条片子,八种风格。悬停预览,点击播放完整版。</p>
+    </div>
+    <div class="masonry" id="masonry"></div>
+  </div>
+</section>
+
+<div class="strip" aria-hidden="true">
+  <div class="track" id="stripTrack"></div>
+</div>
+
+<section class="process" id="process">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <h2>怎么合作</h2>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <h3><em>聊需求</em></h3>
+        <p>说清楚产品、受众和投放渠道,当天给出创意方向和参考风格。</p>
+      </div>
+      <div class="step reveal">
+        <h3><em>出样片</em></h3>
+        <p>先出一段样片确认感觉,方向对了再往下做,不返工。</p>
+      </div>
+      <div class="step reveal">
+        <h3><em>交成片</em></h3>
+        <p>横屏竖屏多尺寸一次交付,直接可以投放到各平台。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="contact" id="contact">
+  <div class="wrap">
+    <div class="inner reveal">
+      <h2>有片子想拍?</h2>
+      <p class="sub">发一条消息,聊聊你的想法,剩下的交给我们。</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="mailto:info@intfocus.com">聊聊合作</a>
+      </div>
+      <p class="channels">
+        邮箱 <a href="mailto:info@intfocus.com">info@intfocus.com</a>
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>© 2026 LuckyNemo Studio</span>
+  <span>全站影像由 AI 制作</span>
+</footer>
+
+<div class="player" id="player" role="dialog" aria-modal="true" aria-label="播放作品">
+  <div class="box">
+    <button class="close" id="playerClose" aria-label="关闭">
+      <svg viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13"/></svg>
+    </button>
+    <video id="playerVideo" controls playsinline></video>
+    <p class="caption" id="playerCaption"></p>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var WORKS = [
+    { src: "02-huaxing",       title: "《化形》",        meta: "AI 真人玄幻剧 · 横屏 6:20" },
+    { src: "01-coffee-voyage", title: "《咖啡豆环游记》", meta: "3D 卡通 IP 短片 · 竖屏 1:06" },
+    { src: "03-golf-shoes",    title: "《一双舒服的鞋》", meta: "商业广告 · 横屏 0:34" },
+    { src: "07-jade-disc",     title: "《完璧归赵》",     meta: "历史剧短片 · 竖屏 0:53" },
+    { src: "06-one-cart-bricks", title: "《一车砖》",     meta: "写实情感短片 · 4:3 画幅 1:19" },
+    { src: "05-mansion-night", title: "《深宅夜宴》",     meta: "古装剧情短片 · 横屏 0:56" },
+    { src: "04-boss-shoes",    title: "《大佬带货》",     meta: "剧情带货短片 · 竖屏 1:29" },
+    { src: "08-elevator-home", title: "《回家的电梯》",   meta: "粘土动画短剧 · 横屏 1:56" }
+  ];
+
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var canHover = window.matchMedia("(hover: hover)").matches;
+
+  /* works grid */
+  var masonry = document.getElementById("masonry");
+  WORKS.forEach(function (w, i) {
+    var item = document.createElement("article");
+    item.className = "work reveal";
+    item.style.transitionDelay = (i % 3) * 70 + "ms";
+    item.innerHTML =
+      '<div class="frame" tabindex="0" role="button" aria-label="播放 ' + w.title + '">' +
+        '<video muted loop playsinline preload="none" poster="assets/' + w.src + '.jpg" data-src="assets/' + w.src + '.mp4"></video>' +
+        '<span class="play"><svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z"/></svg></span>' +
+      '</div>' +
+      '<div class="meta"><h3>' + w.title + '</h3><p>' + w.meta + '</p></div>';
+    masonry.appendChild(item);
+  });
+
+  /* marquee: items duplicated once for a seamless loop */
+  var TAGS = ["3D 卡通", "AI 真人", "商业广告", "竖屏短剧", "古装正剧", "写实情感", "历史剧", "粘土定格"];
+  var stripTrack = document.getElementById("stripTrack");
+  var half = "";
+  TAGS.forEach(function (t) {
+    half += '<span class="item">' + t + '</span><span class="dot"></span>';
+  });
+  stripTrack.innerHTML = half + half;
+
+  /* scroll reveal */
+  var revealEls = document.querySelectorAll(".reveal");
+  if ("IntersectionObserver" in window && !reduced) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.15 });
+    revealEls.forEach(function (el) { io.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add("in"); });
+  }
+
+  /* hero video: honor reduced motion */
+  var heroVideo = document.getElementById("heroVideo");
+  if (reduced && heroVideo) { heroVideo.removeAttribute("autoplay"); heroVideo.pause(); }
+
+  /* hover preview */
+  function ensureSrc(video) {
+    if (!video.getAttribute("src")) video.setAttribute("src", video.dataset.src);
+  }
+  if (canHover && !reduced) {
+    document.querySelectorAll(".work .frame").forEach(function (frame) {
+      var video = frame.querySelector("video");
+      frame.addEventListener("mouseenter", function () {
+        ensureSrc(video);
+        video.play().catch(function () {});
+      });
+      frame.addEventListener("mouseleave", function () {
+        video.pause();
+        video.currentTime = 0;
+      });
+    });
+  }
+
+  /* modal player */
+  var player = document.getElementById("player");
+  var playerVideo = document.getElementById("playerVideo");
+  var playerCaption = document.getElementById("playerCaption");
+  var playerClose = document.getElementById("playerClose");
+
+  function openPlayer(work) {
+    playerVideo.src = "assets/" + work.src + ".mp4";
+    playerCaption.textContent = work.title + " " + work.meta;
+    player.classList.add("open");
+    document.body.classList.add("locked");
+    if (heroVideo) heroVideo.pause();
+    playerVideo.play().catch(function () {});
+    playerClose.focus();
+  }
+  function closePlayer() {
+    playerVideo.pause();
+    playerVideo.removeAttribute("src");
+    playerVideo.load();
+    player.classList.remove("open");
+    document.body.classList.remove("locked");
+    if (heroVideo && !reduced) heroVideo.play().catch(function () {});
+  }
+
+  document.querySelectorAll(".work").forEach(function (item, i) {
+    var frame = item.querySelector(".frame");
+    frame.addEventListener("click", function () { openPlayer(WORKS[i]); });
+    frame.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPlayer(WORKS[i]); }
+    });
+  });
+  playerClose.addEventListener("click", closePlayer);
+  player.addEventListener("click", function (e) { if (e.target === player) closePlayer(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && player.classList.contains("open")) closePlayer();
+  });
+})();
+</script>
+</body>
+</html>

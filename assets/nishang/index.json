@@ -1,0 +1,1415 @@
+{
+  "_note": "霓裳阁单件索引 v2（78 件：女装 20 + 男装 20 + 配饰 20 + 鞋履 18）。ref3view 为生产参考图。",
+  "items": [
+    {
+      "id": "nz-001",
+      "name": "晨曦缎光·A字缎面主纱",
+      "category": "婚纱",
+      "file": "婚纱/nz-001.png",
+      "tags": [
+        "西式经典"
+      ],
+      "color": "",
+      "scene": [
+        "室内主纱",
+        "仪式堂"
+      ],
+      "set": "set-01",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "婚纱/nz-001_3view.png"
+    },
+    {
+      "id": "lf-001",
+      "name": "晨曦缎光·黑色塔士多",
+      "category": "礼服",
+      "file": "礼服/lf-001.png",
+      "tags": [
+        "西式经典"
+      ],
+      "color": "",
+      "scene": [
+        "室内主纱",
+        "仪式堂"
+      ],
+      "set": "set-01",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-001_3view.png"
+    },
+    {
+      "id": "nz-002",
+      "name": "云端蕾丝·蕾丝鱼尾主纱",
+      "category": "婚纱",
+      "file": "婚纱/nz-002.png",
+      "tags": [
+        "西式浪漫"
+      ],
+      "color": "",
+      "scene": [
+        "教堂",
+        "仪式堂"
+      ],
+      "set": "set-02",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "婚纱/nz-002_3view.png"
+    },
+    {
+      "id": "lf-002",
+      "name": "云端蕾丝·深灰三件套",
+      "category": "礼服",
+      "file": "礼服/lf-002.png",
+      "tags": [
+        "西式浪漫"
+      ],
+      "color": "",
+      "scene": [
+        "教堂",
+        "仪式堂"
+      ],
+      "set": "set-02",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-002_3view.png"
+    },
+    {
+      "id": "nz-003",
+      "name": "森系轻纱·波西米亚轻纱",
+      "category": "婚纱",
+      "file": "婚纱/nz-003.png",
+      "tags": [
+        "户外自然"
+      ],
+      "color": "",
+      "scene": [
+        "草坪",
+        "森林"
+      ],
+      "set": "set-03",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "婚纱/nz-003_3view.png"
+    },
+    {
+      "id": "lf-003",
+      "name": "森系轻纱·亚麻浅色西装",
+      "category": "礼服",
+      "file": "礼服/lf-003.png",
+      "tags": [
+        "户外自然"
+      ],
+      "color": "",
+      "scene": [
+        "草坪",
+        "森林"
+      ],
+      "set": "set-03",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-003_3view.png"
+    },
+    {
+      "id": "nz-004",
+      "name": "海之誓言·露背长拖尾白纱",
+      "category": "婚纱",
+      "file": "婚纱/nz-004.png",
+      "tags": [
+        "旅拍"
+      ],
+      "color": "",
+      "scene": [
+        "海边",
+        "落日"
+      ],
+      "set": "set-04",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "婚纱/nz-004_3view.png"
+    },
+    {
+      "id": "lf-004",
+      "name": "海之誓言·白衬衫挽袖+深色西裤",
+      "category": "礼服",
+      "file": "礼服/lf-004.png",
+      "tags": [
+        "旅拍"
+      ],
+      "color": "",
+      "scene": [
+        "海边",
+        "落日"
+      ],
+      "set": "set-04",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-004_3view.png"
+    },
+    {
+      "id": "nz-005",
+      "name": "复古名伶·复古方领缎面裙",
+      "category": "婚纱",
+      "file": "婚纱/nz-005.png",
+      "tags": [
+        "复古胶片"
+      ],
+      "color": "",
+      "scene": [
+        "老街",
+        "胶片感内景"
+      ],
+      "set": "set-05",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "婚纱/nz-005_3view.png"
+    },
+    {
+      "id": "lf-005",
+      "name": "复古名伶·天鹅绒礼服",
+      "category": "礼服",
+      "file": "礼服/lf-005.png",
+      "tags": [
+        "复古胶片"
+      ],
+      "color": "",
+      "scene": [
+        "老街",
+        "胶片感内景"
+      ],
+      "set": "set-05",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-005_3view.png"
+    },
+    {
+      "id": "nz-006",
+      "name": "都市极简·吊带极简长裙",
+      "category": "婚纱",
+      "file": "婚纱/nz-006.png",
+      "tags": [
+        "韩式极简"
+      ],
+      "color": "",
+      "scene": [
+        "纯色棚拍",
+        "美术馆"
+      ],
+      "set": "set-06",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "婚纱/nz-006_3view.png"
+    },
+    {
+      "id": "lf-006",
+      "name": "都市极简·浅灰西装",
+      "category": "礼服",
+      "file": "礼服/lf-006.png",
+      "tags": [
+        "韩式极简"
+      ],
+      "color": "",
+      "scene": [
+        "纯色棚拍",
+        "美术馆"
+      ],
+      "set": "set-06",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-006_3view.png"
+    },
+    {
+      "id": "nz-007",
+      "name": "花园午后·碎花茶歇裙",
+      "category": "婚纱",
+      "file": "婚纱/nz-007.png",
+      "tags": [
+        "法式田园"
+      ],
+      "color": "",
+      "scene": [
+        "花园",
+        "野餐"
+      ],
+      "set": "set-07",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "婚纱/nz-007_3view.png"
+    },
+    {
+      "id": "lf-007",
+      "name": "花园午后·米色西装",
+      "category": "礼服",
+      "file": "礼服/lf-007.png",
+      "tags": [
+        "法式田园"
+      ],
+      "color": "",
+      "scene": [
+        "花园",
+        "野餐"
+      ],
+      "set": "set-07",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-007_3view.png"
+    },
+    {
+      "id": "nz-008",
+      "name": "星空晚礼·亮片晚礼服",
+      "category": "婚纱",
+      "file": "婚纱/nz-008.png",
+      "tags": [
+        "晚宴"
+      ],
+      "color": "",
+      "scene": [
+        "夜景",
+        "宴会厅"
+      ],
+      "set": "set-08",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "婚纱/nz-008_3view.png"
+    },
+    {
+      "id": "lf-008",
+      "name": "星空晚礼·午夜蓝西装",
+      "category": "礼服",
+      "file": "礼服/lf-008.png",
+      "tags": [
+        "晚宴"
+      ],
+      "color": "",
+      "scene": [
+        "夜景",
+        "宴会厅"
+      ],
+      "set": "set-08",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-008_3view.png"
+    },
+    {
+      "id": "nz-009",
+      "name": "红金囍嫁·金丝刺绣秀禾服",
+      "category": "中式",
+      "file": "中式/nz-009.png",
+      "tags": [
+        "中式传统"
+      ],
+      "color": "",
+      "scene": [
+        "中式婚房",
+        "灯笼布景"
+      ],
+      "set": "set-09",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "中式/nz-009_3view.png"
+    },
+    {
+      "id": "lf-009",
+      "name": "红金囍嫁·暗红长袍马褂",
+      "category": "礼服",
+      "file": "礼服/lf-009.png",
+      "tags": [
+        "中式传统"
+      ],
+      "color": "",
+      "scene": [
+        "中式婚房",
+        "灯笼布景"
+      ],
+      "set": "set-09",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-009_3view.png"
+    },
+    {
+      "id": "nz-010",
+      "name": "龙凤呈祥·龙凤褂",
+      "category": "中式",
+      "file": "中式/nz-010.png",
+      "tags": [
+        "中式大典"
+      ],
+      "color": "",
+      "scene": [
+        "传统仪式",
+        "祠堂"
+      ],
+      "set": "set-10",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "中式/nz-010_3view.png"
+    },
+    {
+      "id": "lf-010",
+      "name": "龙凤呈祥·黑色中山装",
+      "category": "礼服",
+      "file": "礼服/lf-010.png",
+      "tags": [
+        "中式大典"
+      ],
+      "color": "",
+      "scene": [
+        "传统仪式",
+        "祠堂"
+      ],
+      "set": "set-10",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-010_3view.png"
+    },
+    {
+      "id": "nz-011",
+      "name": "旗袍往事·墨绿旗袍",
+      "category": "中式",
+      "file": "中式/nz-011.png",
+      "tags": [
+        "民国风"
+      ],
+      "color": "",
+      "scene": [
+        "民国照相馆",
+        "老街"
+      ],
+      "set": "set-11",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "中式/nz-011_3view.png"
+    },
+    {
+      "id": "lf-011",
+      "name": "旗袍往事·深色中山装",
+      "category": "礼服",
+      "file": "礼服/lf-011.png",
+      "tags": [
+        "民国风"
+      ],
+      "color": "",
+      "scene": [
+        "民国照相馆",
+        "老街"
+      ],
+      "set": "set-11",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-011_3view.png"
+    },
+    {
+      "id": "nz-012",
+      "name": "新中式·竹·竹青改良旗袍",
+      "category": "中式",
+      "file": "中式/nz-012.png",
+      "tags": [
+        "新中式"
+      ],
+      "color": "",
+      "scene": [
+        "庭院",
+        "茶室"
+      ],
+      "set": "set-12",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "中式/nz-012_3view.png"
+    },
+    {
+      "id": "lf-012",
+      "name": "新中式·竹·新中式立领装",
+      "category": "礼服",
+      "file": "礼服/lf-012.png",
+      "tags": [
+        "新中式"
+      ],
+      "color": "",
+      "scene": [
+        "庭院",
+        "茶室"
+      ],
+      "set": "set-12",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-012_3view.png"
+    },
+    {
+      "id": "nz-013",
+      "name": "初雪便利·白色针织裙",
+      "category": "婚纱",
+      "file": "婚纱/nz-013.png",
+      "tags": [
+        "轻婚纱日常"
+      ],
+      "color": "",
+      "scene": [
+        "冬日街景",
+        "便利店"
+      ],
+      "set": "set-13",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "婚纱/nz-013_3view.png"
+    },
+    {
+      "id": "lf-013",
+      "name": "初雪便利·驼色大衣",
+      "category": "礼服",
+      "file": "礼服/lf-013.png",
+      "tags": [
+        "轻婚纱日常"
+      ],
+      "color": "",
+      "scene": [
+        "冬日街景",
+        "便利店"
+      ],
+      "set": "set-13",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-013_3view.png"
+    },
+    {
+      "id": "nz-014",
+      "name": "图书馆之约·白衬衫+A字裙",
+      "category": "婚纱",
+      "file": "婚纱/nz-014.png",
+      "tags": [
+        "学院风"
+      ],
+      "color": "",
+      "scene": [
+        "图书馆",
+        "校园"
+      ],
+      "set": "set-14",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "婚纱/nz-014_3view.png"
+    },
+    {
+      "id": "lf-014",
+      "name": "图书馆之约·毛衣背心+衬衫",
+      "category": "礼服",
+      "file": "礼服/lf-014.png",
+      "tags": [
+        "学院风"
+      ],
+      "color": "",
+      "scene": [
+        "图书馆",
+        "校园"
+      ],
+      "set": "set-14",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-014_3view.png"
+    },
+    {
+      "id": "nz-015",
+      "name": "机车与纱·短款轻纱+皮夹克",
+      "category": "婚纱",
+      "file": "婚纱/nz-015.png",
+      "tags": [
+        "个性街拍"
+      ],
+      "color": "",
+      "scene": [
+        "街拍",
+        "天台"
+      ],
+      "set": "set-15",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "婚纱/nz-015_3view.png"
+    },
+    {
+      "id": "lf-015",
+      "name": "机车与纱·黑T+牛仔裤",
+      "category": "礼服",
+      "file": "礼服/lf-015.png",
+      "tags": [
+        "个性街拍"
+      ],
+      "color": "",
+      "scene": [
+        "街拍",
+        "天台"
+      ],
+      "set": "set-15",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-015_3view.png"
+    },
+    {
+      "id": "nz-016",
+      "name": "童话加冕·蓬蓬公主裙",
+      "category": "婚纱",
+      "file": "婚纱/nz-016.png",
+      "tags": [
+        "童话风"
+      ],
+      "color": "",
+      "scene": [
+        "城堡",
+        "旋转楼梯"
+      ],
+      "set": "set-16",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "婚纱/nz-016_3view.png"
+    },
+    {
+      "id": "lf-016",
+      "name": "童话加冕·王子风礼服",
+      "category": "礼服",
+      "file": "礼服/lf-016.png",
+      "tags": [
+        "童话风"
+      ],
+      "color": "",
+      "scene": [
+        "城堡",
+        "旋转楼梯"
+      ],
+      "set": "set-16",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-016_3view.png"
+    },
+    {
+      "id": "nz-017",
+      "name": "唐风华服·齐胸襦裙",
+      "category": "中式",
+      "file": "中式/nz-017.png",
+      "tags": [
+        "唐制汉服"
+      ],
+      "color": "",
+      "scene": [
+        "唐风布景",
+        "园林"
+      ],
+      "set": "set-17",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "中式/nz-017_3view.png"
+    },
+    {
+      "id": "lf-017",
+      "name": "唐风华服·唐制圆领袍",
+      "category": "礼服",
+      "file": "礼服/lf-017.png",
+      "tags": [
+        "唐制汉服"
+      ],
+      "color": "",
+      "scene": [
+        "唐风布景",
+        "园林"
+      ],
+      "set": "set-17",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-017_3view.png"
+    },
+    {
+      "id": "nz-018",
+      "name": "宋制雅集·宋制褙子套装",
+      "category": "中式",
+      "file": "中式/nz-018.png",
+      "tags": [
+        "宋制汉服"
+      ],
+      "color": "",
+      "scene": [
+        "宋风园林",
+        "书房"
+      ],
+      "set": "set-18",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "中式/nz-018_3view.png"
+    },
+    {
+      "id": "lf-018",
+      "name": "宋制雅集·宋圆领袍",
+      "category": "礼服",
+      "file": "礼服/lf-018.png",
+      "tags": [
+        "宋制汉服"
+      ],
+      "color": "",
+      "scene": [
+        "宋风园林",
+        "书房"
+      ],
+      "set": "set-18",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-018_3view.png"
+    },
+    {
+      "id": "nz-019",
+      "name": "港风霓虹·缎面吊带裙",
+      "category": "婚纱",
+      "file": "婚纱/nz-019.png",
+      "tags": [
+        "港风复古"
+      ],
+      "color": "",
+      "scene": [
+        "霓虹夜景",
+        "茶餐厅"
+      ],
+      "set": "set-19",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "婚纱/nz-019_3view.png"
+    },
+    {
+      "id": "lf-019",
+      "name": "港风霓虹·花衬衫+西装外套",
+      "category": "礼服",
+      "file": "礼服/lf-019.png",
+      "tags": [
+        "港风复古"
+      ],
+      "color": "",
+      "scene": [
+        "霓虹夜景",
+        "茶餐厅"
+      ],
+      "set": "set-19",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-019_3view.png"
+    },
+    {
+      "id": "nz-020",
+      "name": "雪山之巅·长袖缎面主纱",
+      "category": "婚纱",
+      "file": "婚纱/nz-020.png",
+      "tags": [
+        "旅拍大片"
+      ],
+      "color": "",
+      "scene": [
+        "雪山",
+        "高原"
+      ],
+      "set": "set-20",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "婚纱/nz-020_3view.png"
+    },
+    {
+      "id": "lf-020",
+      "name": "雪山之巅·白色西装",
+      "category": "礼服",
+      "file": "礼服/lf-020.png",
+      "tags": [
+        "旅拍大片"
+      ],
+      "color": "",
+      "scene": [
+        "雪山",
+        "高原"
+      ],
+      "set": "set-20",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-23"
+      },
+      "ref3view": "礼服/lf-020_3view.png"
+    },
+    {
+      "id": "ps-001",
+      "name": "珍珠耳钉+短款头纱",
+      "category": "配饰",
+      "file": "配饰/ps-001.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-01",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-002",
+      "name": "长款教堂头纱",
+      "category": "配饰",
+      "file": "配饰/ps-002.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-02",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-003",
+      "name": "鲜花花环",
+      "category": "配饰",
+      "file": "配饰/ps-003.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-03",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-004",
+      "name": "贝壳发饰",
+      "category": "配饰",
+      "file": "配饰/ps-004.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-04",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-005",
+      "name": "鸟笼网纱头饰",
+      "category": "配饰",
+      "file": "配饰/ps-005.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-05",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-006",
+      "name": "极简金属耳饰",
+      "category": "配饰",
+      "file": "配饰/ps-006.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-06",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-007",
+      "name": "草编帽",
+      "category": "配饰",
+      "file": "配饰/ps-007.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-07",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-008",
+      "name": "星芒头饰",
+      "category": "配饰",
+      "file": "配饰/ps-008.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-08",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-009",
+      "name": "凤冠珠钗",
+      "category": "配饰",
+      "file": "配饰/ps-009.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-09",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-010",
+      "name": "鎏金珠钗",
+      "category": "配饰",
+      "file": "配饰/ps-010.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-10",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-011",
+      "name": "白玉发簪",
+      "category": "配饰",
+      "file": "配饰/ps-011.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-11",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-012",
+      "name": "竹节发簪",
+      "category": "配饰",
+      "file": "配饰/ps-012.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-12",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-013",
+      "name": "毛线帽",
+      "category": "配饰",
+      "file": "配饰/ps-013.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-13",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-014",
+      "name": "蝴蝶结发带",
+      "category": "配饰",
+      "file": "配饰/ps-014.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-14",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-015",
+      "name": "短款头纱配珍珠发梳",
+      "category": "配饰",
+      "file": "配饰/ps-015.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-15",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-016",
+      "name": "水晶公主皇冠",
+      "category": "配饰",
+      "file": "配饰/ps-016.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-16",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-017",
+      "name": "唐风花钿+步摇",
+      "category": "配饰",
+      "file": "配饰/ps-017.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-17",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-018",
+      "name": "宋代珍珠妆面头饰",
+      "category": "配饰",
+      "file": "配饰/ps-018.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-18",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-019",
+      "name": "大波浪假发片",
+      "category": "配饰",
+      "file": "配饰/ps-019.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-19",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "ps-020",
+      "name": "羊绒披肩",
+      "category": "配饰",
+      "file": "配饰/ps-020.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "set-20",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "xl-001",
+      "name": "象牙白缎面婚鞋",
+      "category": "鞋履",
+      "file": "鞋履/xl-001.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "xl-002",
+      "name": "水晶高跟鞋",
+      "category": "鞋履",
+      "file": "鞋履/xl-002.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "xl-003",
+      "name": "裸色平底芭蕾鞋",
+      "category": "鞋履",
+      "file": "鞋履/xl-003.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "xl-004",
+      "name": "裸色平底凉鞋",
+      "category": "鞋履",
+      "file": "鞋履/xl-004.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "xl-005",
+      "name": "复古玛丽珍鞋",
+      "category": "鞋履",
+      "file": "鞋履/xl-005.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "xl-006",
+      "name": "裸色细高跟",
+      "category": "鞋履",
+      "file": "鞋履/xl-006.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "xl-007",
+      "name": "编织坡跟凉鞋",
+      "category": "鞋履",
+      "file": "鞋履/xl-007.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "xl-008",
+      "name": "银色亮片高跟鞋",
+      "category": "鞋履",
+      "file": "鞋履/xl-008.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "xl-009",
+      "name": "正红色中式绣花鞋",
+      "category": "鞋履",
+      "file": "鞋履/xl-009.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "xl-010",
+      "name": "黑色缎面婚鞋",
+      "category": "鞋履",
+      "file": "鞋履/xl-010.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "xl-011",
+      "name": "复古低跟搭扣鞋",
+      "category": "鞋履",
+      "file": "鞋履/xl-011.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "xl-012",
+      "name": "素色布鞋",
+      "category": "鞋履",
+      "file": "鞋履/xl-012.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "xl-013",
+      "name": "棕色短靴",
+      "category": "鞋履",
+      "file": "鞋履/xl-013.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "xl-014",
+      "name": "学院风乐福鞋",
+      "category": "鞋履",
+      "file": "鞋履/xl-014.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "xl-015",
+      "name": "唐风云头履",
+      "category": "鞋履",
+      "file": "鞋履/xl-015.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "xl-016",
+      "name": "宋代弓鞋",
+      "category": "鞋履",
+      "file": "鞋履/xl-016.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "xl-017",
+      "name": "复古漆皮高跟鞋",
+      "category": "鞋履",
+      "file": "鞋履/xl-017.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    },
+    {
+      "id": "xl-018",
+      "name": "棕色户外皮靴",
+      "category": "鞋履",
+      "file": "鞋履/xl-018.png",
+      "tags": [],
+      "color": "",
+      "scene": [],
+      "set": "",
+      "qc": {
+        "status": "approved",
+        "reviewer": "kimi-sample",
+        "date": "2026-07-24"
+      }
+    }
+  ]
+}

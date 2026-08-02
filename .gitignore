@@ -1,0 +1,20 @@
+# 凭据（绝不入库）
+.env
+!.env.example
+
+# 客户个人素材与交付物（隐私，不入库）
+referrence/
+production/
+server/data/
+
+# 大体积二进制（视频/展示素材，线上走 OSS/ECS）
+showcase/assets/
+
+# 运行环境
+.venv/
+__pycache__/
+*.pyc
+
+# 系统/工具
+.DS_Store
+miniprogram/project.private.config.json

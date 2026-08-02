@@ -1,0 +1,80 @@
+<view class="page">
+  <view class="hero">
+    <view class="eyebrow">LuckyNemo</view>
+    <view class="h1 serif">我的</view>
+  </view>
+
+  <view class="empty" wx:if="{{!order.order_no && !loading}}">
+    <view class="empty-txt">还没有订单，去创作页开始吧～</view>
+  </view>
+
+  <block wx:if="{{order.order_no}}">
+    <!-- 个人信息 -->
+    <view class="card">
+      <view class="card-title serif">个人信息</view>
+      <view class="row"><text class="k">拍摄模式</text><text class="v">{{order.mode === 'couple' ? '婚纱照（双人）' : order.mode === 'solo' ? '个人写真' : '未选择'}}</text></view>
+      <view class="row">
+        <text class="k">真人认证</text>
+        <text class="v">
+          {{order.mode === 'couple' ? '新娘' : '本人'}}{{order.members.A && order.members.A.auth_ok ? ' ✓' : ' 未认证'}}
+          <block wx:if="{{order.mode === 'couple'}}"> · 新郎{{order.members.B && order.members.B.auth_ok ? ' ✓' : ' 未认证'}}</block>
+        </text>
+      </view>
+      <view class="order-no" bindlongpress="copyOrderNo">订单号 {{order.order_no}}（长按复制）</view>
+    </view>
+
+    <!-- 额度 -->
+    <view class="card">
+      <view class="card-title serif">剩余额度</view>
+      <view class="quota-row">
+        <view class="quota-num">{{quota.free_left}}<text class="quota-unit">张免费</text></view>
+        <view class="quota-num" wx:if="{{quota.paid_left > 0}}">+{{quota.paid_left}}<text class="quota-unit">张已购</text></view>
+      </view>
+      <view class="quota-sub">内测期间每人 {{quota.free_total}} 张免费额度</view>
+      <button class="btn mini" bindtap="recharge">充值 / 续购 →</button>
+    </view>
+
+    <!-- 我上传的照片 -->
+    <view class="card" wx:if="{{uploads.A.length || uploads.B.length}}">
+      <view class="card-title serif">我上传的照片</view>
+      <view class="sec" wx:if="{{uploads.A.length}}">
+        <view class="sec-k">{{order.mode === 'couple' ? '她的' : '我的'}}（{{uploads.A.length}}）<text class="sec-tip">长按可删除</text></view>
+        <view class="imgs">
+          <image wx:for="{{uploads.A}}" wx:key="key" src="{{item.url}}" mode="aspectFill"
+                 data-url="{{item.url}}" data-key="{{item.key}}" bindtap="previewImg" bindlongpress="delUpload" lazy-load />
+        </view>
+      </view>
+      <view class="sec" wx:if="{{uploads.B.length}}">
+        <view class="sec-k">他的（{{uploads.B.length}}）<text class="sec-tip">长按可删除</text></view>
+        <view class="imgs">
+          <image wx:for="{{uploads.B}}" wx:key="key" src="{{item.url}}" mode="aspectFill"
+                 data-url="{{item.url}}" data-key="{{item.key}}" bindtap="previewImg" bindlongpress="delUpload" lazy-load />
+        </view>
+      </view>
+    </view>
+
+    <!-- 生成的照片 -->
+    <view class="card" wx:if="{{photos.length}}">
+      <view class="card-title serif">生成的照片</view>
+      <view class="photo-item" wx:for="{{photos}}" wx:key="key">
+        <image class="photo-img" src="{{item.url}}" mode="aspectFill" data-url="{{item.url}}" bindtap="previewImg" lazy-load />
+        <view class="photo-info">
+          <view class="photo-kind">{{item.label}}</view>
+          <view class="photo-time">{{item.time}}</view>
+          <view class="photo-ops">
+            <view class="photo-save" data-url="{{item.url}}" bindtap="saveImg">保存</view>
+            <view class="photo-del" data-key="{{item.key}}" bindtap="delPhoto">删除</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 其他 -->
+    <view class="card">
+      <view class="link-row" bindtap="goFeedback">意见反馈（bug / 功能期望）<text class="arrow">→</text></view>
+      <view class="link-row" bindtap="privacy">隐私承诺（交付即删）<text class="arrow">→</text></view>
+      <button class="link-row share-link" open-type="share">推荐给朋友<text class="arrow">→</text></button>
+      <view class="link-row" bindtap="restart">重新开始新订单<text class="arrow">→</text></view>
+    </view>
+  </block>
+</view>
