@@ -18,3 +18,4 @@ __pycache__/
 # 系统/工具
 .DS_Store
 miniprogram/project.private.config.json
+research/seedance-2.0-skill/
