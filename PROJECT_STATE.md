@@ -89,6 +89,8 @@
 
 ## 更新日志
 
+- 2026-08-01 代码入库 GitHub：`git@github.com:lihaoalbert/luckynemo-wedding.git` main 分支首提交（494 文件 ~206MB）。`.gitignore` 排除：.env 凭据、referrence/ production/ server/data/（客户隐私）、showcase/assets/（大视频）、.venv、seedance-2.0-skill（内嵌三方 git 仓）
+
 - 2026-08-01 自定义模卡（DIY）上线：worker 新增 `custom_moka` 任务（VLM 审核/规格化/质检重试，存 OSS diy_moka/），`template_photo` 支持 custom_template_key；app.py chat 新增 custom_moka 动作（每单免费 3 次）；chat.js 轮询出图 + 「用这张出片」按钮；本地 E2E 正常+安全拦截均验证；生产 app.py/mp_worker.py 已更新重启；顺带下架生产 worker 的 MiniMax 生图引擎（minimax_image），清理 makeup.js minimax hint 死代码；测试数据（OSS diy_moka/TESTDIY、本地测试行）已清理
 - 2026-08-01 模卡 36 张部署上线：rsync `assets/moka/` → ECS `/var/www/luckynemo/moka/`（排除 gen_*.py），生产 app.py 更新 catalog 并重启 luckynemo.service；线上验证 catalog 返回 36 模板 + 12 系列，mk208.png 可访问
 
