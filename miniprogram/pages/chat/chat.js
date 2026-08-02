@@ -397,6 +397,20 @@ Page({
       this.resume(order);
     } else if (action.type === 'custom_moka') {
       this.pollDiyMoka();
+    } else if (action.type === 'generate_photo' && action.template_key) {
+      // 直接出片：刚发的图/最近聊天图当模板 + 最新定妆照锚点，走 generating 页统一创建任务
+      app.globalData.pendingJob = {
+        kind: 'template_photo',
+        payload: {
+          custom_template_key: action.template_key,
+          mode: action.mode || 'couple',
+          anchor_key: action.anchor_key || '',
+          anchor_key_b: action.anchor_key_b || '',
+          swap_imgs: [],
+          swap_note: action.note || '',
+        },
+      };
+      setTimeout(() => wx.navigateTo({ url: '/pages/generating/generating' }), 800);
     } else if (action.type === 'delete_assets') {
       // 资产已删，清空本地进度并重新走流程
       app.globalData.selection = {};

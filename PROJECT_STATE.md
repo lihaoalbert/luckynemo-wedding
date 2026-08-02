@@ -89,6 +89,7 @@
 
 ## 更新日志
 
+- 2026-08-01 修复反馈 #11（chat"光答应不做事"）：chat 新增 `generate_photo` 动作——用户说"用这张出片"时把刚发的图/最近聊天图/DIY 模卡当模板 + 最新定妆照锚点，跳 generating 页出图（进度可见）；M3 提示词加"禁止光说不给按钮"规则；用反馈订单 MP20260730-S23T 原话线上验证通过；反馈已回复标记 done（10/10 全清）
 - 2026-08-01 代码入库 GitHub：`git@github.com:lihaoalbert/luckynemo-wedding.git` main 分支首提交（494 文件 ~206MB）。`.gitignore` 排除：.env 凭据、referrence/ production/ server/data/（客户隐私）、showcase/assets/（大视频）、.venv、seedance-2.0-skill（内嵌三方 git 仓）
 
 - 2026-08-01 自定义模卡（DIY）上线：worker 新增 `custom_moka` 任务（VLM 审核/规格化/质检重试，存 OSS diy_moka/），`template_photo` 支持 custom_template_key；app.py chat 新增 custom_moka 动作（每单免费 3 次）；chat.js 轮询出图 + 「用这张出片」按钮；本地 E2E 正常+安全拦截均验证；生产 app.py/mp_worker.py 已更新重启；顺带下架生产 worker 的 MiniMax 生图引擎（minimax_image），清理 makeup.js minimax hint 死代码；测试数据（OSS diy_moka/TESTDIY、本地测试行）已清理

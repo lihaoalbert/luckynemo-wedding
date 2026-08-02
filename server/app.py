@@ -1392,6 +1392,7 @@ action 只能是以下之一：
 - {{"type": "submit_feedback", "fb_type": "bug", "text": "整理后的反馈内容"}} 用户确认后提交意见反馈（fb_type: bug/feature/other）
 - {{"type": "add_base_photo"}} 把用户刚发的图片保存为拍摄底图（用户说"用这张做底图/传张照片"时用）
 - {{"type": "custom_moka", "description": "合并用户多轮补充后的完整定制描述", "mode": "couple或solo_f或solo_m"}} 定制专属模卡：用户想要模卡库没有的模板（发样片说"想要这样的/照这个做"，或文字描述想要的画面）时用。description 要完整自足（把用户之前说过的要求都合并进来，范例图需求就写清"参考我发的图"+用户补充）；mode 按画面人数推断：双人=couple、女生单人=solo_f、男生单人=solo_m，推断不出先用 none 问一句
+- {{"type": "generate_photo", "mode": "couple或solo_f或solo_m", "note": "用户的调整要求（可空）"}} 直接出片：用户说"用这张出片/帮我生成/用最新定妆照出一张"时用，系统会把用户刚发的图（或最近发的图/定制模卡）当模板 + 用最新定妆照一键同款出图。用户从来没发过图时先别用，引导 TA 发图或去挑模卡
 - {{"type": "none"}} 纯回答
 
 【重要】用户意图是操作时，action 必须给对应类型，reply 不许承诺 action 做不到的事：
@@ -1401,6 +1402,8 @@ action 只能是以下之一：
 - "我想拍个人写真/换成单人" → set_mode solo；"拍婚纱照" → set_mode couple
 - "删掉所有照片/清空重新开始" → delete_assets reset
 - "不像我/不满意" → 先安抚，再用 regenerate_makeup 带上用户的修正点
+- "用这张出片/帮我生成/出一张看看" → generate_photo
+- 【禁止光说不给按钮】reply 里说"点这里/点下面"时，action 必须同时给对应按钮（navigate 或 generate_photo）；AI 答应在做的操作必须有 action 落地，绝不允许只回"好的，我明白了"却什么都不做
 
 【意见反馈流程】用户报 bug 或提功能想法时，先追问细节（action 用 none），把问题整理成一句话问用户"我帮你把这条反馈提交给团队吗？"。用户明确同意（好/提交/嗯）→ submit_feedback，text 是你整理后的完整描述（含用户补充的细节）。用户之前的消息里带图的（历史中标注[N张图]），反馈会一并带上。
 【图片意图】用户发图时（消息里会注明带了几张图），谨慎判断用途：
@@ -1662,6 +1665,40 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
                     conn.commit()
                     log.info("mp chat custom_moka order_no=%s mode=%s", body.order_no, mode)
                     action = {"type": "custom_moka", "mode": mode}
+
+        elif atype == "generate_photo":
+            # 直接出片：把用户刚发的图（或最近聊天图/DIY 模卡）当模板 + 最新定妆照锚点，
+            # 解析出参数交给前端走 generating 页（任务创建与额度校验在 /api/mp/job 完成）
+            mode = action.get("mode") if action.get("mode") in ("couple", "solo_f", "solo_m") else ""
+            couple = mode == "couple" or (not mode and order["mode"] == "couple")
+            tpl_key = body.images[0] if body.images else ""
+            if not tpl_key:
+                row = conn.execute(
+                    "SELECT oss_key FROM uploads WHERE contact=? AND content_type LIKE 'image/%'"
+                    " ORDER BY id DESC LIMIT 1", (f"{body.order_no}-chat",)).fetchone()
+                tpl_key = row[0] if row else ""
+            if not tpl_key:
+                row = conn.execute(
+                    "SELECT result_json FROM mp_jobs WHERE order_no=? AND kind='custom_moka'"
+                    " AND status='done' ORDER BY id DESC LIMIT 1", (body.order_no,)).fetchone()
+                tpl_key = (json.loads(row[0]) or {}).get("oss_key", "") if row and row[0] else ""
+            if not tpl_key:
+                action = {"type": "none"}
+                reply = "把想做成模板的照片发给我，或先去模卡库挑一张，我马上给你出片～"
+            else:
+                anchors = {}
+                for pj, rj in conn.execute(
+                        "SELECT payload_json, result_json FROM mp_jobs WHERE order_no=?"
+                        " AND kind='makeup_photo' AND status='done' ORDER BY id DESC LIMIT 10",
+                        (body.order_no,)).fetchall():
+                    role = (json.loads(pj) or {}).get("role", "A") if pj else "A"
+                    if role not in anchors and rj:
+                        anchors[role] = (json.loads(rj) or {}).get("oss_key", "")
+                action = {"type": "generate_photo", "template_key": tpl_key,
+                          "mode": "couple" if couple else "solo",
+                          "anchor_key": anchors.get("A", ""),
+                          "anchor_key_b": anchors.get("B", "") if couple else "",
+                          "note": str(action.get("note") or "")[:100]}
 
         return JSONResponse({"ok": True, "reply": reply, "action": action})
     finally:
