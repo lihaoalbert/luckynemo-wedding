@@ -20,8 +20,9 @@ Page({
     ],
     hairstyles: [],   // 发型库（按性别过滤）
     hairstyleId: '',  // 选中的发型（可空=保持原发型）
-    uploads: [],      // 已上传照片（选底照用）
+    uploads: [],      // 已上传照片（选底照用，本人+伴侣双相册，带 role/label）
     baseKey: '',      // 底照 oss_key（定妆以它为基础，其余照片做人脸参考）
+    baseRole: 'A',    // 底照所在相册（A=本人/B=伴侣），定妆任务按它取对应相册照片
     lipColors: ['默认配方', '豆沙色', '番茄红', '奶茶色', '正红色'],
     lipColor: '默认配方',
     phase: 'pick',     // pick → waiting → done
@@ -62,10 +63,15 @@ Page({
           if (res.gender === 'male' || res.gender === 'female') this.applyGender(res.gender);
         }).catch(() => {});
     }
-    // 拉已上传照片供选底照（默认最新一张）
+    // 拉已上传照片供选底照（本人+伴侣双相册都列出，默认最新一张）
     app.req('/api/mp/me', 'GET', { order_no: order.order_no }).then(res => {
-      const ups = (res.uploads && res.uploads[role]) || [];
-      if (ups.length) this.setData({ uploads: ups, baseKey: ups[0].key });
+      const mine = app.globalData.myRole || 'A';
+      const ups = [];
+      for (const r of ['A', 'B']) {
+        const label = r === mine ? '我的' : '伴侣的';
+        for (const u of ((res.uploads && res.uploads[r]) || [])) ups.push({ ...u, role: r, label });
+      }
+      if (ups.length) this.setData({ uploads: ups, baseKey: ups[0].key, baseRole: ups[0].role });
     }).catch(() => {});
     // 有正在进行的定妆任务（含对话里发起的重生成）→ 直接恢复等待页
     app.req('/api/mp/order/' + order.order_no).then(res => {
@@ -104,7 +110,7 @@ Page({
   },
 
   pickBase(e) {
-    this.setData({ baseKey: e.currentTarget.dataset.key });
+    this.setData({ baseKey: e.currentTarget.dataset.key, baseRole: e.currentTarget.dataset.role || 'A' });
   },
 
   pickLip(e) {
@@ -135,7 +141,7 @@ Page({
     app.req('/api/mp/job', 'POST', {
       order_no: order.order_no,
       kind: 'makeup_photo',
-      payload: { role: this.data.role, makeup_id: m.id, makeup_name: m.name,
+      payload: { role: this.data.baseRole, makeup_id: m.id, makeup_name: m.name,
                  makeup_prompt: m.prompt, gender: m.gender || 'female',
                  engine: this.data.engine,
                  base_key: this.data.baseKey,

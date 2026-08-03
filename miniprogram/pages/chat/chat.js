@@ -102,10 +102,10 @@ Page({
       this._resumeKey = key;
       this.setData({ step: 'auth' });
       const doneWho = needRoles.filter(r => members[r] && members[r].auth_ok)
-        .map(r => (r === 'A' ? (order.mode === 'couple' ? '新娘' : '你') : '新郎'));
+        .map(r => (r === 'A' ? '你' : 'TA'));
       if (doneWho.length) this.push('ai', `已完成认证：${doneWho.join('、')} ✅`);
       pending.forEach(r => {
-        const who = r === 'A' ? (order.mode === 'couple' ? '新娘' : '你') : '新郎';
+        const who = r === 'A' ? '你' : 'TA（伴侣）';
         this.push('ai', `请${who}完成真人认证（刷个脸，30 秒）。认证是为了保护你们的脸：照片只用来给你们自己生成作品，交付即删。`,
           { text: `${who}去认证 →`, kind: 'auth', role: r });
       });
@@ -409,6 +409,20 @@ Page({
           swap_imgs: [],
           swap_note: action.note || '',
         },
+      };
+      setTimeout(() => wx.navigateTo({ url: '/pages/generating/generating' }), 800);
+    } else if (action.type === 'edit_photo' && action.base_key) {
+      // 成片局部修图：最新成片做底 + 修改指令，走 generating 页统一创建任务
+      app.globalData.pendingJob = {
+        kind: 'edit_photo',
+        payload: { base_key: action.base_key, instruction: action.instruction || '' },
+      };
+      setTimeout(() => wx.navigateTo({ url: '/pages/generating/generating' }), 800);
+    } else if (action.type === 'duo_photo' && action.images && action.images.length) {
+      // 双人合照：用户发的两个人照片直接生成，走 generating 页统一创建任务
+      app.globalData.pendingJob = {
+        kind: 'duo_photo',
+        payload: { photos: action.images, note: action.note || '' },
       };
       setTimeout(() => wx.navigateTo({ url: '/pages/generating/generating' }), 800);
     } else if (action.type === 'delete_assets') {

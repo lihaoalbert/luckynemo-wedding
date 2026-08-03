@@ -11,8 +11,9 @@
     <view class="hair-sec" wx:if="{{uploads.length > 1}}">
       <view class="hair-title">选一张底照<text class="hair-skip">定妆照以它为基础，其余照片做人脸参考</text></view>
       <scroll-view scroll-x class="hair-scroll">
-        <view class="hair-item {{baseKey === u.key ? 'active' : ''}}" wx:for="{{uploads}}" wx:for-item="u" wx:key="key" data-key="{{u.key}}" bindtap="pickBase">
+        <view class="hair-item {{baseKey === u.key ? 'active' : ''}}" wx:for="{{uploads}}" wx:for-item="u" wx:key="key" data-key="{{u.key}}" data-role="{{u.role}}" bindtap="pickBase">
           <image src="{{u.url}}" mode="aspectFill" lazy-load />
+          <view class="base-label">{{u.label}}</view>
         </view>
       </scroll-view>
     </view>

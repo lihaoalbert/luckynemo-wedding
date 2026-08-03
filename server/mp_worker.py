@@ -464,7 +464,34 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
         run_custom_moka(job_id, order_no, payload)
         return
     result = None
-    if kind == "makeup_photo":
+    if kind == "edit_photo":
+        # 成片局部修图：以已生成的成片为底，按用户指令只改指定部分（去眼镜/调表情/改细节）
+        base_key = payload.get("base_key")
+        if not base_key:
+            raise RuntimeError("修图任务缺 base_key")
+        photos = [oss_get(base_key, TMP / f"{order_no}_edit_base.jpg")]
+        instruction = str(payload.get("instruction") or "").strip()
+        if not instruction:
+            raise RuntimeError("修图任务缺修改指令")
+        prompt = (f"这是对图1照片的局部修图，不是重新生成：{instruction}。"
+                  "严格保持人物五官、构图、场景、服装、光影、色调等其余部分完全不变，"
+                  "只修改用户要求的部分，修图痕迹自然无破绽，摄影级质感，无文字无水印")
+    elif kind == "duo_photo":
+        # 双人合照：参考图里的两个人（两张单人照或一张现成合照）生成一张亲密合照
+        keys = (payload.get("photos") or [])[:2]
+        if not keys:
+            raise RuntimeError("合照任务缺人物照片")
+        photos = [oss_get(k, TMP / f"{order_no}_duo_{i}.jpg") for i, k in enumerate(keys)]
+        note = str(payload.get("note") or "").strip()
+        prompt = (
+            "参考图是要合在一起拍摄的两个人（可能一张照片一个人，也可能一张里已有两人）。"
+            "生成一张这两个人的亲密合照：两人的五官与参考图人物一一对应保持一致，"
+            "两人自然依偎或牵手，温馨浪漫的场景与柔和暖光，真实人体比例约7.5头身，"
+            "人物与地面有自然接触和投影，摄影级质感，无文字无水印"
+        )
+        if note:
+            prompt += f"。场景氛围要求：{note}"
+    elif kind == "makeup_photo":
         # 定妆照任务：对应成员照片（A=新娘/本人，B=新郎）+ 红妆阁配方提示词
         role = "B" if payload.get("role") == "B" else "A"
         # 用户指定底照：单独下载并排到参考图第一位（定妆以它为基础，其余做人脸参考）
@@ -495,17 +522,25 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
         style_file = SITE_DIR / "hongzhuang" / "styles" / f"{payload.get('makeup_id', '')}.png"
         if engine == "vidu" and style_file.is_file():
             # viduq2 图片编辑模式。男妆只发用户底图+纯文字配方（实测：发参考妆图会被小朗同化）；
-            # 女妆发用户图+红妆阁妆造参考图（漂移可接受且妆效更好）
+            # 女妆发用户图+红妆阁妆造参考图（漂移可接受且妆效更好）；素颜版只发底图+文字
             male = payload.get("gender") == "male"
-            vidu_prompt = (
-                f"这是对图1照片的人物修图化妆，不是换人：严禁改变图1人物的任何五官特征、脸型、发型和年龄感。"
-                f"为{'他' if male else '她'}化上「{payload.get('makeup_name', '')}」妆容，"
-                "摘掉眼镜，正面肩部以上肖像特写，浅灰纯色背景，专业妆面照质感"
-            )
+            no_makeup = "素颜" in str(payload.get("makeup_name", ""))
+            if no_makeup:
+                vidu_prompt = (
+                    "这是对图1照片的人物肖像优化，不是换人：严禁改变图1人物的任何五官特征、脸型、发型和年龄感。"
+                    "保持素颜不化妆，仅做肤色均匀与轻微提亮，摘掉眼镜，"
+                    "正面肩部以上肖像特写，浅灰纯色背景，专业肖像照质感"
+                )
+            else:
+                vidu_prompt = (
+                    f"这是对图1照片的人物修图化妆，不是换人：严禁改变图1人物的任何五官特征、脸型、发型和年龄感。"
+                    f"为{'他' if male else '她'}化上「{payload.get('makeup_name', '')}」妆容，"
+                    "摘掉眼镜，正面肩部以上肖像特写，浅灰纯色背景，专业妆面照质感"
+                )
             vidu_prompt = merge_face_advice(vidu_prompt, advice, payload.get("makeup_notes", ""))
             if payload.get("hairstyle"):
                 vidu_prompt += f"\n发型调整为「{payload['hairstyle']}」，允许改变发型，五官脸型不变"
-            vidu_refs = photos[:1] if male else photos[:1] + [style_file]
+            vidu_refs = photos[:1] if (male or no_makeup) else photos[:1] + [style_file]
             result = makeup_with_vidu(vidu_prompt, vidu_refs)
             if result is None:
                 result = seedream(prompt, photos)
@@ -529,7 +564,7 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
         if not photos:
             raise RuntimeError("请先上传本人照片，再做一键同款")
         if payload.get("mode") == "couple" and not has_b:
-            raise RuntimeError("情侣模板需要新郎也上传照片（协同创作邀请他，或在对话里发他的照片）")
+            raise RuntimeError("情侣模板需要另一方也上传照片（协同创作邀请 TA，或在对话里发 TA 的照片）")
         tpl = None
         if payload.get("custom_template_key"):
             # DIY 定制模卡：从 OSS 取（custom_moka 任务的产物）

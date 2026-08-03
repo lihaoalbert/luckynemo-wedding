@@ -33,10 +33,15 @@
 .hair-item {
   display: inline-block; width: 130rpx; margin-right: 14rpx;
   border: 3rpx solid var(--hairline); border-radius: 14rpx; overflow: hidden;
-  background: var(--surface); vertical-align: top;
+  background: var(--surface); vertical-align: top; position: relative;
 }
 .hair-item.active { border-color: var(--accent); }
 .hair-item image { width: 130rpx; height: 172rpx; display: block; background: var(--blush); }
+.base-label {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  font-size: 18rpx; text-align: center; color: #fff;
+  background: rgba(0, 0, 0, 0.45); padding: 2rpx 0;
+}
 .hair-name { font-size: 20rpx; text-align: center; padding: 6rpx 4rpx; color: var(--ink); white-space: normal; }
 /* 唇色快选 */
 .lip-row { display: flex; gap: 14rpx; flex-wrap: wrap; }

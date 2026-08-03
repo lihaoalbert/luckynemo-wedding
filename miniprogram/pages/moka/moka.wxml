@@ -29,10 +29,20 @@
           <text class="comp-k">{{c.k}}</text><text class="comp-v">{{c.v}}</text>
         </view>
 
-        <view class="swap-sec" wx:if="{{anchors.length > 1}}">
-          <view class="swap-title">微调 · 换妆容</view>
+        <view class="swap-sec" wx:if="{{anchorsF.length && picked.mode !== 'solo_m'}}">
+          <view class="swap-title">女生定妆照{{picked.mode === 'couple' ? '（新娘位）' : '（换妆容）'}}</view>
           <scroll-view scroll-x class="mini-scroll">
-            <view class="mini-item {{swapAnchorKey === a.key ? 'active' : ''}}" wx:for="{{anchors}}" wx:for-item="a" wx:key="key" data-key="{{a.key}}" bindtap="swapAnchor">
+            <view class="mini-item {{swapAnchorF === a.key ? 'active' : ''}}" wx:for="{{anchorsF}}" wx:for-item="a" wx:key="key" data-g="f" data-key="{{a.key}}" bindtap="swapAnchor">
+              <image src="{{a.url}}" mode="aspectFill" />
+              <view class="mini-name">{{a.name}}</view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <view class="swap-sec" wx:if="{{anchorsM.length && picked.mode !== 'solo_f'}}">
+          <view class="swap-title">男生定妆照{{picked.mode === 'couple' ? '（新郎位）' : '（换妆容）'}}</view>
+          <scroll-view scroll-x class="mini-scroll">
+            <view class="mini-item {{swapAnchorM === a.key ? 'active' : ''}}" wx:for="{{anchorsM}}" wx:for-item="a" wx:key="key" data-g="m" data-key="{{a.key}}" bindtap="swapAnchor">
               <image src="{{a.url}}" mode="aspectFill" />
               <view class="mini-name">{{a.name}}</view>
             </view>

@@ -722,7 +722,7 @@ async def mp_auth_callback(request: Request, token: str = "", order_no: str = ""
 
 
 def _auth_done_html(role: str) -> "HTMLResponse":
-    who = "新郎" if role == "B" else "新娘"
+    who = "伴侣" if role == "B" else "本人"
     html = f"""<!DOCTYPE html>
 <html lang="zh-CN"><head>
 <meta charset="utf-8">
@@ -961,7 +961,7 @@ def mp_auth_session(order_no: str, role: str = "A") -> dict:
         return {"ok": True, "url": f"{MP_AUTH_INVITE_URL}{sep}order={order_no}", "mode": "legacy"}
     callback = (f"{PUBLIC_BASE}/api/mp/auth-callback"
                 f"?token={MP_AUTH_CALLBACK_TOKEN}&order_no={order_no}&role={role}")
-    who = "新娘" if role == "A" else "新郎"
+    who = "本人" if role == "A" else "伴侣"
     result = ifocus_call("CreateVisualValidateSession", {
         "CallbackURL": callback,
         "Name": f"徐大恩真人认证-{who}-{order_no}",
@@ -1119,8 +1119,14 @@ def mp_order_get(order_no: str) -> JSONResponse:
         if not order:
             raise HTTPException(status_code=404, detail="订单不存在")
         jobs = []
+        makeup_gender = {}
+        try:
+            makeup_gender = {m["id"]: m.get("gender", "")
+                             for m in _load_makeup_catalog(Path(_env("SITE_DIR", "/var/www/luckynemo")))}
+        except Exception:
+            pass
         for r in conn.execute(
-                "SELECT kind,status,result_json,payload_json FROM mp_jobs WHERE order_no=? ORDER BY id DESC LIMIT 10",
+                "SELECT kind,status,result_json,payload_json FROM mp_jobs WHERE order_no=? ORDER BY id DESC LIMIT 30",
                 (order_no,)):
             payload = json.loads(r[3]) if r[3] else {}
             jobs.append({
@@ -1128,6 +1134,7 @@ def mp_order_get(order_no: str) -> JSONResponse:
                 "result": json.loads(r[2]) if r[2] else None,
                 "role": payload.get("role", "A"),
                 "makeup_name": payload.get("makeup_name", ""),
+                "gender": payload.get("gender", "") or makeup_gender.get(payload.get("makeup_id", ""), ""),
                 "engine": payload.get("engine", "seedream"),
             })
         photo_count = conn.execute(
@@ -1185,10 +1192,20 @@ _MAKEUP_PROMPT_TMPL = (
 
 
 def _compose_makeup_prompt(style: dict) -> str:
-    """按 spec.parts 配方（女性：底妆/眼妆/腮红/唇妆；男性：底妆/眉毛/修容/唇妆）组装提示词。"""
+    """按 spec.parts 配方（女性：底妆/眼妆/腮红/唇妆；男性：底妆/眉毛/修容/唇妆）组装提示词。
+    spec.no_makeup 为素颜版：不化妆，只统一背景光线。"""
+    male = style.get("gender") == "male"
+    if style.get("spec", {}).get("no_makeup"):
+        person, ta = ("男性", "他") if male else ("女性", "她")
+        return (
+            f"以参考照片中的{person}为人物，严格保持{ta}的五官、脸型、下颌线、发型完全不变，"
+            f"保持素颜，不为{ta}化任何妆，仅做肤色均匀与轻微提亮，卸掉眼镜。"
+            "与参考照片人物的相似度是第一优先级：宁可朴素也绝不美化、不把五官往标准模板靠。\n"
+            "正面肩部以上肖像，浅灰色纯色背景，柔和均匀的摄影棚灯光，专业肖像照质感，"
+            "不要改变脸型和五官结构，不要加任何饰品，无文字无水印，3:4竖版"
+        )
     parts = style["spec"]["parts"]
     recipe = "\n".join(f"{k}：{v}" for k, v in parts.items() if k != "发型")
-    male = style.get("gender") == "male"
     return _MAKEUP_PROMPT_TMPL.format(
         person="男性" if male else "女性", ta="他" if male else "她",
         name=style["name"], vibe=style["vibe"], recipe=recipe,
@@ -1290,7 +1307,7 @@ def mp_job_create(body: MpJobIn) -> JSONResponse:
                     _mp_touch(conn, body.order_no, free_used=(order["free_used"] or 0) + 1)
                 else:
                     raise HTTPException(status_code=403, detail="免费额度已用完，请充值后再继续")
-        if body.kind in ("free_photo", "solo_photo", "template_photo"):
+        if body.kind in ("free_photo", "solo_photo", "template_photo", "edit_photo", "duo_photo"):
             # 内测额度：每单 free_quota 张免费（默认 20），先扣免费再扣付费
             if (order["free_used"] or 0) < order["free_quota"]:
                 _mp_touch(conn, body.order_no, free_used=(order["free_used"] or 0) + 1, status="generating")
@@ -1390,9 +1407,11 @@ action 只能是以下之一：
 - {{"type": "set_mode", "mode": "solo"}} 切换拍摄模式（solo=个人写真，couple=婚纱照）
 - {{"type": "delete_assets", "target": "reset"}} 删除资产：reset=删除全部上传照片+生成图并重置流程（用户说"全部删掉重新开始"时用）；all_uploads=只删全部上传照片；all_photos=只删全部生成图
 - {{"type": "submit_feedback", "fb_type": "bug", "text": "整理后的反馈内容"}} 用户确认后提交意见反馈（fb_type: bug/feature/other）
-- {{"type": "add_base_photo"}} 把用户刚发的图片保存为拍摄底图（用户说"用这张做底图/传张照片"时用）
-- {{"type": "custom_moka", "description": "合并用户多轮补充后的完整定制描述", "mode": "couple或solo_f或solo_m"}} 定制专属模卡：用户想要模卡库没有的模板（发样片说"想要这样的/照这个做"，或文字描述想要的画面）时用。description 要完整自足（把用户之前说过的要求都合并进来，范例图需求就写清"参考我发的图"+用户补充）；mode 按画面人数推断：双人=couple、女生单人=solo_f、男生单人=solo_m，推断不出先用 none 问一句
+- {{"type": "add_base_photo", "who": "me或partner"}} 把用户刚发的图片保存为拍摄底图。用户发照片说明是谁的（"这是新娘/新郎/我老婆/他的照片"）或说"传照片/做底图"时**必须用**（严禁只回"已收到"却不保存）：who=me 指照片是用户本人，partner 指是用户的伴侣（新娘/新郎/老婆/老公/对象），按对话语境判断；拿不准照片里是谁时，先用 none 问一句"照片是您本人还是您伴侣？"
+- {{"type": "custom_moka", "description": "用户真实需求的完整描述", "mode": "couple或solo_f或solo_m"}} 定制专属模卡：**只有用户明确说要"做模板/定制模卡"才用**。description 必须写用户的真实需求（把多轮补充合并进来，范例图需求就写清"参考我发的图"+用户补充，严禁照抄示例占位文字）；mode 按画面人数推断：双人=couple、女生单人=solo_f、男生单人=solo_m，推断不出先用 none 问一句
 - {{"type": "generate_photo", "mode": "couple或solo_f或solo_m", "note": "用户的调整要求（可空）"}} 直接出片：用户说"用这张出片/帮我生成/用最新定妆照出一张"时用，系统会把用户刚发的图（或最近发的图/定制模卡）当模板 + 用最新定妆照一键同款出图。用户从来没发过图时先别用，引导 TA 发图或去挑模卡
+- {{"type": "duo_photo", "note": "合照场景/氛围要求（可空）"}} 生成双人合照：用户发两个人的照片（两张单人照或一张现成合照），说"把照片里的人生成一张合照/帮我们俩合拍一张"时用，系统用照片里的真人直接生成两人亲密合照
+- {{"type": "edit_photo", "instruction": "去掉眼镜"}} 修改已生成的成片：用户对刚出的图提局部修改（去眼镜/换个表情/背景亮一点/去掉某个东西）时用，instruction 是具体修改点。注意：这是改"成片"，不是改定妆照——用户说改妆容/重新定妆才用 regenerate_makeup
 - {{"type": "none"}} 纯回答
 
 【重要】用户意图是操作时，action 必须给对应类型，reply 不许承诺 action 做不到的事：
@@ -1403,12 +1422,14 @@ action 只能是以下之一：
 - "删掉所有照片/清空重新开始" → delete_assets reset
 - "不像我/不满意" → 先安抚，再用 regenerate_makeup 带上用户的修正点
 - "用这张出片/帮我生成/出一张看看" → generate_photo
+- "把这两张照片里的人生成一张合照/帮我俩合拍一张" → duo_photo（真人生成合照）；用户明确说"做模板/定制模卡"才用 custom_moka，两者别混
+- "改一下刚出的图/去个眼镜/这张去掉XX" → edit_photo（改成片）；"改妆容/重新定妆" → regenerate_makeup（改定妆照），别混
 - 【禁止光说不给按钮】reply 里说"点这里/点下面"时，action 必须同时给对应按钮（navigate 或 generate_photo）；AI 答应在做的操作必须有 action 落地，绝不允许只回"好的，我明白了"却什么都不做
 
 【意见反馈流程】用户报 bug 或提功能想法时，先追问细节（action 用 none），把问题整理成一句话问用户"我帮你把这条反馈提交给团队吗？"。用户明确同意（好/提交/嗯）→ submit_feedback，text 是你整理后的完整描述（含用户补充的细节）。用户之前的消息里带图的（历史中标注[N张图]），反馈会一并带上。
 【图片意图】用户发图时（消息里会注明带了几张图），谨慎判断用途：
 - 用户发图说"想要这样的/照这个做/定制同款/做成这样的模板" → custom_moka（图会作为范例一起提交）；
-- 只有用户明确说"做底图/用来生成/用这张拍"才用 add_base_photo；
+- 用户发图说明是谁的照片（"这是新娘/新郎/我老婆的照片"）或说"做底图/用来生成/用这张拍" → add_base_photo 带上正确的 who，**不许只回"已收到"不保存**；
 - UI 截图、效果问题图、带"你看这个/怎么回事"的图，一律视为反馈素材，走意见反馈流程；
 - 拿不准时先问一句"这张图是反馈问题的截图，还是当拍摄底图？"，别擅自处理。"""
 
@@ -1441,7 +1462,7 @@ def _mp_chat_context(conn: sqlite3.Connection, order_no: str) -> tuple[dict, dic
     state = {
         "拍摄模式": order["mode"] or "未选（couple=婚纱照，solo=个人写真）",
         "认证": "、".join(
-            f"{'新娘' if r == 'A' else '新郎'}{'已认证' if order['members'].get(r, {}).get('auth_ok') else '未认证'}"
+            f"{'创建者' if r == 'A' else '伴侣'}{'已认证' if order['members'].get(r, {}).get('auth_ok') else '未认证'}"
             for r in _mp_required_roles(order)),
         "已上传照片": f"{photo_count} 张",
         "定妆": (f"已定妆「{makeup_job['payload'].get('makeup_name')}」" if makeup_job
@@ -1624,6 +1645,9 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
                 action = {"type": "none"}
                 reply = "我还没收到图片哦，点输入框旁边的 📷 传一张试试～"
             else:
+                # who=partner：照片是伴侣的，存进 B 相册（情侣生成按 A/B 双相册取图）
+                who = action.get("who") if action.get("who") in ("me", "partner") else "me"
+                contact = body.order_no if who == "me" else f"{body.order_no}-B"
                 added = 0
                 for key in body.images[:3]:
                     exists = conn.execute(
@@ -1632,11 +1656,13 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
                         conn.execute(
                             "INSERT INTO uploads(contact,filename,oss_key,size,content_type,created_at)"
                             " VALUES(?,?,?,?,?,?)",
-                            (body.order_no, Path(key).name, key, 0, "image/jpeg", _now()))
+                            (contact, Path(key).name, key, 0, "image/jpeg", _now()))
                         added += 1
                 conn.commit()
-                log.info("mp chat add_base_photo order_no=%s added=%d", body.order_no, added)
-                action = {"type": "add_base_photo", "added": added}
+                log.info("mp chat add_base_photo order_no=%s who=%s added=%d", body.order_no, who, added)
+                action = {"type": "add_base_photo", "added": added, "who": who}
+                if added:
+                    reply += f"\n（已把 {added} 张保存为{'你的' if who == 'me' else '伴侣的'}拍摄底图 ✅）"
 
         elif atype == "custom_moka":
             # 定制专属模卡：描述/范例图 → 队列生成（worker 做安全审核+质检重试），每单免费 3 次
@@ -1698,6 +1724,38 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
                           "mode": "couple" if couple else "solo",
                           "anchor_key": anchors.get("A", ""),
                           "anchor_key_b": anchors.get("B", "") if couple else "",
+                          "note": str(action.get("note") or "")[:100]}
+
+        elif atype == "edit_photo":
+            # 成片局部修图：取最新成片做底图 + 用户修改指令，交给前端走 generating 页
+            instruction = str(action.get("instruction") or "")[:200].strip()
+            row = conn.execute(
+                "SELECT result_json FROM mp_jobs WHERE order_no=? AND status='done'"
+                " AND kind IN ('free_photo','solo_photo','template_photo','edit_photo')"
+                " ORDER BY id DESC LIMIT 1", (body.order_no,)).fetchone()
+            base_key = (json.loads(row[0]) or {}).get("oss_key", "") if row and row[0] else ""
+            if not instruction:
+                action = {"type": "none"}
+                reply = "想改哪里？告诉我具体一点，比如\"去掉眼镜\"\"背景亮一点\"～"
+            elif not base_key:
+                action = {"type": "none"}
+                reply = "你还没有生成好的成片哦，先出一张再来改～"
+            else:
+                action = {"type": "edit_photo", "base_key": base_key, "instruction": instruction}
+
+        elif atype == "duo_photo":
+            # 双人合照：用户发的两个人照片（本条或最近聊天图）直接生成亲密合照
+            images = list(body.images[:2])
+            if not images:
+                rows = conn.execute(
+                    "SELECT oss_key FROM uploads WHERE contact=? AND content_type LIKE 'image/%'"
+                    " ORDER BY id DESC LIMIT 2", (f"{body.order_no}-chat",)).fetchall()
+                images = [r[0] for r in rows]
+            if not images:
+                action = {"type": "none"}
+                reply = "把你们的照片发给我（两张单人照或一张合照），我马上给你们合拍～"
+            else:
+                action = {"type": "duo_photo", "images": images,
                           "note": str(action.get("note") or "")[:100]}
 
         return JSONResponse({"ok": True, "reply": reply, "action": action})
