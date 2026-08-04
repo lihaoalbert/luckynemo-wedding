@@ -29,7 +29,7 @@
 
 ## 二、能力管线（tools/luckynemo-toolkit/，全部真实调通）
 
-凭据在 `tools/luckynemo-toolkit/.env`（git 勿传）：
+凭据在 `tools/luckynemo-toolkit/.env`（git 勿传）。**生图/视频供应端双通道（2026-08-04 命名定）**：`ark-ifocus` = iFocusing 路由 `router.i-focusing.com`（`IFOCUS_API_KEY`，Ark 全兼容——文档确认生图 `/api/v3/images/generations`、视频 `/api/v3/contents/generations/tasks` 只需换 Host+Key；另有平台兼容 `/v1/*` 路径）；`ark-direct` = 火山直连 `ark.cn-beijing.volces.com`（`ARK_API_KEY`）。**小程序 worker 生图默认走 ark-ifocus，异常自动 failover 到 ark-direct**（mp_worker.py `_ark_channels()`，`ARK_CHANNEL` 环境变量可强制主通道）；toolkit 走 ark-direct，要切 ifocus 只需 `ARK_BASE_URL`+`ARK_API_KEY` 换成 ifocus 的。注意两通道是独立账户独立账单（2026-08-04 直连欠费时 ifocus 不受影响）
 
 | 能力 | 通道 | 状态 |
 |---|---|---|
@@ -50,7 +50,7 @@
 - 参考片拆解：`referrence/刘奔奔&徐驰/new/205cddc99c5220686670c28ec79ac81b_raw.mp4`（87.6s/28 镜/纯音乐）
 - Skill：`skills/prewedding-film/`（SKILL.md + references/style-bible.md 风格圣经 + references/production-sop.md 生产 SOP）
 - 锚点分镜：`tools/luckynemo-toolkit/templates/storyboards/prewedding_film.json`（20 镜 91 秒，已过 validate；script_pipeline `--template prewedding_film` 可直接引用）
-- 状态：分镜与管线（--ratio/--size）已 dry-run 验证；2026-08-04 首样 E2E 首跑 draft 发现**视频变脸**（首帧正常、片中漂成模板脸，根因：i2v 只传首帧无身份锚点 + Mini 保持力弱）。已实测三条路（shot_05 对照）：①首帧+参考图混传 → 方舟 400 互斥，接口层不支持；②**标准版 i2v（仅首帧）身份保持合格**；③**Mini r2v（首帧降为图片1参考 + 新人照片身份锚点）也稳**，pipeline 已加 `--char-refs` 支持该模式。v1 废片存档 `film/clips_draft_v1_变脸废弃/`。结论：draft=Mini r2v（--char-refs）、final=标准版 i2v；新人正面照已入库素材库（新娘 asset-20260804102400-5lg5m / 新郎 asset-20260804102408-qzbhg，组 group-20260804093915-slq4k）
+- 状态：分镜与管线（--ratio/--size）已 dry-run 验证；2026-08-04 首样 E2E 首跑 draft 发现**视频变脸**（首帧正常、片中漂成模板脸，根因：i2v 只传首帧无身份锚点 + Mini 保持力弱）。已实测三条路（shot_05 对照）：①首帧+参考图混传 → 方舟 400 互斥，接口层不支持；②**标准版 i2v（仅首帧）身份保持合格**；③**Mini r2v（首帧降为图片1参考 + 新人照片身份锚点）也稳**，pipeline 已加 `--char-refs` 支持该模式。v1 废片存档 `film/clips_draft_v1_变脸废弃/`。结论：draft=Mini r2v（--char-refs）、final=标准版 i2v；新人正面照已入库素材库（新娘 asset-20260804102400-5lg5m / 新郎 asset-20260804102408-qzbhg，组 group-20260804093915-slq4k）。**注意：r2v 模式参考图会把场景往参考图带（海滩照片曾致 shot_16 中段棚景漂成海滩），场景敏感的镜头走 i2v**。全量 20 镜 Mini r2v 草稿已完成并逐镜品控：19/20 通过无变脸，shot_16 场景漂移用标准版 i2v 单独补出（进 clips_final/）
 
 ## 三、模卡（一键同款，2026-08-01 引入）
 
@@ -101,6 +101,7 @@
 
 ## 更新日志
 
+- 2026-08-04 生图双通道上线：命名 ark-ifocus（iFocusing 路由 router.i-focusing.com，默认）/ ark-direct（火山直连，备用）；实测 ifocus 路由 Ark 全兼容（生图真实出图 ✓、Seedance 文档确认同路径）；mp_worker `seedream()` 改双通道自动 failover，ECS 实测主通道出图 ✓ + 坏 key 注入 failover 到 direct ✓；worker 已重启；main/moka 合并 6c247c8。此前欠费的是 ark-direct 账户（已充值），与 ifocus 相互独立
 - 2026-08-04 模卡 v3 合并上线：lig09 充值后重跑通过，8 系列 72 张全入库（index.json v3 终态 108 模板/20 系列/6 分组）；提交曾误落 miniprogram 分支（共享工作树被他组切换），已 fast-forward 归位 moka 并复原 miniprogram；无 gh，main 本地 ff 合并 631af75 推 origin；ECS 同步 `/var/www/luckynemo/moka/`（108 模板，lv 文件删除 404）+ `/opt/luckynemo/server/` 两文件，luckynemo/luckynemo-worker 重启 active，线上 catalog 冒烟 108/20/6 ✓；待微信开发者工具上传小程序
 - 2026-08-04 模卡 v3 落地（moka 分支，未提交）：8 系列精选 72 张源片 → `gen_series.py` 换脸全出 → 4 路审片 71/72 过（lig09 文字牌 FAIL，重跑遇**方舟账户欠费**待充值）→ `build_series_index.py` 登记 7 系列 63 张，index.json v3=99 模板/19 系列/6 分组、lv 56 张下架；app.py 加 moka_groups+template_series 扣费、mp_worker 加 run_template_series、小程序 moka/generating/result 三页改九宫格链路；本地 catalog 验证通过
 - 2026-08-04 婚照电影 draft 变脸修复（video 方向）：shot_05 三路对照实测——首帧+参考图混传被方舟 400 拒绝（互斥，ark.py 已注释此限制）；标准版 i2v 身份保持合格；Mini r2v（首帧降为图片1 + 新人照片锚点）同样稳。video_pipeline draft/final 新增 `--char-refs`（r2v 模式，`tools/luckynemo-toolkit/luckynemo/video_pipeline.py`），新人正面照入库（asset-20260804102400-5lg5m / asset-20260804102408-qzbhg）；v1 废片存档 `couples/刘奔奔&徐驰/film/clips_draft_v1_变脸废弃/`，全量 20 镜 Mini r2v 草稿重跑中。期间方舟账号曾欠费（已充值恢复）：全量勘察新样例 `/Users/lihao/Downloads/previews`（267 组/4459 张，8 路并行看图打标）→ 产出 `research/2026-08-模卡分组设计.md`：6 一级大类 × 30 二级系列（每系列 9 变体对应朋友圈九宫格）、24 个新系列选定来源组、mk 老系列保留待扩充、lv 56 张拟下架；尚未动 index.json/前后端
