@@ -50,7 +50,7 @@
 - 参考片拆解：`referrence/刘奔奔&徐驰/new/205cddc99c5220686670c28ec79ac81b_raw.mp4`（87.6s/28 镜/纯音乐）
 - Skill：`skills/prewedding-film/`（SKILL.md + references/style-bible.md 风格圣经 + references/production-sop.md 生产 SOP）
 - 锚点分镜：`tools/luckynemo-toolkit/templates/storyboards/prewedding_film.json`（20 镜 91 秒，已过 validate；script_pipeline `--template prewedding_film` 可直接引用）
-- 状态：分镜与管线（--ratio/--size）已 dry-run 验证；2026-08-04 首样 E2E 跑到 draft（Mini 草稿 10/20 镜，`couples/刘奔奔&徐驰/film/clips_draft/`）发现**视频变脸严重**（首帧正常、片中漂成模板脸，根因：i2v 只传首帧无身份锚点 + Mini 保持力弱）。修复：video_pipeline draft/final 新增 `--refs`（人物参考图 role=reference_image + 自动追加身份锚定提示词），奔奔/徐驰正面照已入库素材库（新娘 asset-20260804102400-5lg5m / 新郎 asset-20260804102408-qzbhg，同组 group-20260804093915-slq4k）。**阻塞：方舟账号欠费（AccountOverdueError），充值后先跑 shot_05 单镜验证再决定是否全量重跑；若 Mini+refs 仍变脸，草稿升标准版**
+- 状态：分镜与管线（--ratio/--size）已 dry-run 验证；2026-08-04 首样 E2E 首跑 draft 发现**视频变脸**（首帧正常、片中漂成模板脸，根因：i2v 只传首帧无身份锚点 + Mini 保持力弱）。已实测三条路（shot_05 对照）：①首帧+参考图混传 → 方舟 400 互斥，接口层不支持；②**标准版 i2v（仅首帧）身份保持合格**；③**Mini r2v（首帧降为图片1参考 + 新人照片身份锚点）也稳**，pipeline 已加 `--char-refs` 支持该模式。v1 废片存档 `film/clips_draft_v1_变脸废弃/`。结论：draft=Mini r2v（--char-refs）、final=标准版 i2v；新人正面照已入库素材库（新娘 asset-20260804102400-5lg5m / 新郎 asset-20260804102408-qzbhg，组 group-20260804093915-slq4k）
 
 ## 三、模卡（一键同款，2026-08-01 引入）
 
@@ -66,7 +66,8 @@
 - 生产已同步（2026-08-01）：36 张模板 + index.json v2 在 ECS `/var/www/luckynemo/moka/`，生产 app.py 已更新并重启，catalog 线上验证 36 模板/12 系列 ✓
 - **v3 分组设计（2026-08-04，moka 分支，设计方案待实施）**：基于新样例库 `/Users/lihao/Downloads/previews`（267 组真实客片/4459 张，全量勘察）设计「6 一级大类 × 30 二级系列（每系列 9 变体=九宫格）」，方案与选取清单见 `research/2026-08-模卡分组设计.md`。要点：lv 56 张拟全下架、mk 12 系列保留补类目（previews 全 couple 且无中式/教堂/夜景）；previews 是真实客片须先换脸虚拟模特再入库；批量九宫格需新增 template_series 任务类型
 - **v3 实施进展（2026-08-04，moka 分支，未提交未部署）**：首批 8 系列（hyd蓝绣球/sak樱花隧道/muh粉黛/lig悬崖灯塔/han韩服古祠/hor以梦为马/min白色极简/spk暮色仙女棒）各精选 9 张源片（存 `~/Desktop/moka_series_src/`，真实客片不入库）→ `assets/moka/gen_series.py` 换脸生成到 `series_draft/`；`build_series_index.py` 负责 index.json v3（groups 层 + 下架 lv* + mk 编组）；后端 app.py 新增 catalog `moka_groups` 透传 + `template_series` 任务（按变体数扣额度，`_moka_series_size`）；worker 新增 `run_template_series`（同锚点逐变体生成，进度写 result_json.urls）；小程序 moka 页改分组+系列九宫格 UI（无 groups 时回退老版平铺）、generating 页显示 x/9 进度、result 页九宫格+全部保存
-- **v3 品控与入库（2026-08-04，全部完成）**：72 张换脸底片 4 路审片 71 通过；lig09（"Save the Date" 文字牌）账户充值后加去文字词重跑通过（文字牌换花束、墨镜保留、脸已换）。**index.json v3 终态：108 模板（36 mk + 72 新）/ 20 系列 / 6 分组，lv 56 张全下架**；本地起服务验证 catalog 返回 moka_groups 6 组 ✓。待办：①PR 回 main 后部署（rsync assets/moka → ECS + 更新 app.py/mp_worker.py 重启两服务）②微信开发者工具上传小程序。注：方舟账户曾欠费导致全部生图 403，充值后恢复
+- **v3 品控与入库（2026-08-04，全部完成）**：72 张换脸底片 4 路审片 71 通过；lig09（"Save the Date" 文字牌）账户充值后加去文字词重跑通过（文字牌换花束、墨镜保留、脸已换）。**index.json v3 终态：108 模板（36 mk + 72 新）/ 20 系列 / 6 分组，lv 56 张全下架**；本地起服务验证 catalog 返回 moka_groups 6 组 ✓。注：方舟账户曾欠费导致全部生图 403，充值后恢复
+- **v3 已上线（2026-08-04）**：main 合并 631af75（无 gh，本地 ff 合并推 origin/main）；ECS `/var/www/luckynemo/moka/` 已同步 108 模板 + index.json v3（lv 文件已删，线上 404），`/opt/luckynemo/server/` app.py/mp_worker.py 已更新，luckynemo + luckynemo-worker 重启 active；线上冒烟 catalog=108 模板/20 系列/6 分组 ✓ hyd01.png 200 ✓。待办：微信开发者工具上传小程序（moka/generating/result 三页）
 
 **自定义模卡（DIY，2026-08-01 上线）**：用户在 chat 页发范例图(可选)+文字描述 → M3 识别意图产出 `custom_moka` 动作 → worker 三段式：VLM 安全审核+意图规格化（范例图有人脸只取风格不进参考图，防肖像权风险）→ Seedream 生成（固定画质尾缀与公共模卡同骨架）→ VLM 质检（人数/畸形/文字，最多重试 2 次）→ 存 OSS `diy_moka/{order_no}/`，chat 页轮询出图后给「用这张出片」按钮 → `template_photo` 支持 `custom_template_key` 复用一键同款链路出终图。配额：每单免费 3 次（app.py custom_moka 分支控制）。DIY 卡默认私有不进公共库。
 - 已验证：正常描述一次通过（规格→生成→质检→OSS→DB 全链路）；名人脸请求被安全审核正确拦截
@@ -100,8 +101,9 @@
 
 ## 更新日志
 
+- 2026-08-04 模卡 v3 合并上线：lig09 充值后重跑通过，8 系列 72 张全入库（index.json v3 终态 108 模板/20 系列/6 分组）；提交曾误落 miniprogram 分支（共享工作树被他组切换），已 fast-forward 归位 moka 并复原 miniprogram；无 gh，main 本地 ff 合并 631af75 推 origin；ECS 同步 `/var/www/luckynemo/moka/`（108 模板，lv 文件删除 404）+ `/opt/luckynemo/server/` 两文件，luckynemo/luckynemo-worker 重启 active，线上 catalog 冒烟 108/20/6 ✓；待微信开发者工具上传小程序
 - 2026-08-04 模卡 v3 落地（moka 分支，未提交）：8 系列精选 72 张源片 → `gen_series.py` 换脸全出 → 4 路审片 71/72 过（lig09 文字牌 FAIL，重跑遇**方舟账户欠费**待充值）→ `build_series_index.py` 登记 7 系列 63 张，index.json v3=99 模板/19 系列/6 分组、lv 56 张下架；app.py 加 moka_groups+template_series 扣费、mp_worker 加 run_template_series、小程序 moka/generating/result 三页改九宫格链路；本地 catalog 验证通过
-- 2026-08-04 婚照电影首样 draft 变脸排查（video 方向）：确认 i2v 仅首帧无身份锚点导致 Mini 出片变脸；video_pipeline draft/final 新增 `--refs` 人物参考图参数（`tools/luckynemo-toolkit/luckynemo/video_pipeline.py`），新人正面照入库素材库（asset-20260804102400-5lg5m / asset-20260804102408-qzbhg）；验证被方舟账号欠费（AccountOverdueError）阻塞，待充值后跑 shot_05 单镜对比：全量勘察新样例 `/Users/lihao/Downloads/previews`（267 组/4459 张，8 路并行看图打标）→ 产出 `research/2026-08-模卡分组设计.md`：6 一级大类 × 30 二级系列（每系列 9 变体对应朋友圈九宫格）、24 个新系列选定来源组、mk 老系列保留待扩充、lv 56 张拟下架；尚未动 index.json/前后端
+- 2026-08-04 婚照电影 draft 变脸修复（video 方向）：shot_05 三路对照实测——首帧+参考图混传被方舟 400 拒绝（互斥，ark.py 已注释此限制）；标准版 i2v 身份保持合格；Mini r2v（首帧降为图片1 + 新人照片锚点）同样稳。video_pipeline draft/final 新增 `--char-refs`（r2v 模式，`tools/luckynemo-toolkit/luckynemo/video_pipeline.py`），新人正面照入库（asset-20260804102400-5lg5m / asset-20260804102408-qzbhg）；v1 废片存档 `couples/刘奔奔&徐驰/film/clips_draft_v1_变脸废弃/`，全量 20 镜 Mini r2v 草稿重跑中。期间方舟账号曾欠费（已充值恢复）：全量勘察新样例 `/Users/lihao/Downloads/previews`（267 组/4459 张，8 路并行看图打标）→ 产出 `research/2026-08-模卡分组设计.md`：6 一级大类 × 30 二级系列（每系列 9 变体对应朋友圈九宫格）、24 个新系列选定来源组、mk 老系列保留待扩充、lv 56 张拟下架；尚未动 index.json/前后端
 - 2026-08-04 新增婚照电影产品线（video 分支）：调研 Wonkyu 风参考片 → 新建 `skills/prewedding-film/`（风格圣经+生产SOP）+ 锚点分镜 `tools/luckynemo-toolkit/templates/storyboards/prewedding_film.json`（20镜91s竖屏，validate通过）；video_pipeline 新增 `frames --size` 与 `draft/final --ratio` 支持 9:16；真实出片 E2E 待跑
 - 2026-08-04 开启三组并行开发：分支 `main`（主干，唯一可部署）/ `miniprogram`（小程序组）/ `moka`（模版组）/ `video`（视频组）均已推送 GitHub；并行规范（分支模型、文件归属、跨组文件同步、合并部署纪律）见根目录 `AGENTS.md`
 
