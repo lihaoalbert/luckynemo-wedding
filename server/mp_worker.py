@@ -611,6 +611,10 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
         if use_original:
             photos = photos[:1]
             advice = ""
+            # 用户的附加修饰要求（如"去掉汗水"）：仅限皮肤瑕疵层面，五官严禁改变
+            if payload.get("makeup_notes"):
+                prompt += (f"\n额外修饰要求（仅限皮肤瑕疵层面，五官脸型表情严禁改变）："
+                           f"{payload['makeup_notes']}")
         else:
             # LLM 化妆师：先分析人物原图给出个性化建议，融合进标准提示词
             advice = analyze_face(photos[0], payload.get("makeup_name", ""), payload.get("gender", "female"))

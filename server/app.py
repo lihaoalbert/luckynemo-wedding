@@ -1231,12 +1231,13 @@ def _compose_makeup_prompt(style: dict) -> str:
     if style.get("spec", {}).get("use_original"):
         person = "男性" if male else "女性"
         return (
-            f"这是对参考照片的背景替换编辑，不是重新生成：参考照片中的{person}就是最终成片人物，"
-            "严格保持其脸部、五官、发型、表情、姿势、服装、画面构图 100% 不变，"
+            f"这是对参考照片的背景替换与皮肤清理编辑，不是重新生成：参考照片中的{person}就是最终成片人物，"
+            "严格保持其脸部、五官、脸型、表情、发型、服装、画面构图不变，"
             "不做任何美颜、美化、重绘或五官调整，与参考照片的人物一模一样。\n"
-            "唯一改动：把杂乱的原始背景替换为浅灰色纯色摄影棚背景，人物边缘干净自然、"
-            "与场景自然融合有投影，光线统一为柔和均匀的摄影棚灯光。"
-            "无文字无水印"
+            "允许的改动仅两类：①把杂乱的原始背景替换为浅灰色纯色摄影棚背景，人物边缘干净自然、"
+            "与场景自然融合有投影，光线统一为柔和均匀的摄影棚灯光；"
+            "②皮肤清理：去掉汗珠、汗水、油光、明显痘痘等皮肤瑕疵，轻度自然，不过度磨皮，"
+            "痣和五官特征必须保留。无文字无水印"
         )
     if style.get("spec", {}).get("no_makeup"):
         person, ta = ("男性", "他") if male else ("女性", "她")
@@ -1617,7 +1618,7 @@ action 只能是以下之一：
 - {{"type": "navigate", "page": "/pages/upload/upload"}} 引导去页面（可选页：/pages/upload/upload 上传、/pages/makeup/makeup 定妆、/pages/wardrobe/wardrobe 选服装场景、/pages/pose/pose 选动作神态）
 - {{"type": "update_selection", "fields": {{"scenes": ["场景名"], "poses": ["动作名"], "set_id": "set-01", "makeup_id": "hz002", "makeup_notes": "用户自己的化妆要求"}}}} 修改选择（只能用可选资产里的值；makeup_notes 是自由文本，记录用户提的化妆意见，如"卧蚕明显一点""唇色要豆沙色"）
 - {{"type": "regenerate_makeup", "instruction": "腮红淡一点"}} 按修正指令重新出定妆照
-- {{"type": "makeup_photo", "who": "me或partner", "makeup_id": "hz214"}} 对话里直接出定妆照：用户发照片说"用这张修/做一张定妆照""修一张原始图作为定妆照"时用——底图=用户刚发的图；who 按"这是谁的定妆照"判断（新郎/老公/男方=操作者本人时用 me，新娘/老婆/伴侣用 partner，参考对话里用户的自称，拿不准先问）；makeup_id 用可选妆造里的值，用户说"原始/原图/最像本人"或没指定妆容时默认原图直出版（女 hz214/男 hz108）。用这个动作时 reply 说明"正在生成定妆照"
+- {{"type": "makeup_photo", "who": "me或partner", "makeup_id": "hz214", "note": "用户的修饰要求（可空）"}} 对话里直接出定妆照：用户发照片说"用这张修/做一张定妆照""修一张原始图作为定妆照"时用——底图=用户刚发的图；who 按"这是谁的定妆照"判断（新郎/老公/男方=操作者本人时用 me，新娘/老婆/伴侣用 partner，参考对话里用户的自称，拿不准先问）；makeup_id 用可选妆造里的值，用户说"原始/原图/最像本人"或没指定妆容时默认原图直出版（女 hz214/男 hz108）；note 带用户的附加修饰要求（如"把脸上的汗去掉"）。用这个动作时 reply 说明"正在生成定妆照"
 - {{"type": "show_result"}} 把最新生成好的成片/定妆照发给用户看
 - {{"type": "show_uploads"}} 把用户已上传的照片发给用户看
 - {{"type": "set_mode", "mode": "solo"}} 切换拍摄模式（solo=个人写真，couple=婚纱照）
@@ -1927,7 +1928,8 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
                         payload = {"role": role, "makeup_id": style["id"], "makeup_name": style["name"],
                                    "makeup_prompt": style["prompt"], "gender": style.get("gender", "female"),
                                    "engine": "seedream", "base_key": base_key,
-                                   "makeup_notes": "", "hairstyle": "", "hairstyle_name": ""}
+                                   "makeup_notes": str(action.get("note") or "")[:200],
+                                   "hairstyle": "", "hairstyle_name": ""}
                         conn.execute(
                             "INSERT INTO mp_jobs(order_no,kind,payload_json,status,created_at,updated_at)"
                             " VALUES(?,?,?,?,?,?)",
