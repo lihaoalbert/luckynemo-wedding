@@ -1,7 +1,7 @@
 {
   "name": "红妆阁",
   "version": "2.0",
-  "updated": "2026-08-01",
+  "updated": "2026-08-04",
   "model": {
     "codename": "小霓",
     "anchor": "model_anchor.png",
@@ -534,6 +534,34 @@
       }
     },
     {
+      "id": "hz214",
+      "series": "原图",
+      "gender": "female",
+      "name": "原图直出版",
+      "file": "styles/hz214.png",
+      "vibe": "你的原照片，只换干净背景，最像本人",
+      "suitable": [
+        "怕不像本人",
+        "已有满意照片",
+        "证件感肖像"
+      ],
+      "spec": {
+        "slogan": "原图不动，只把背景收拾干净",
+        "keywords": [
+          "原图",
+          "换背景",
+          "最像本人"
+        ],
+        "use_original": true,
+        "parts": {
+          "妆造": "保持原照片完全不修",
+          "发型饰品": "保持原发型，无饰品"
+        },
+        "colors": {},
+        "steps": []
+      }
+    },
+    {
       "id": "hz101",
       "series": "男士系",
       "gender": "male",
@@ -903,6 +931,34 @@
         "no_makeup": true,
         "parts": {
           "妆造": "保持素颜不化妆，仅肤色均匀与轻微提亮",
+          "发型饰品": "保持原发型，无饰品"
+        },
+        "colors": {},
+        "steps": []
+      }
+    },
+    {
+      "id": "hz108",
+      "series": "原图",
+      "gender": "male",
+      "name": "原图直出版",
+      "file": "styles/hz108.png",
+      "vibe": "你的原照片，只换干净背景，最像本人",
+      "suitable": [
+        "怕不像本人",
+        "已有满意照片",
+        "证件感肖像"
+      ],
+      "spec": {
+        "slogan": "原图不动，只把背景收拾干净",
+        "keywords": [
+          "原图",
+          "换背景",
+          "最像本人"
+        ],
+        "use_original": true,
+        "parts": {
+          "妆造": "保持原照片完全不修",
           "发型饰品": "保持原发型，无饰品"
         },
         "colors": {},

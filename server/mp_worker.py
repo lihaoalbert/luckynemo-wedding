@@ -606,19 +606,25 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
             raise RuntimeError("makeup_photo 任务缺 makeup_prompt")
         if not photos:
             raise RuntimeError("订单没有可用照片（uploads 表为空）")
-        # LLM 化妆师：先分析人物原图给出个性化建议，融合进标准提示词
-        advice = analyze_face(photos[0], payload.get("makeup_name", ""), payload.get("gender", "female"))
-        prompt = merge_face_advice(prompt, advice, payload.get("makeup_notes", ""))
-        # 发型装扮：用户选了发型则允许改发型（五官脸型仍不动），否则保持原发型
-        if payload.get("hairstyle"):
-            prompt += (
-                f"\n发型要求：将人物发型调整为「{payload['hairstyle']}」，"
-                "允许改变发型，但五官、脸型、妆容仍须与人物一致"
-            )
+        # 原图直出版：只用底图一张（严禁参考其他照片），不融合妆容建议、不改发型
+        use_original = "原图直出" in str(payload.get("makeup_name", ""))
+        if use_original:
+            photos = photos[:1]
+            advice = ""
+        else:
+            # LLM 化妆师：先分析人物原图给出个性化建议，融合进标准提示词
+            advice = analyze_face(photos[0], payload.get("makeup_name", ""), payload.get("gender", "female"))
+            prompt = merge_face_advice(prompt, advice, payload.get("makeup_notes", ""))
+            # 发型装扮：用户选了发型则允许改发型（五官脸型仍不动），否则保持原发型
+            if payload.get("hairstyle"):
+                prompt += (
+                    f"\n发型要求：将人物发型调整为「{payload['hairstyle']}」，"
+                    "允许改变发型，但五官、脸型、妆容仍须与人物一致"
+                )
         # 引擎选择（内测开放）：vidu=妆效好但有漂移风险 / seedream=默认保脸（MiniMax 生图已下架）
         engine = payload.get("engine") or "seedream"
         style_file = SITE_DIR / "hongzhuang" / "styles" / f"{payload.get('makeup_id', '')}.png"
-        if engine == "vidu" and style_file.is_file():
+        if engine == "vidu" and style_file.is_file() and not use_original:
             # viduq2 图片编辑模式。男妆只发用户底图+纯文字配方（实测：发参考妆图会被小朗同化）；
             # 女妆发用户图+红妆阁妆造参考图（漂移可接受且妆效更好）；素颜版只发底图+文字
             male = payload.get("gender") == "male"
