@@ -522,10 +522,11 @@ VP_OFFER_ID = _env("VP_OFFER_ID", "")
 VP_APP_KEY = _env("VP_APP_KEY", "")                      # 现网 AppKey
 VP_APP_KEY_SANDBOX = _env("VP_APP_KEY_SANDBOX", "")      # 沙箱 AppKey
 VP_ENV = int(_env("VP_ENV", "0"))                        # 0=现网 1=沙箱
-#: 商品表：代币比例 1 元 = 10 币；per_photo=39 币→1 张额度，pack49=490 币→50 张额度
+#: 商品表：代币「金币」1 元 = 1 币（MP 后台已配，发布后不可改）；价格须整数元
+#: per_photo=4 币→1 张额度，pack49=49 币→50 张额度
 VP_PRODUCTS = {
-    "per_photo": {"coins": 39, "grant": 1, "title": "3.9 元/张"},
-    "pack49": {"coins": 490, "grant": 50, "title": "49 元 · 50 张"},
+    "per_photo": {"coins": 4, "grant": 1, "title": "4 元/张"},
+    "pack49": {"coins": 49, "grant": 50, "title": "49 元 · 50 张"},
 }
 #: 本站对外地址（拼认证回调用）
 PUBLIC_BASE = _env("PUBLIC_BASE", "https://luckynemo.ibi.ren")

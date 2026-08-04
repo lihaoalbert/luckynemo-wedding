@@ -1,4 +1,4 @@
-// 结果页：免费成片 + 付费升级（3.9/张 或 49 套餐）+ 下载分享
+// 结果页：免费成片 + 付费升级（4 元/张 或 49 套餐）+ 下载分享
 const app = getApp();
 
 Page({
@@ -74,7 +74,7 @@ Page({
   },
 
   buyPer() {
-    wx.showModal({ title: '继续生成', content: '3.9 元/张，按张付费，满意再生成下一张', confirmText: '好', success: () => this.pay('per_photo', 3.9) });
+    wx.showModal({ title: '继续生成', content: '4 元/张，按张付费，满意再生成下一张', confirmText: '好', success: () => this.pay('per_photo', 4) });
   },
 
   buyPack() {
@@ -82,8 +82,8 @@ Page({
   },
 
   pay(kind, amount) {
-    // 虚拟支付（代币模式）：3.9 元/张 = 39 币，49 元套餐 = 490 币；未开通时 app.vpay 自动回退客服
-    app.vpay(kind, kind === 'pack49' ? '49 元套餐 · 50 张' : '3.9 元/张');
+    // 虚拟支付（代币模式，1 元=1 金币）：4 元/张 = 4 币，49 元套餐 = 49 币；未开通时 app.vpay 自动回退客服
+    app.vpay(kind, kind === 'pack49' ? '49 元套餐 · 50 张' : '4 元/张');
   },
 
   upgrade() {

@@ -30,7 +30,7 @@
   <view class="upcard card">
     <view class="uptitle serif">想要更多？</view>
     <view class="opt" bindtap="buyPer">
-      <view><b>3.9 元/张</b><view class="sub">按张付费，喜欢再要</view></view>
+      <view><b>4 元/张</b><view class="sub">按张付费，喜欢再要</view></view>
       <view class="go">→</view>
     </view>
     <view class="opt hot" bindtap="buyPack">

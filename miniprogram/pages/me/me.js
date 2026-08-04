@@ -46,10 +46,10 @@ Page({
 
   recharge() {
     wx.showActionSheet({
-      itemList: ['3.9 元 / 张（按张付费）', '49 元套餐 · 50 张（最划算）'],
+      itemList: ['4 元 / 张（按张付费）', '49 元套餐 · 50 张（最划算）'],
       success: (r) => {
         const pack = r.tapIndex === 1;
-        app.vpay(pack ? 'pack49' : 'per_photo', pack ? '49 元套餐 · 50 张' : '3.9 元/张');
+        app.vpay(pack ? 'pack49' : 'per_photo', pack ? '49 元套餐 · 50 张' : '4 元/张');
       },
       fail: () => {},
     });
