@@ -19,8 +19,8 @@
 | 战略路线图 | 本地 `website/roadmap/index.html` | 私有版，状态源 `state.js`（用户勾选/口述后由 Kimi 更新）；线上版已下线 |
 | 后端 API | https://luckynemo.ibi.ren/api/health | FastAPI，ECS 127.0.0.1:8090，systemd `luckynemo.service`（Restart=always，重启 ECS 会自启） |
 | 小程序 worker | systemd `luckynemo-worker.service` | `/opt/luckynemo/server/mp_worker.py`，轮询 mp_jobs → Seedream → OSS results/，单张 ≈44s（2026-07-29 E2E 通过） |
-| 小程序工程 | 本地 `miniprogram/` | AppID wxfab69c703920891e；后端端点 /api/mp/*；待：认证回调、真机体验 |
-| 虚拟支付 | /api/mp/vpay/* | 代币模式（1元=10币；39币→1张 / 490币→50 张）。prepare（签名三要素）/confirm（客户端补偿到账，幂等）/notify（Midas 发货推送验签到账）。**待 MP 控制台取 VP_OFFER_ID/VP_APP_KEY/VP_APP_KEY_SANDBOX 配进 ECS `.env`**（VP_ENV=1 沙箱先联调）；未配置时客户端自动回退客服流程。iOS 需在虚拟支付模块额外开通（仅支持代币）；到账对账用 MP「交易订单」后台 |
+| 小程序工程 | 本地 `miniprogram/` | **AppID wx213d47a529c7055c**（2026-08-04 更正，旧记录 wxfab69c703920891e 作废；ECS MP_APPID 与 project.config.json 均为新号）；后端端点 /api/mp/*；待：认证回调、真机体验 |
+| 虚拟支付 | /api/mp/vpay/* | 代币模式（1元=10币；39币→1张 / 490币→50 张）。prepare/confirm（幂等）/notify 三端点已上线。**密钥已配 ECS `.env`（OfferID 1450606065，现网+沙箱 AppKey），当前 VP_ENV=1 沙箱**。待：①MP 虚拟支付后台配代币（1元=10币）+ 发货推送地址 `https://luckynemo.ibi.ren/api/mp/vpay/notify` ②iOS 额外开通（仅支持代币）③沙箱真机联调后 VP_ENV 改 0；到账对账用 MP「交易订单」后台 |
 | 飞书订单台 | https://acn56kbby6qx.feishu.cn/base/FQNsbNZsfaQGfUsjET8cXGNJnvH | 两张表：「订单」（tblHSraRw4jSN5vv）、「故事问卷」（tblAyGGg6ySGZJY8）。**故事问卷在 Base 顶部第二个表标签页**，直达链接：`https://acn56kbby6qx.feishu.cn/base/FQNsbNZsfaQGfUsjET8cXGNJnvH?table=tblAyGGg6ySGZJY8` |
 
 服务器：阿里云 ECS 8.133.241.103（与 ibi.ren 同机），SSH `ssh -i /Users/app/intfocus-albert.pem root@8.133.241.103`
@@ -102,6 +102,7 @@
 
 ## 更新日志
 
+- 2026-08-04 虚拟支付密钥上线：OfferID/AppKey（现网+沙箱）配入 ECS `.env`，VP_ENV=1 沙箱，luckynemo 重启 active，prepare 端点线上验证 401（配置生效）；更正小程序 AppID 为 wx213d47a529c7055c（旧 wxfab69c703920891e 作废）；待 MP 后台配代币+发货推送地址、iOS 开通、沙箱真机联调
 - 2026-08-04 微信虚拟支付对接（代币模式）：app.py 新增 mp_sessions/mp_pay_orders 表 + /api/mp/vpay/prepare（signData/paySig/signature 三要素）/confirm（幂等到账+归属校验）/notify（验签到账）；mp_login 存 session_key；小程序 app.js `vpay()` 统一支付入口（未配置回退客服），result/me 页接入；本地 E2E（签名校验/到账/幂等/403）通过；app.py 已部署 ECS 重启 active（VP_* 未配置，线上现为回退态）；待：MP 控制台 offerId/AppKey 配 .env、沙箱真机联调、小程序上传
 - 2026-08-04 生图双通道上线：命名 ark-ifocus（iFocusing 路由 router.i-focusing.com，默认）/ ark-direct（火山直连，备用）；实测 ifocus 路由 Ark 全兼容（生图真实出图 ✓、Seedance 文档确认同路径）；mp_worker `seedream()` 改双通道自动 failover，ECS 实测主通道出图 ✓ + 坏 key 注入 failover 到 direct ✓；worker 已重启；main/moka 合并 6c247c8。此前欠费的是 ark-direct 账户（已充值），与 ifocus 相互独立
 - 2026-08-04 模卡 v3 合并上线：lig09 充值后重跑通过，8 系列 72 张全入库（index.json v3 终态 108 模板/20 系列/6 分组）；提交曾误落 miniprogram 分支（共享工作树被他组切换），已 fast-forward 归位 moka 并复原 miniprogram；无 gh，main 本地 ff 合并 631af75 推 origin；ECS 同步 `/var/www/luckynemo/moka/`（108 模板，lv 文件删除 404）+ `/opt/luckynemo/server/` 两文件，luckynemo/luckynemo-worker 重启 active，线上 catalog 冒烟 108/20/6 ✓；待微信开发者工具上传小程序
