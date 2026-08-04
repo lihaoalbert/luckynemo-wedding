@@ -5,6 +5,7 @@ Page({
   data: {
     order: null,
     phase: 'submitting',  // submitting → queued → done
+    progress: null,       // template_series 整组进度 {done, total}
     tips: ['正在为你们挑选最美的光线…', '霓裳阁的衣服正在上身…', '精修每一根发丝…', '摄影师说：再靠近一点点～', '风把裙摆吹起来了，抓拍！', '把这一刻的喜欢藏进照片里…', '最后一遍检查你们的笑容…'],
     tipIdx: 0,
   },
@@ -59,6 +60,10 @@ Page({
     this.poller = setInterval(() => {
       app.req('/api/mp/order/' + this.data.order.order_no).then(res => {
         const job = (res.jobs || []).find(j => j.kind === this.data.kind);
+        // 整组生成（九宫格）：逐张出图，实时显示 x/N 进度
+        if (job && job.result && job.result.urls) {
+          this.setData({ progress: { done: job.result.urls.length, total: job.result.total || 9 } });
+        }
         if (job && job.status === 'done') {
           clearInterval(this.poller);
           clearInterval(this.timer);

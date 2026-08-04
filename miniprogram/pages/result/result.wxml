@@ -4,15 +4,28 @@
     <view class="h1 serif">看看，是不是你们？</view>
   </view>
 
-  <view class="photo card" bindtap="preview">
-    <image wx:if="{{photo}}" src="{{photo}}" mode="widthFix" />
-    <view wx:else class="ph">成片生成中，稍等一下下拉刷新～</view>
-  </view>
+  <!-- 整组九宫格结果 -->
+  <block wx:if="{{photos.length}}">
+    <view class="nine">
+      <image wx:for="{{photos}}" wx:key="*this" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="previewOne" />
+    </view>
+    <view class="row">
+      <button class="btn ghost" bindtap="saveAll">全部存到相册</button>
+      <button class="btn ghost">分享给朋友</button>
+    </view>
+  </block>
 
-  <view class="row">
-    <button class="btn ghost" bindtap="save">存到相册</button>
-    <button class="btn ghost">分享给朋友</button>
-  </view>
+  <block wx:else>
+    <view class="photo card" bindtap="preview">
+      <image wx:if="{{photo}}" src="{{photo}}" mode="widthFix" />
+      <view wx:else class="ph">成片生成中，稍等一下下拉刷新～</view>
+    </view>
+
+    <view class="row">
+      <button class="btn ghost" bindtap="save">存到相册</button>
+      <button class="btn ghost">分享给朋友</button>
+    </view>
+  </block>
 
   <view class="upcard card">
     <view class="uptitle serif">想要更多？</view>

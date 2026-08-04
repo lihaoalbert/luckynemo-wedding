@@ -5,12 +5,19 @@ Page({
   data: {
     order: null,
     photo: '',
+    photos: [],      // template_series 整组结果（九宫格）
   },
 
   onLoad() {
     const order = app.globalData.order;
     this.setData({ order });
     app.req('/api/mp/order/' + order.order_no).then(res => {
+      const seriesJob = (res.jobs || []).find(j =>
+        j.kind === 'template_series' && j.result && j.result.urls && j.result.urls.length);
+      if (seriesJob) {
+        this.setData({ photos: seriesJob.result.urls.map(u => u.url) });
+        return;
+      }
       const job = (res.jobs || []).find(j =>
         (j.kind === 'free_photo' || j.kind === 'solo_photo' || j.kind === 'template_photo') && j.result && j.result.url);
       if (job) this.setData({ photo: job.result.url });
@@ -20,6 +27,10 @@ Page({
   preview() {
     if (!this.data.photo) return;
     wx.previewImage({ urls: [this.data.photo] });
+  },
+
+  previewOne(e) {
+    wx.previewImage({ urls: this.data.photos, current: e.currentTarget.dataset.url });
   },
 
   save() {
@@ -36,6 +47,30 @@ Page({
       },
       complete: () => wx.hideLoading(),
     });
+  },
+
+  // 整组保存：逐张下载存入相册
+  saveAll() {
+    const urls = this.data.photos;
+    if (!urls.length) return;
+    wx.showLoading({ title: '保存中 0/' + urls.length });
+    let done = 0;
+    const next = (i) => {
+      if (i >= urls.length) {
+        wx.hideLoading();
+        wx.showToast({ title: '已全部存到相册' });
+        return;
+      }
+      wx.downloadFile({
+        url: urls[i],
+        success: (r) => wx.saveImageToPhotosAlbum({
+          filePath: r.tempFilePath,
+          complete: () => { done += 1; wx.showLoading({ title: `保存中 ${done}/${urls.length}` }); next(i + 1); },
+        }),
+        fail: () => { done += 1; next(i + 1); },
+      });
+    };
+    next(0);
   },
 
   buyPer() {

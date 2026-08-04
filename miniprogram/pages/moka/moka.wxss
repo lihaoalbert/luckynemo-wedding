@@ -1,15 +1,23 @@
 .page { min-height: 100vh; padding: 0 28rpx 60rpx; }
 .hero { padding: 40rpx 0 20rpx; }
 .sub { font-size: 24rpx; color: var(--ink-soft); margin-top: 8rpx; }
+.tabs-scroll { white-space: nowrap; margin: 10rpx 0 0; }
 .tabs { display: flex; gap: 16rpx; margin: 10rpx 0 28rpx; }
 .tab { padding: 14rpx 30rpx; border-radius: 999rpx; font-size: 26rpx; background: var(--surface); border: 1rpx solid var(--hairline); }
 .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.group-sub { font-size: 24rpx; color: var(--ink-soft); margin: -12rpx 0 20rpx; }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; }
 .card { background: var(--surface); border: 1rpx solid var(--hairline); border-radius: 24rpx; overflow: hidden; }
 .card image { width: 100%; aspect-ratio: 3/4; background: var(--blush); display: block; }
 .body { padding: 16rpx 18rpx 18rpx; }
 .name { font-size: 28rpx; font-weight: 600; }
 .desc { font-size: 24rpx; color: var(--ink-soft); margin-top: 6rpx; line-height: 1.5; }
+/* 系列九宫格预览 */
+.nine {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8rpx;
+  margin-top: 20rpx; border-radius: 16rpx; overflow: hidden;
+}
+.nine image { width: 100%; aspect-ratio: 1; background: var(--blush); display: block; }
 /* 确认弹层 */
 .mask {
   position: fixed; inset: 0; z-index: 100;

@@ -1,25 +1,86 @@
 <view class="page">
   <view class="hero">
     <view class="eyebrow">模卡库 · 一键同款</view>
-    <view class="h1 serif">看中哪张，就拍哪张</view>
-    <view class="sub">每张都含搭配好的场景、服装、妆容、姿势——你只负责美</view>
+    <view class="h1 serif">选一个系列，一次出齐九张</view>
+    <view class="sub">每个系列含搭配好的场景、服装、妆容、姿势——整组生成，直接发九宫格</view>
   </view>
 
-  <view class="tabs">
-    <view class="tab {{tab === t.key ? 'active' : ''}}" wx:for="{{tabs}}" wx:for-item="t" wx:key="key" data-key="{{t.key}}" bindtap="switchTab">{{t.label}}</view>
-  </view>
+  <!-- v3：一级分组 + 系列卡片 -->
+  <block wx:if="{{groups.length}}">
+    <scroll-view scroll-x class="tabs-scroll">
+      <view class="tabs">
+        <view class="tab {{activeGroup === g.id ? 'active' : ''}}" wx:for="{{groups}}" wx:for-item="g" wx:key="id" data-id="{{g.id}}" bindtap="switchGroup">{{g.title}}</view>
+      </view>
+    </scroll-view>
 
-  <view class="grid">
-    <view class="card" wx:for="{{templates}}" wx:key="id" wx:if="{{item.mode === tab}}" data-id="{{item.id}}" bindtap="pick">
-      <image src="{{item.img}}" mode="aspectFill" lazy-load data-url="{{item.img}}" catchtap="previewImg" />
-      <view class="body">
-        <view class="name serif">{{item.title}}</view>
-        <view class="desc">{{item.desc}}</view>
+    <block wx:for="{{groups}}" wx:for-item="g" wx:key="id" wx:if="{{activeGroup === g.id}}">
+      <view class="group-sub" wx:if="{{g.subtitle}}">{{g.subtitle}}</view>
+      <view class="grid">
+        <view class="card" wx:for="{{g.seriesList}}" wx:for-item="s" wx:key="id" data-id="{{s.id}}" bindtap="pickSeries">
+          <image src="{{s.cover}}" mode="aspectFill" lazy-load />
+          <view class="body">
+            <view class="name serif">{{s.title}}</view>
+            <view class="desc">{{s.count}} 张 · {{s.modeText}} · 一键九宫格</view>
+          </view>
+        </view>
+      </view>
+    </block>
+  </block>
+
+  <!-- 老版回退：按人群平铺单张 -->
+  <block wx:else>
+    <view class="tabs">
+      <view class="tab {{tab === t.key ? 'active' : ''}}" wx:for="{{tabs}}" wx:for-item="t" wx:key="key" data-key="{{t.key}}" bindtap="switchTab">{{t.label}}</view>
+    </view>
+    <view class="grid">
+      <view class="card" wx:for="{{templates}}" wx:key="id" wx:if="{{item.mode === tab}}" data-id="{{item.id}}" bindtap="pick">
+        <image src="{{item.img}}" mode="aspectFill" lazy-load data-url="{{item.img}}" catchtap="previewImg" />
+        <view class="body">
+          <view class="name serif">{{item.title}}</view>
+          <view class="desc">{{item.desc}}</view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 系列弹层：九宫格预览 + 整组生成 -->
+  <view class="mask" wx:if="{{pickedSeries}}" bindtap="closeSeries">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-body">
+        <view class="name serif">{{pickedSeries.title}} · {{pickedSeries.count}} 张</view>
+        <view class="desc">同系列场景/服装/色调锁定，整组生成直接发九宫格；点单张可只生成那一张</view>
+
+        <view class="nine">
+          <image wx:for="{{pickedSeries.variants}}" wx:for-item="v" wx:key="id" src="{{v.img}}" mode="aspectFill" lazy-load data-id="{{v.id}}" data-url="{{v.img}}" catchtap="pickVariant" />
+        </view>
+
+        <view class="swap-sec" wx:if="{{anchorsF.length && pickedSeries.mode !== 'solo_m'}}">
+          <view class="swap-title">女生定妆照{{pickedSeries.mode === 'couple' ? '（新娘位）' : ''}}</view>
+          <scroll-view scroll-x class="mini-scroll">
+            <view class="mini-item {{swapAnchorF === a.key ? 'active' : ''}}" wx:for="{{anchorsF}}" wx:for-item="a" wx:key="key" data-g="f" data-key="{{a.key}}" bindtap="swapAnchor">
+              <image src="{{a.url}}" mode="aspectFill" />
+              <view class="mini-name">{{a.name}}</view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <view class="swap-sec" wx:if="{{anchorsM.length && pickedSeries.mode !== 'solo_f'}}">
+          <view class="swap-title">男生定妆照{{pickedSeries.mode === 'couple' ? '（新郎位）' : ''}}</view>
+          <scroll-view scroll-x class="mini-scroll">
+            <view class="mini-item {{swapAnchorM === a.key ? 'active' : ''}}" wx:for="{{anchorsM}}" wx:for-item="a" wx:key="key" data-g="m" data-key="{{a.key}}" bindtap="swapAnchor">
+              <image src="{{a.url}}" mode="aspectFill" />
+              <view class="mini-name">{{a.name}}</view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <button class="btn confirm" bindtap="confirmSeries">整组生成 {{pickedSeries.count}} 张 →</button>
+        <view class="hint">整组约需 {{pickedSeries.count}} 张额度；保持模板构图/场景/服装不变，只把人换成你</view>
       </view>
     </view>
   </view>
 
-  <!-- 确认弹层：大图 + 一键同款 + 微调 -->
+  <!-- 确认弹层（单张）：大图 + 一键同款 + 微调 -->
   <view class="mask" wx:if="{{picked}}" bindtap="closePick">
     <view class="sheet" catchtap="noop">
       <image class="sheet-img" src="{{picked.img}}" mode="aspectFill" data-url="{{picked.img}}" bindtap="previewImg" />

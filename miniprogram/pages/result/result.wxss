@@ -14,3 +14,9 @@
 .opt.hot b { color: var(--accent); }
 .go { color: var(--accent); font-weight: 700; }
 .film { margin-top: 28rpx; background: linear-gradient(135deg, rgba(201, 145, 63, 0.12), transparent 60%); border-color: rgba(201, 145, 63, 0.4); }
+/* 整组九宫格结果 */
+.nine {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8rpx;
+  border-radius: 16rpx; overflow: hidden;
+}
+.nine image { width: 100%; aspect-ratio: 1; background: var(--blush); display: block; }

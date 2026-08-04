@@ -1245,6 +1245,7 @@ def mp_catalog() -> dict:
         # 模卡库（一键同款模板，v2 系列化：系列=主题场景锁定，变体=不同瞬间/构图）
         moka = []
         moka_series = []
+        moka_groups = []
         moka_path = site / "moka" / "index.json"
         if moka_path.is_file():
             moka_data = json.loads(moka_path.read_text(encoding="utf-8"))
@@ -1256,9 +1257,10 @@ def mp_catalog() -> dict:
                 for t in moka_data.get("templates", [])
             ]
             moka_series = moka_data.get("series", [])
+            moka_groups = moka_data.get("groups", [])
         return {"ok": True, "sets_js": sets_js, "scenes_js": scenes_js,
                 "makeup": makeup, "hairstyles": hairstyles, "moka": moka,
-                "moka_series": moka_series,
+                "moka_series": moka_series, "moka_groups": moka_groups,
                 "poses": MP_POSES, "poses_solo": MP_POSES_SOLO,
                 "img_base": {"wardrobe": "/wardrobe/img/", "scenes": "/scenes/img/",
                              "makeup": "/hongzhuang/"}}
@@ -1279,6 +1281,21 @@ def _enrich_job_payload(body: "MpJobIn", order: dict) -> dict:
         if sel.get("gender") and not payload.get("gender"):
             payload["gender"] = str(sel["gender"])
     return payload
+
+
+def _moka_series_size(payload: dict) -> int:
+    """系列整组生成的扣费张数 = 系列变体数（从模卡库 index.json 读）。"""
+    series_id = payload.get("series_id", "")
+    site = Path(_env("SITE_DIR", "/var/www/luckynemo"))
+    moka_path = site / "moka" / "index.json"
+    if moka_path.is_file():
+        moka_data = json.loads(moka_path.read_text(encoding="utf-8"))
+        for s in moka_data.get("series", []):
+            if s.get("id") == series_id:
+                n = len(s.get("variants", []))
+                if n:
+                    return n
+    raise HTTPException(status_code=400, detail=f"模卡系列不存在：{series_id}")
 
 
 @app.post("/api/mp/job")
@@ -1315,6 +1332,19 @@ def mp_job_create(body: MpJobIn) -> JSONResponse:
                 _mp_touch(conn, body.order_no, paid_count=order["paid_count"] - 1, status="generating")
             else:
                 raise HTTPException(status_code=403, detail="免费额度已用完，请充值后再生成")
+        elif body.kind == "template_series":
+            # 系列整组生成（九宫格）：按系列变体数一次性扣额度，先免费后付费
+            n = _moka_series_size(body.payload or {})
+            free_left = max(0, order["free_quota"] - (order["free_used"] or 0))
+            use_free = min(free_left, n)
+            need_paid = n - use_free
+            if need_paid > order["paid_count"]:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"整组生成需要 {n} 张额度（免费余 {free_left}、付费余 {order['paid_count']}），请先充值")
+            _mp_touch(conn, body.order_no,
+                      free_used=(order["free_used"] or 0) + use_free,
+                      paid_count=order["paid_count"] - need_paid, status="generating")
         else:
             _mp_touch(conn, body.order_no, status="generating")
         conn.execute(

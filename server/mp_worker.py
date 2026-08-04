@@ -258,6 +258,75 @@ def run_custom_moka(job_id: int, order_no: str, payload: dict) -> None:
     log(f"job#{job_id} custom_moka 完成 -> {key}")
 
 
+def run_template_series(job_id: int, order_no: str, payload: dict) -> None:
+    """系列整组生成（九宫格）：同一锚点对系列全部变体逐张换人，进度实时写进 result_json.urls。"""
+    moka_path = SITE_DIR / "moka" / "index.json"
+    if not moka_path.is_file():
+        raise RuntimeError("模卡库缺失")
+    moka_data = json.loads(moka_path.read_text(encoding="utf-8"))
+    series_id = payload.get("series_id", "")
+    series = next((s for s in moka_data.get("series", []) if s.get("id") == series_id), None)
+    if not series:
+        raise RuntimeError(f"模卡系列不存在 {series_id}")
+    tpl_map = {t["id"]: t for t in moka_data.get("templates", [])}
+    variant_ids = [v for v in series.get("variants", []) if v in tpl_map]
+    if not variant_ids:
+        raise RuntimeError(f"系列 {series_id} 没有可用模板")
+    # 锚点规则与 template_photo 一致：定妆照优先，缺省回退原始上传照片
+    photos = []
+    if payload.get("anchor_key"):
+        photos.append(oss_get(payload["anchor_key"], TMP / f"{order_no}_anchor.jpg"))
+    else:
+        photos += order_photos(order_no, "A", limit=1)
+    has_b = False
+    if payload.get("anchor_key_b"):
+        photos.append(oss_get(payload["anchor_key_b"], TMP / f"{order_no}_anchor_b.jpg"))
+        has_b = True
+    elif payload.get("mode") == "couple":
+        b_photos = order_photos(order_no, "B", limit=1)
+        photos += b_photos
+        has_b = bool(b_photos)
+    if not photos:
+        raise RuntimeError("请先上传本人照片，再做一键同款")
+    if payload.get("mode") == "couple" and not has_b:
+        raise RuntimeError("情侣模板需要另一方也上传照片（协同创作邀请 TA，或在对话里发 TA 的照片）")
+    prompt = (
+        "最后一张参考图是完整的摄影作品模板，前面的参考图是要替换上去的人物。"
+        "把模板中的人物替换为参考图的人物（多人时按性别一一对应替换），"
+        "严格保持模板的构图、场景、服装、妆容、道具、神态、光影、色调、背景完全不变，"
+        "只替换人物的五官与面部特征，真实人体比例约7.5头身，与场景自然融合有投影，"
+        "摄影级质感，无文字无水印"
+    )
+    total = len(variant_ids)
+    urls = []
+    for i, tid in enumerate(variant_ids, 1):
+        tpl = SITE_DIR / "moka" / tpl_map[tid]["file"]
+        if not tpl.is_file():
+            log(f"job#{job_id} template_series 模板缺失 {tid}，跳过")
+            continue
+        log(f"job#{job_id} template_series {series_id} 第 {i}/{total} 张 {tid}")
+        img = seedream(prompt, photos + [tpl])
+        key = f"results/{order_no}/{uuid.uuid4().hex[:8]}.jpg"
+        url = oss_put_url(key, img, "image/jpeg")
+        urls.append({"id": tid, "url": url, "oss_key": key})
+        conn = db()
+        conn.execute("UPDATE mp_jobs SET result_json=?, updated_at=datetime('now') WHERE id=?",
+                     (json.dumps({"urls": urls, "total": total, "series_id": series_id},
+                                 ensure_ascii=False), job_id))
+        conn.commit()
+        conn.close()
+    if not urls:
+        raise RuntimeError(f"系列 {series_id} 模板全部缺失")
+    conn = db()
+    conn.execute("UPDATE mp_jobs SET status='done', result_json=?, updated_at=datetime('now') WHERE id=?",
+                 (json.dumps({"urls": urls, "total": total, "series_id": series_id},
+                             ensure_ascii=False), job_id))
+    conn.execute("UPDATE mp_orders SET status='done', updated_at=datetime('now') WHERE order_no=?", (order_no,))
+    conn.commit()
+    conn.close()
+    log(f"job#{job_id} template_series 完成 {series_id} 共 {len(urls)} 张")
+
+
 # ---------------- Vidu 参考生图（定妆照优先通道） ----------------
 VIDU_BASE = "https://api.vidu.cn/ent/v2"
 
@@ -462,6 +531,9 @@ def build_photo_prompt(payload: dict, scene_txt: str) -> str:
 def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
     if kind == "custom_moka":
         run_custom_moka(job_id, order_no, payload)
+        return
+    if kind == "template_series":
+        run_template_series(job_id, order_no, payload)
         return
     result = None
     if kind == "edit_photo":

@@ -1,7 +1,71 @@
 {
   "name": "模卡库",
-  "version": "2.0",
-  "note": "一键同款模板，系列化架构：12 个系列 × 3 变体 = 36 张。系列=主题场景（场景/服装/色调锁定），变体=同系列不同瞬间/姿势/构图。用户只换人。mk0xx=首发变体，mk1xx=第2变体，mk2xx=第3变体",
+  "version": "3.0",
+  "note": "一键同款模板，v3 分组架构：一级分组（group，6 大类引导）→ 二级系列（series，每系列 9 变体=朋友圈九宫格，场景/服装/色调锁定）→ 变体（template）。新系列 ID=系列码+序号（如 hyd01-09）；mk 老系列 3 变体待扩充。lv 系列 2026-08-04 下架。",
+  "groups": [
+    {
+      "id": "flower",
+      "title": "花海浪漫",
+      "subtitle": "把春天穿在身上",
+      "series": [
+        "hyd",
+        "sak",
+        "muh",
+        "flowerfield"
+      ]
+    },
+    {
+      "id": "nature",
+      "title": "森林与原野",
+      "subtitle": "去山野里撒野",
+      "series": [
+        "forest",
+        "outdoor"
+      ]
+    },
+    {
+      "id": "sea",
+      "title": "海",
+      "subtitle": "陪你去看海",
+      "series": [
+        "lig",
+        "spk",
+        "seaside"
+      ]
+    },
+    {
+      "id": "city",
+      "title": "城市与人文",
+      "subtitle": "在街上，在故事里",
+      "series": [
+        "han",
+        "citynight",
+        "hongkong_f",
+        "hongkong_m",
+        "street"
+      ]
+    },
+    {
+      "id": "ceremony",
+      "title": "仪式与经典",
+      "subtitle": "人生这一刻",
+      "series": [
+        "min",
+        "church",
+        "chinese",
+        "jiangnan",
+        "studio"
+      ]
+    },
+    {
+      "id": "creative",
+      "title": "个性创意",
+      "subtitle": "朋友圈最特别的那张",
+      "series": [
+        "hor"
+      ]
+    }
+  ],
   "series": [
     {
       "id": "church",
@@ -11,7 +75,8 @@
         "mk001",
         "mk101",
         "mk201"
-      ]
+      ],
+      "group": "ceremony"
     },
     {
       "id": "jiangnan",
@@ -21,7 +86,8 @@
         "mk002",
         "mk102",
         "mk202"
-      ]
+      ],
+      "group": "ceremony"
     },
     {
       "id": "seaside",
@@ -31,7 +97,8 @@
         "mk003",
         "mk103",
         "mk203"
-      ]
+      ],
+      "group": "sea"
     },
     {
       "id": "chinese",
@@ -41,7 +108,8 @@
         "mk004",
         "mk104",
         "mk204"
-      ]
+      ],
+      "group": "ceremony"
     },
     {
       "id": "flowerfield",
@@ -51,7 +119,8 @@
         "mk005",
         "mk105",
         "mk205"
-      ]
+      ],
+      "group": "flower"
     },
     {
       "id": "citynight",
@@ -61,7 +130,8 @@
         "mk006",
         "mk106",
         "mk206"
-      ]
+      ],
+      "group": "city"
     },
     {
       "id": "forest",
@@ -71,7 +141,8 @@
         "mk007",
         "mk107",
         "mk207"
-      ]
+      ],
+      "group": "nature"
     },
     {
       "id": "hongkong_f",
@@ -81,7 +152,8 @@
         "mk008",
         "mk108",
         "mk208"
-      ]
+      ],
+      "group": "city"
     },
     {
       "id": "street",
@@ -91,7 +163,8 @@
         "mk009",
         "mk109",
         "mk209"
-      ]
+      ],
+      "group": "city"
     },
     {
       "id": "studio",
@@ -101,7 +174,8 @@
         "mk010",
         "mk110",
         "mk210"
-      ]
+      ],
+      "group": "ceremony"
     },
     {
       "id": "hongkong_m",
@@ -111,7 +185,8 @@
         "mk011",
         "mk111",
         "mk211"
-      ]
+      ],
+      "group": "city"
     },
     {
       "id": "outdoor",
@@ -121,454 +196,143 @@
         "mk012",
         "mk112",
         "mk212"
-      ]
+      ],
+      "group": "nature"
     },
     {
-      "id": "lv001",
+      "id": "hyd",
+      "group": "flower",
       "mode": "couple",
-      "title": "溪石",
+      "title": "蓝绣球花墙",
       "variants": [
-        "lv001"
+        "hyd01",
+        "hyd02",
+        "hyd03",
+        "hyd04",
+        "hyd05",
+        "hyd06",
+        "hyd07",
+        "hyd08",
+        "hyd09"
       ]
     },
     {
-      "id": "lv002",
+      "id": "sak",
+      "group": "flower",
       "mode": "couple",
-      "title": "林间",
+      "title": "樱花隧道",
       "variants": [
-        "lv002"
+        "sak01",
+        "sak02",
+        "sak03",
+        "sak04",
+        "sak05",
+        "sak06",
+        "sak07",
+        "sak08",
+        "sak09"
       ]
     },
     {
-      "id": "lv003",
+      "id": "muh",
+      "group": "flower",
       "mode": "couple",
-      "title": "石滩",
+      "title": "粉黛乱子草",
       "variants": [
-        "lv003"
+        "muh01",
+        "muh02",
+        "muh03",
+        "muh04",
+        "muh05",
+        "muh06",
+        "muh07",
+        "muh08",
+        "muh09"
       ]
     },
     {
-      "id": "lv004",
+      "id": "han",
+      "group": "city",
       "mode": "couple",
-      "title": "锈船",
+      "title": "韩服古祠",
       "variants": [
-        "lv004"
+        "han01",
+        "han02",
+        "han03",
+        "han04",
+        "han05",
+        "han06",
+        "han07",
+        "han08",
+        "han09"
       ]
     },
     {
-      "id": "lv005",
-      "mode": "solo_m",
-      "title": "缆车",
-      "variants": [
-        "lv005"
-      ]
-    },
-    {
-      "id": "lv006",
+      "id": "hor",
+      "group": "creative",
       "mode": "couple",
-      "title": "草原",
+      "title": "以梦为马",
       "variants": [
-        "lv006"
+        "hor01",
+        "hor02",
+        "hor03",
+        "hor04",
+        "hor05",
+        "hor06",
+        "hor07",
+        "hor08",
+        "hor09"
       ]
     },
     {
-      "id": "lv007",
+      "id": "min",
+      "group": "ceremony",
       "mode": "couple",
-      "title": "荒漠",
+      "title": "白色极简",
       "variants": [
-        "lv007"
+        "min01",
+        "min02",
+        "min03",
+        "min04",
+        "min05",
+        "min06",
+        "min07",
+        "min08",
+        "min09"
       ]
     },
     {
-      "id": "lv010",
+      "id": "spk",
+      "group": "sea",
       "mode": "couple",
-      "title": "暖墙",
+      "title": "暮色仙女棒",
       "variants": [
-        "lv010"
+        "spk01",
+        "spk02",
+        "spk03",
+        "spk04",
+        "spk05",
+        "spk06",
+        "spk07",
+        "spk08",
+        "spk09"
       ]
     },
     {
-      "id": "lv011",
+      "id": "lig",
+      "group": "sea",
       "mode": "couple",
-      "title": "橙花",
+      "title": "悬崖灯塔",
       "variants": [
-        "lv011"
-      ]
-    },
-    {
-      "id": "lv012",
-      "mode": "couple",
-      "title": "秋林",
-      "variants": [
-        "lv012"
-      ]
-    },
-    {
-      "id": "lv013",
-      "mode": "couple",
-      "title": "喷泉",
-      "variants": [
-        "lv013"
-      ]
-    },
-    {
-      "id": "lv014",
-      "mode": "couple",
-      "title": "喷泉",
-      "variants": [
-        "lv014"
-      ]
-    },
-    {
-      "id": "lv015",
-      "mode": "couple",
-      "title": "红椅",
-      "variants": [
-        "lv015"
-      ]
-    },
-    {
-      "id": "lv016",
-      "mode": "couple",
-      "title": "喷泉",
-      "variants": [
-        "lv016"
-      ]
-    },
-    {
-      "id": "lv017",
-      "mode": "couple",
-      "title": "拱廊",
-      "variants": [
-        "lv017"
-      ]
-    },
-    {
-      "id": "lv018",
-      "mode": "couple",
-      "title": "喷泉",
-      "variants": [
-        "lv018"
-      ]
-    },
-    {
-      "id": "lv019",
-      "mode": "couple",
-      "title": "船舷",
-      "variants": [
-        "lv019"
-      ]
-    },
-    {
-      "id": "lv020",
-      "mode": "couple",
-      "title": "秋园",
-      "variants": [
-        "lv020"
-      ]
-    },
-    {
-      "id": "lv021",
-      "mode": "couple",
-      "title": "幕墙",
-      "variants": [
-        "lv021"
-      ]
-    },
-    {
-      "id": "lv022",
-      "mode": "couple",
-      "title": "广场",
-      "variants": [
-        "lv022"
-      ]
-    },
-    {
-      "id": "lv022b",
-      "mode": "couple",
-      "title": "外滩",
-      "variants": [
-        "lv022b"
-      ]
-    },
-    {
-      "id": "lv023",
-      "mode": "couple",
-      "title": "湖边",
-      "variants": [
-        "lv023"
-      ]
-    },
-    {
-      "id": "lv024",
-      "mode": "couple",
-      "title": "麦田",
-      "variants": [
-        "lv024"
-      ]
-    },
-    {
-      "id": "lv025",
-      "mode": "couple",
-      "title": "田野",
-      "variants": [
-        "lv025"
-      ]
-    },
-    {
-      "id": "lv030",
-      "mode": "couple",
-      "title": "大窗",
-      "variants": [
-        "lv030"
-      ]
-    },
-    {
-      "id": "lv031",
-      "mode": "couple",
-      "title": "皮衣",
-      "variants": [
-        "lv031"
-      ]
-    },
-    {
-      "id": "lv032",
-      "mode": "couple",
-      "title": "石墙",
-      "variants": [
-        "lv032"
-      ]
-    },
-    {
-      "id": "lv036",
-      "mode": "couple",
-      "title": "画室",
-      "variants": [
-        "lv036"
-      ]
-    },
-    {
-      "id": "lv037",
-      "mode": "couple",
-      "title": "霓虹",
-      "variants": [
-        "lv037"
-      ]
-    },
-    {
-      "id": "lv038",
-      "mode": "couple",
-      "title": "山间",
-      "variants": [
-        "lv038"
-      ]
-    },
-    {
-      "id": "lv039",
-      "mode": "couple",
-      "title": "瀑布",
-      "variants": [
-        "lv039"
-      ]
-    },
-    {
-      "id": "lv040",
-      "mode": "couple",
-      "title": "窗前",
-      "variants": [
-        "lv040"
-      ]
-    },
-    {
-      "id": "lv041",
-      "mode": "couple",
-      "title": "树下",
-      "variants": [
-        "lv041"
-      ]
-    },
-    {
-      "id": "lv042",
-      "mode": "couple",
-      "title": "夜色",
-      "variants": [
-        "lv042"
-      ]
-    },
-    {
-      "id": "lv043",
-      "mode": "couple",
-      "title": "白柱",
-      "variants": [
-        "lv043"
-      ]
-    },
-    {
-      "id": "lv044",
-      "mode": "couple",
-      "title": "树下",
-      "variants": [
-        "lv044"
-      ]
-    },
-    {
-      "id": "lv045",
-      "mode": "couple",
-      "title": "红墙",
-      "variants": [
-        "lv045"
-      ]
-    },
-    {
-      "id": "lv046",
-      "mode": "couple",
-      "title": "石柱",
-      "variants": [
-        "lv046"
-      ]
-    },
-    {
-      "id": "lv047",
-      "mode": "couple",
-      "title": "石墙",
-      "variants": [
-        "lv047"
-      ]
-    },
-    {
-      "id": "lv048",
-      "mode": "couple",
-      "title": "小巷",
-      "variants": [
-        "lv048"
-      ]
-    },
-    {
-      "id": "lv049",
-      "mode": "couple",
-      "title": "老街",
-      "variants": [
-        "lv049"
-      ]
-    },
-    {
-      "id": "lv050",
-      "mode": "couple",
-      "title": "石阶",
-      "variants": [
-        "lv050"
-      ]
-    },
-    {
-      "id": "lv051",
-      "mode": "couple",
-      "title": "天台",
-      "variants": [
-        "lv051"
-      ]
-    },
-    {
-      "id": "lv053",
-      "mode": "couple",
-      "title": "花丛",
-      "variants": [
-        "lv053"
-      ]
-    },
-    {
-      "id": "lv054",
-      "mode": "couple",
-      "title": "石阶",
-      "variants": [
-        "lv054"
-      ]
-    },
-    {
-      "id": "lv055",
-      "mode": "couple",
-      "title": "小巷",
-      "variants": [
-        "lv055"
-      ]
-    },
-    {
-      "id": "lv056",
-      "mode": "couple",
-      "title": "海边",
-      "variants": [
-        "lv056"
-      ]
-    },
-    {
-      "id": "lv057",
-      "mode": "couple",
-      "title": "街口",
-      "variants": [
-        "lv057"
-      ]
-    },
-    {
-      "id": "lv058",
-      "mode": "couple",
-      "title": "木桥",
-      "variants": [
-        "lv058"
-      ]
-    },
-    {
-      "id": "lv059",
-      "mode": "couple",
-      "title": "长椅",
-      "variants": [
-        "lv059"
-      ]
-    },
-    {
-      "id": "lv060",
-      "mode": "couple",
-      "title": "海边",
-      "variants": [
-        "lv060"
-      ]
-    },
-    {
-      "id": "lv061",
-      "mode": "couple",
-      "title": "石阶",
-      "variants": [
-        "lv061"
-      ]
-    },
-    {
-      "id": "lv062",
-      "mode": "couple",
-      "title": "门廊",
-      "variants": [
-        "lv062"
-      ]
-    },
-    {
-      "id": "lv064",
-      "mode": "couple",
-      "title": "灯笼",
-      "variants": [
-        "lv064"
-      ]
-    },
-    {
-      "id": "lv065",
-      "mode": "couple",
-      "title": "窗台",
-      "variants": [
-        "lv065"
-      ]
-    },
-    {
-      "id": "lv066",
-      "mode": "couple",
-      "title": "林荫",
-      "variants": [
-        "lv066"
+        "lig01",
+        "lig02",
+        "lig03",
+        "lig04",
+        "lig05",
+        "lig06",
+        "lig07",
+        "lig08",
+        "lig09"
       ]
     }
   ],
@@ -1078,787 +842,939 @@
       }
     },
     {
-      "id": "lv001",
-      "series": "lv001",
+      "id": "hyd01",
+      "series": "hyd",
       "mode": "couple",
-      "title": "溪石 · 环抱",
-      "file": "templates/lv001.png",
-      "desc": "清凉溪流中的相拥",
+      "title": "蓝绣球花墙 · 01",
+      "file": "templates/hyd01.png",
+      "desc": "无尽夏蓝绣球花墙与森林湖畔，济州岛最出片的花墙",
       "components": {
-        "服装": "白T灰裤+白色长裙",
-        "场景": "山涧溪流岩石",
-        "妆容": "自然清透",
-        "动作": "背后环抱"
+        "场景": "蓝绣球花墙/森林湖畔",
+        "服装": "缎面主纱+浅色西装",
+        "动作": "花墙前互动"
       }
     },
     {
-      "id": "lv002",
-      "series": "lv002",
+      "id": "hyd02",
+      "series": "hyd",
       "mode": "couple",
-      "title": "林间 · 依偎",
-      "file": "templates/lv002.png",
-      "desc": "草地林间的安静依偎",
+      "title": "蓝绣球花墙 · 02",
+      "file": "templates/hyd02.png",
+      "desc": "无尽夏蓝绣球花墙与森林湖畔，济州岛最出片的花墙",
       "components": {
-        "服装": "白衬衫灰裤+白色套装",
-        "场景": "午后树林草地",
-        "妆容": "自然清透",
-        "动作": "草地相依"
+        "场景": "蓝绣球花墙/森林湖畔",
+        "服装": "缎面主纱+浅色西装",
+        "动作": "花墙前互动"
       }
     },
     {
-      "id": "lv003",
-      "series": "lv003",
+      "id": "hyd03",
+      "series": "hyd",
       "mode": "couple",
-      "title": "石滩 · 牛仔",
-      "file": "templates/lv003.png",
-      "desc": "卵石滩上的牛仔情侣",
+      "title": "蓝绣球花墙 · 03",
+      "file": "templates/hyd03.png",
+      "desc": "无尽夏蓝绣球花墙与森林湖畔，济州岛最出片的花墙",
       "components": {
-        "服装": "牛仔套装+白针织",
-        "场景": "河岸卵石滩",
-        "妆容": "自然清透",
-        "动作": "搭肩坐地"
+        "场景": "蓝绣球花墙/森林湖畔",
+        "服装": "缎面主纱+浅色西装",
+        "动作": "花墙前互动"
       }
     },
     {
-      "id": "lv004",
-      "series": "lv004",
+      "id": "hyd04",
+      "series": "hyd",
       "mode": "couple",
-      "title": "锈船 · 相拥",
-      "file": "templates/lv004.png",
-      "desc": "旧船上的深情相拥",
+      "title": "蓝绣球花墙 · 04",
+      "file": "templates/hyd04.png",
+      "desc": "无尽夏蓝绣球花墙与森林湖畔，济州岛最出片的花墙",
       "components": {
-        "服装": "灰T+条纹吊带裙",
-        "场景": "河边旧渔船",
-        "妆容": "自然清透",
-        "动作": "相拥对视"
+        "场景": "蓝绣球花墙/森林湖畔",
+        "服装": "缎面主纱+浅色西装",
+        "动作": "花墙前互动"
       }
     },
     {
-      "id": "lv005",
-      "series": "lv005",
-      "mode": "solo_m",
-      "title": "缆车 · 旅人",
-      "file": "templates/lv005.png",
-      "desc": "橙色缆车旁的爽朗笑容",
+      "id": "hyd05",
+      "series": "hyd",
+      "mode": "couple",
+      "title": "蓝绣球花墙 · 05",
+      "file": "templates/hyd05.png",
+      "desc": "无尽夏蓝绣球花墙与森林湖畔，济州岛最出片的花墙",
       "components": {
-        "服装": "白T卡其裤+相机",
-        "场景": "登山缆车站台",
-        "妆容": "自然清透",
-        "动作": "倚栏大笑"
+        "场景": "蓝绣球花墙/森林湖畔",
+        "服装": "缎面主纱+浅色西装",
+        "动作": "花墙前互动"
       }
     },
     {
-      "id": "lv006",
-      "series": "lv006",
+      "id": "hyd06",
+      "series": "hyd",
       "mode": "couple",
-      "title": "草原 · 吻顶",
-      "file": "templates/lv006.png",
-      "desc": "枯黄草原上的背后吻",
+      "title": "蓝绣球花墙 · 06",
+      "file": "templates/hyd06.png",
+      "desc": "无尽夏蓝绣球花墙与森林湖畔，济州岛最出片的花墙",
       "components": {
-        "服装": "休闲情侣装",
-        "场景": "开阔草原",
-        "妆容": "自然清透",
-        "动作": "背后环抱亲吻头顶"
+        "场景": "蓝绣球花墙/森林湖畔",
+        "服装": "缎面主纱+浅色西装",
+        "动作": "花墙前互动"
       }
     },
     {
-      "id": "lv007",
-      "series": "lv007",
+      "id": "hyd07",
+      "series": "hyd",
       "mode": "couple",
-      "title": "荒漠 · 捧脸",
-      "file": "templates/lv007.png",
-      "desc": "蓝天荒漠的捧脸对视",
+      "title": "蓝绣球花墙 · 07",
+      "file": "templates/hyd07.png",
+      "desc": "无尽夏蓝绣球花墙与森林湖畔，济州岛最出片的花墙",
       "components": {
-        "服装": "休闲情侣装",
-        "场景": "荒漠蓝天",
-        "妆容": "自然清透",
-        "动作": "捧脸对视"
+        "场景": "蓝绣球花墙/森林湖畔",
+        "服装": "缎面主纱+浅色西装",
+        "动作": "花墙前互动"
       }
     },
     {
-      "id": "lv010",
-      "series": "lv010",
+      "id": "hyd08",
+      "series": "hyd",
       "mode": "couple",
-      "title": "暖墙 · 吻额",
-      "file": "templates/lv010.png",
-      "desc": "金色夕阳下的额头之吻",
+      "title": "蓝绣球花墙 · 08",
+      "file": "templates/hyd08.png",
+      "desc": "无尽夏蓝绣球花墙与森林湖畔，济州岛最出片的花墙",
       "components": {
-        "服装": "西装+婚纱",
-        "场景": "户外暖墙",
-        "妆容": "自然清透",
-        "动作": "亲吻额头"
+        "场景": "蓝绣球花墙/森林湖畔",
+        "服装": "缎面主纱+浅色西装",
+        "动作": "花墙前互动"
       }
     },
     {
-      "id": "lv011",
-      "series": "lv011",
+      "id": "hyd09",
+      "series": "hyd",
       "mode": "couple",
-      "title": "橙花 · 对视",
-      "file": "templates/lv011.png",
-      "desc": "共持花束的微笑对视",
+      "title": "蓝绣球花墙 · 09",
+      "file": "templates/hyd09.png",
+      "desc": "无尽夏蓝绣球花墙与森林湖畔，济州岛最出片的花墙",
       "components": {
-        "服装": "正装礼服",
-        "场景": "暖调户外",
-        "妆容": "自然清透",
-        "动作": "对视持花"
+        "场景": "蓝绣球花墙/森林湖畔",
+        "服装": "缎面主纱+浅色西装",
+        "动作": "花墙前互动"
       }
     },
     {
-      "id": "lv012",
-      "series": "lv012",
+      "id": "sak01",
+      "series": "sak",
       "mode": "couple",
-      "title": "秋林 · 后抱",
-      "file": "templates/lv012.png",
-      "desc": "秋日林荫道的背后环抱",
+      "title": "樱花隧道 · 01",
+      "file": "templates/sak01.png",
+      "desc": "樱花隧道纵深构图，春天限定的粉白长廊",
       "components": {
-        "服装": "礼服+婚纱持红白花束",
-        "场景": "秋日林荫道",
-        "妆容": "自然清透",
-        "动作": "背后环抱"
+        "场景": "樱花隧道/油菜花田",
+        "服装": "白纱+深色西装",
+        "动作": "隧道漫步牵手"
       }
     },
     {
-      "id": "lv013",
-      "series": "lv013",
+      "id": "sak02",
+      "series": "sak",
       "mode": "couple",
-      "title": "喷泉 · 横抱",
-      "file": "templates/lv013.png",
-      "desc": "喷泉前的横抱旋转",
+      "title": "樱花隧道 · 02",
+      "file": "templates/sak02.png",
+      "desc": "樱花隧道纵深构图，春天限定的粉白长廊",
       "components": {
-        "服装": "礼服婚纱",
-        "场景": "欧式喷泉",
-        "妆容": "自然清透",
-        "动作": "横抱旋转"
+        "场景": "樱花隧道/油菜花田",
+        "服装": "白纱+深色西装",
+        "动作": "隧道漫步牵手"
       }
     },
     {
-      "id": "lv014",
-      "series": "lv014",
+      "id": "sak03",
+      "series": "sak",
       "mode": "couple",
-      "title": "喷泉 · 托抱",
-      "file": "templates/lv014.png",
-      "desc": "红建筑前的托抱大笑",
+      "title": "樱花隧道 · 03",
+      "file": "templates/sak03.png",
+      "desc": "樱花隧道纵深构图，春天限定的粉白长廊",
       "components": {
-        "服装": "礼服婚纱",
-        "场景": "喷泉红墙",
-        "妆容": "自然清透",
-        "动作": "托抱大笑"
+        "场景": "樱花隧道/油菜花田",
+        "服装": "白纱+深色西装",
+        "动作": "隧道漫步牵手"
       }
     },
     {
-      "id": "lv015",
-      "series": "lv015",
+      "id": "sak04",
+      "series": "sak",
       "mode": "couple",
-      "title": "红椅 · 碰头",
-      "file": "templates/lv015.png",
-      "desc": "红色长椅上的依偎碰头",
+      "title": "樱花隧道 · 04",
+      "file": "templates/sak04.png",
+      "desc": "樱花隧道纵深构图，春天限定的粉白长廊",
       "components": {
-        "服装": "礼服婚纱",
-        "场景": "公园红椅",
-        "妆容": "自然清透",
-        "动作": "依偎碰头"
+        "场景": "樱花隧道/油菜花田",
+        "服装": "白纱+深色西装",
+        "动作": "隧道漫步牵手"
       }
     },
     {
-      "id": "lv016",
-      "series": "lv016",
+      "id": "sak05",
+      "series": "sak",
       "mode": "couple",
-      "title": "喷泉 · 婚戒",
-      "file": "templates/lv016.png",
-      "desc": "喷泉前展示婚戒",
+      "title": "樱花隧道 · 05",
+      "file": "templates/sak05.png",
+      "desc": "樱花隧道纵深构图，春天限定的粉白长廊",
       "components": {
-        "服装": "礼服婚纱",
-        "场景": "欧式喷泉",
-        "妆容": "自然清透",
-        "动作": "展示婚戒"
+        "场景": "樱花隧道/油菜花田",
+        "服装": "白纱+深色西装",
+        "动作": "隧道漫步牵手"
       }
     },
     {
-      "id": "lv017",
-      "series": "lv017",
+      "id": "sak06",
+      "series": "sak",
       "mode": "couple",
-      "title": "拱廊 · 后抱",
-      "file": "templates/lv017.png",
-      "desc": "欧式拱廊的背后环抱",
+      "title": "樱花隧道 · 06",
+      "file": "templates/sak06.png",
+      "desc": "樱花隧道纵深构图，春天限定的粉白长廊",
       "components": {
-        "服装": "礼服婚纱持花",
-        "场景": "欧式拱廊",
-        "妆容": "自然清透",
-        "动作": "背后环抱"
+        "场景": "樱花隧道/油菜花田",
+        "服装": "白纱+深色西装",
+        "动作": "隧道漫步牵手"
       }
     },
     {
-      "id": "lv018",
-      "series": "lv018",
+      "id": "sak07",
+      "series": "sak",
       "mode": "couple",
-      "title": "喷泉 · 抚脸",
-      "file": "templates/lv018.png",
-      "desc": "秋日喷泉旁的抚脸对视",
+      "title": "樱花隧道 · 07",
+      "file": "templates/sak07.png",
+      "desc": "樱花隧道纵深构图，春天限定的粉白长廊",
       "components": {
-        "服装": "礼服婚纱蕾丝手套",
-        "场景": "秋日喷泉",
-        "妆容": "自然清透",
-        "动作": "抚脸对视"
+        "场景": "樱花隧道/油菜花田",
+        "服装": "白纱+深色西装",
+        "动作": "隧道漫步牵手"
       }
     },
     {
-      "id": "lv019",
-      "series": "lv019",
+      "id": "sak08",
+      "series": "sak",
       "mode": "couple",
-      "title": "船舷 · 并肩",
-      "file": "templates/lv019.png",
-      "desc": "船舷栏杆边的并肩微笑",
+      "title": "樱花隧道 · 08",
+      "file": "templates/sak08.png",
+      "desc": "樱花隧道纵深构图，春天限定的粉白长廊",
       "components": {
-        "服装": "礼服婚纱红领结",
-        "场景": "船舷甲板",
-        "妆容": "自然清透",
-        "动作": "并肩倚栏"
+        "场景": "樱花隧道/油菜花田",
+        "服装": "白纱+深色西装",
+        "动作": "隧道漫步牵手"
       }
     },
     {
-      "id": "lv020",
-      "series": "lv020",
+      "id": "sak09",
+      "series": "sak",
       "mode": "couple",
-      "title": "秋园 · 后抱",
-      "file": "templates/lv020.png",
-      "desc": "秋日花园的对镜微笑",
+      "title": "樱花隧道 · 09",
+      "file": "templates/sak09.png",
+      "desc": "樱花隧道纵深构图，春天限定的粉白长廊",
       "components": {
-        "服装": "礼服西装胸花",
-        "场景": "秋日花园",
-        "妆容": "自然清透",
-        "动作": "背后环抱"
+        "场景": "樱花隧道/油菜花田",
+        "服装": "白纱+深色西装",
+        "动作": "隧道漫步牵手"
       }
     },
     {
-      "id": "lv021",
-      "series": "lv021",
+      "id": "muh01",
+      "series": "muh",
       "mode": "couple",
-      "title": "幕墙 · 婚戒",
-      "file": "templates/lv021.png",
-      "desc": "玻璃幕墙前的婚戒展示",
+      "title": "粉黛乱子草 · 01",
+      "file": "templates/muh01.png",
+      "desc": "粉雾草海把人包围，温柔到失焦的粉",
       "components": {
-        "服装": "礼服婚纱",
-        "场景": "现代玻璃幕墙",
-        "妆容": "自然清透",
-        "动作": "展示婚戒"
+        "场景": "粉黛乱子草海",
+        "服装": "轻纱+休闲西装",
+        "动作": "草海相拥"
       }
     },
     {
-      "id": "lv022",
-      "series": "lv022",
+      "id": "muh02",
+      "series": "muh",
       "mode": "couple",
-      "title": "广场 · 欢呼",
-      "file": "templates/lv022.png",
-      "desc": "高举捧花的欢呼瞬间",
+      "title": "粉黛乱子草 · 02",
+      "file": "templates/muh02.png",
+      "desc": "粉雾草海把人包围，温柔到失焦的粉",
       "components": {
-        "服装": "黑西装红领结+婚纱",
-        "场景": "城市广场",
-        "妆容": "自然清透",
-        "动作": "举花欢呼"
+        "场景": "粉黛乱子草海",
+        "服装": "轻纱+休闲西装",
+        "动作": "草海相拥"
       }
     },
     {
-      "id": "lv022b",
-      "series": "lv022b",
+      "id": "muh03",
+      "series": "muh",
       "mode": "couple",
-      "title": "外滩 · 欢呼",
-      "file": "templates/lv022b.png",
-      "desc": "外滩天际线下的欢呼",
+      "title": "粉黛乱子草 · 03",
+      "file": "templates/muh03.png",
+      "desc": "粉雾草海把人包围，温柔到失焦的粉",
       "components": {
-        "服装": "黑西装红领结+婚纱",
-        "场景": "上海外滩(虚化)",
-        "妆容": "自然清透",
-        "动作": "举花欢呼"
+        "场景": "粉黛乱子草海",
+        "服装": "轻纱+休闲西装",
+        "动作": "草海相拥"
       }
     },
     {
-      "id": "lv023",
-      "series": "lv023",
+      "id": "muh04",
+      "series": "muh",
       "mode": "couple",
-      "title": "湖边 · 抵额",
-      "file": "templates/lv023.png",
-      "desc": "湖边阴天的额头相抵",
+      "title": "粉黛乱子草 · 04",
+      "file": "templates/muh04.png",
+      "desc": "粉雾草海把人包围，温柔到失焦的粉",
       "components": {
-        "服装": "休闲情侣装",
-        "场景": "湖边",
-        "妆容": "自然清透",
-        "动作": "相拥抵额"
+        "场景": "粉黛乱子草海",
+        "服装": "轻纱+休闲西装",
+        "动作": "草海相拥"
       }
     },
     {
-      "id": "lv024",
-      "series": "lv024",
+      "id": "muh05",
+      "series": "muh",
       "mode": "couple",
-      "title": "麦田 · 后抱",
-      "file": "templates/lv024.png",
-      "desc": "金色夕阳麦田的环抱",
+      "title": "粉黛乱子草 · 05",
+      "file": "templates/muh05.png",
+      "desc": "粉雾草海把人包围，温柔到失焦的粉",
       "components": {
-        "服装": "礼服白裙",
-        "场景": "麦田夕阳",
-        "妆容": "自然清透",
-        "动作": "背后环抱"
+        "场景": "粉黛乱子草海",
+        "服装": "轻纱+休闲西装",
+        "动作": "草海相拥"
       }
     },
     {
-      "id": "lv025",
-      "series": "lv025",
+      "id": "muh06",
+      "series": "muh",
       "mode": "couple",
-      "title": "田野 · 依偎",
-      "file": "templates/lv025.png",
-      "desc": "黄昏田野的依偎微笑",
+      "title": "粉黛乱子草 · 06",
+      "file": "templates/muh06.png",
+      "desc": "粉雾草海把人包围，温柔到失焦的粉",
       "components": {
-        "服装": "休闲装配珍珠项链",
-        "场景": "黄昏田野",
-        "妆容": "自然清透",
-        "动作": "依偎微笑"
+        "场景": "粉黛乱子草海",
+        "服装": "轻纱+休闲西装",
+        "动作": "草海相拥"
       }
     },
     {
-      "id": "lv030",
-      "series": "lv030",
+      "id": "muh07",
+      "series": "muh",
       "mode": "couple",
-      "title": "大窗 · 剪影",
-      "file": "templates/lv030.png",
-      "desc": "老建筑大窗前的复古剪影",
+      "title": "粉黛乱子草 · 07",
+      "file": "templates/muh07.png",
+      "desc": "粉雾草海把人包围，温柔到失焦的粉",
       "components": {
-        "服装": "复古礼服",
-        "场景": "老式建筑大窗",
-        "妆容": "自然清透",
-        "动作": "相视而立"
+        "场景": "粉黛乱子草海",
+        "服装": "轻纱+休闲西装",
+        "动作": "草海相拥"
       }
     },
     {
-      "id": "lv031",
-      "series": "lv031",
+      "id": "muh08",
+      "series": "muh",
       "mode": "couple",
-      "title": "皮衣 · 相拥",
-      "file": "templates/lv031.png",
-      "desc": "灰调背景的皮衣相拥",
+      "title": "粉黛乱子草 · 08",
+      "file": "templates/muh08.png",
+      "desc": "粉雾草海把人包围，温柔到失焦的粉",
       "components": {
-        "服装": "皮衣情侣装",
-        "场景": "灰色背景",
-        "妆容": "自然清透",
-        "动作": "相拥靠胸"
+        "场景": "粉黛乱子草海",
+        "服装": "轻纱+休闲西装",
+        "动作": "草海相拥"
       }
     },
     {
-      "id": "lv032",
-      "series": "lv032",
+      "id": "muh09",
+      "series": "muh",
       "mode": "couple",
-      "title": "石墙 · 格纹",
-      "file": "templates/lv032.png",
-      "desc": "石墙边的格纹大衣",
+      "title": "粉黛乱子草 · 09",
+      "file": "templates/muh09.png",
+      "desc": "粉雾草海把人包围，温柔到失焦的粉",
       "components": {
-        "服装": "格纹大衣",
-        "场景": "石墙街头",
-        "妆容": "自然清透",
-        "动作": "搂抱摆拍"
+        "场景": "粉黛乱子草海",
+        "服装": "轻纱+休闲西装",
+        "动作": "草海相拥"
       }
     },
     {
-      "id": "lv036",
-      "series": "lv036",
+      "id": "han01",
+      "series": "han",
       "mode": "couple",
-      "title": "画室 · 抱起",
-      "file": "templates/lv036.png",
-      "desc": "复古画室里的抱起大笑",
+      "title": "韩服古祠 · 01",
+      "file": "templates/han01.png",
+      "desc": "韩服与韩式古祠，一秒穿越的东方仪式感",
       "components": {
-        "服装": "白衬衫卡其裤",
-        "场景": "复古艺术工作室",
-        "妆容": "自然清透",
-        "动作": "抱起大笑"
+        "场景": "韩式古祠/杉林",
+        "服装": "传统韩服",
+        "动作": "携手同行"
       }
     },
     {
-      "id": "lv037",
-      "series": "lv037",
+      "id": "han02",
+      "series": "han",
       "mode": "couple",
-      "title": "霓虹 · 靠肩",
-      "file": "templates/lv037.png",
-      "desc": "夜色霓虹下的靠肩",
+      "title": "韩服古祠 · 02",
+      "file": "templates/han02.png",
+      "desc": "韩服与韩式古祠，一秒穿越的东方仪式感",
       "components": {
-        "服装": "休闲情侣装",
-        "场景": "夜晚霓虹街头",
-        "妆容": "自然清透",
-        "动作": "靠肩微笑"
+        "场景": "韩式古祠/杉林",
+        "服装": "传统韩服",
+        "动作": "携手同行"
       }
     },
     {
-      "id": "lv038",
-      "series": "lv038",
+      "id": "han03",
+      "series": "han",
       "mode": "couple",
-      "title": "山间 · 吻额",
-      "file": "templates/lv038.png",
-      "desc": "山间秋景的额头之吻",
+      "title": "韩服古祠 · 03",
+      "file": "templates/han03.png",
+      "desc": "韩服与韩式古祠，一秒穿越的东方仪式感",
       "components": {
-        "服装": "西装婚纱",
-        "场景": "山间秋景",
-        "妆容": "自然清透",
-        "动作": "亲吻额头"
+        "场景": "韩式古祠/杉林",
+        "服装": "传统韩服",
+        "动作": "携手同行"
       }
     },
     {
-      "id": "lv039",
-      "series": "lv039",
+      "id": "han04",
+      "series": "han",
       "mode": "couple",
-      "title": "瀑布 · 起舞",
-      "file": "templates/lv039.png",
-      "desc": "瀑布前的相拥起舞",
+      "title": "韩服古祠 · 04",
+      "file": "templates/han04.png",
+      "desc": "韩服与韩式古祠，一秒穿越的东方仪式感",
       "components": {
-        "服装": "白色系服装",
-        "场景": "瀑布",
-        "妆容": "自然清透",
-        "动作": "相拥起舞"
+        "场景": "韩式古祠/杉林",
+        "服装": "传统韩服",
+        "动作": "携手同行"
       }
     },
     {
-      "id": "lv040",
-      "series": "lv040",
+      "id": "han05",
+      "series": "han",
       "mode": "couple",
-      "title": "窗前 · 粉裙",
-      "file": "templates/lv040.png",
-      "desc": "复古窗前的粉裙倚靠",
+      "title": "韩服古祠 · 05",
+      "file": "templates/han05.png",
+      "desc": "韩服与韩式古祠，一秒穿越的东方仪式感",
       "components": {
-        "服装": "粉裙白手套+西装",
-        "场景": "复古室内窗前",
-        "妆容": "自然清透",
-        "动作": "倚靠摆姿"
+        "场景": "韩式古祠/杉林",
+        "服装": "传统韩服",
+        "动作": "携手同行"
       }
     },
     {
-      "id": "lv041",
-      "series": "lv041",
+      "id": "han06",
+      "series": "han",
       "mode": "couple",
-      "title": "树下 · 环抱",
-      "file": "templates/lv041.png",
-      "desc": "公园树荫下的背后环抱",
+      "title": "韩服古祠 · 06",
+      "file": "templates/han06.png",
+      "desc": "韩服与韩式古祠，一秒穿越的东方仪式感",
       "components": {
-        "服装": "休闲情侣装",
-        "场景": "公园树荫",
-        "妆容": "自然清透",
-        "动作": "背后环抱"
+        "场景": "韩式古祠/杉林",
+        "服装": "传统韩服",
+        "动作": "携手同行"
       }
     },
     {
-      "id": "lv042",
-      "series": "lv042",
+      "id": "han07",
+      "series": "han",
       "mode": "couple",
-      "title": "夜色 · 回眸",
-      "file": "templates/lv042.png",
-      "desc": "夜灯光斑中的回眸",
+      "title": "韩服古祠 · 07",
+      "file": "templates/han07.png",
+      "desc": "韩服与韩式古祠，一秒穿越的东方仪式感",
       "components": {
-        "服装": "晚装",
-        "场景": "城市夜景",
-        "妆容": "自然清透",
-        "动作": "伸臂回眸"
+        "场景": "韩式古祠/杉林",
+        "服装": "传统韩服",
+        "动作": "携手同行"
       }
     },
     {
-      "id": "lv043",
-      "series": "lv043",
+      "id": "han08",
+      "series": "han",
       "mode": "couple",
-      "title": "白柱 · 对坐",
-      "file": "templates/lv043.png",
-      "desc": "白色立柱台阶的对坐相视",
+      "title": "韩服古祠 · 08",
+      "file": "templates/han08.png",
+      "desc": "韩服与韩式古祠，一秒穿越的东方仪式感",
       "components": {
-        "服装": "礼服婚纱",
-        "场景": "白色立柱建筑",
-        "妆容": "自然清透",
-        "动作": "对坐相视"
+        "场景": "韩式古祠/杉林",
+        "服装": "传统韩服",
+        "动作": "携手同行"
       }
     },
     {
-      "id": "lv044",
-      "series": "lv044",
+      "id": "han09",
+      "series": "han",
       "mode": "couple",
-      "title": "树下 · 自拍",
-      "file": "templates/lv044.png",
-      "desc": "公园树荫下的自拍",
+      "title": "韩服古祠 · 09",
+      "file": "templates/han09.png",
+      "desc": "韩服与韩式古祠，一秒穿越的东方仪式感",
       "components": {
-        "服装": "休闲情侣装",
-        "场景": "公园树荫",
-        "妆容": "自然清透",
-        "动作": "举机自拍"
+        "场景": "韩式古祠/杉林",
+        "服装": "传统韩服",
+        "动作": "携手同行"
       }
     },
     {
-      "id": "lv045",
-      "series": "lv045",
+      "id": "hor01",
+      "series": "hor",
       "mode": "couple",
-      "title": "红墙 · 沙发",
-      "file": "templates/lv045.png",
-      "desc": "红色氛围下的沙发依偎",
+      "title": "以梦为马 · 01",
+      "file": "templates/hor01.png",
+      "desc": "马场骏马与林间公路，婚纱照里的电影海报",
       "components": {
-        "服装": "休闲情侣装",
-        "场景": "红光砖墙室内",
-        "妆容": "自然清透",
-        "动作": "沙发依偎"
+        "场景": "马场/林间公路",
+        "服装": "骑士风婚纱",
+        "动作": "马上对视"
       }
     },
     {
-      "id": "lv046",
-      "series": "lv046",
+      "id": "hor02",
+      "series": "hor",
       "mode": "couple",
-      "title": "石柱 · 头纱",
-      "file": "templates/lv046.png",
-      "desc": "石柱建筑前的轻扯头纱",
+      "title": "以梦为马 · 02",
+      "file": "templates/hor02.png",
+      "desc": "马场骏马与林间公路，婚纱照里的电影海报",
       "components": {
-        "服装": "白西装+白纱",
-        "场景": "石质立柱建筑",
-        "妆容": "自然清透",
-        "动作": "轻扯头纱"
+        "场景": "马场/林间公路",
+        "服装": "骑士风婚纱",
+        "动作": "马上对视"
       }
     },
     {
-      "id": "lv047",
-      "series": "lv047",
+      "id": "hor03",
+      "series": "hor",
       "mode": "couple",
-      "title": "石墙 · 白西装",
-      "file": "templates/lv047.png",
-      "desc": "石建筑前的白西装搭肩",
+      "title": "以梦为马 · 03",
+      "file": "templates/hor03.png",
+      "desc": "马场骏马与林间公路，婚纱照里的电影海报",
       "components": {
-        "服装": "白西装短裙",
-        "场景": "石质建筑",
-        "妆容": "自然清透",
-        "动作": "搭肩持花"
+        "场景": "马场/林间公路",
+        "服装": "骑士风婚纱",
+        "动作": "马上对视"
       }
     },
     {
-      "id": "lv048",
-      "series": "lv048",
+      "id": "hor04",
+      "series": "hor",
       "mode": "couple",
-      "title": "小巷 · 背起",
-      "file": "templates/lv048.png",
-      "desc": "砖墙小巷的背起黄花",
+      "title": "以梦为马 · 04",
+      "file": "templates/hor04.png",
+      "desc": "马场骏马与林间公路，婚纱照里的电影海报",
       "components": {
-        "服装": "休闲情侣装",
-        "场景": "砖墙绿植小巷",
-        "妆容": "自然清透",
-        "动作": "背起微笑"
+        "场景": "马场/林间公路",
+        "服装": "骑士风婚纱",
+        "动作": "马上对视"
       }
     },
     {
-      "id": "lv049",
-      "series": "lv049",
+      "id": "hor05",
+      "series": "hor",
       "mode": "couple",
-      "title": "老街 · 牵手",
-      "file": "templates/lv049.png",
-      "desc": "老街绿植下的牵手对视",
+      "title": "以梦为马 · 05",
+      "file": "templates/hor05.png",
+      "desc": "马场骏马与林间公路，婚纱照里的电影海报",
       "components": {
-        "服装": "休闲情侣装",
-        "场景": "老街",
-        "妆容": "自然清透",
-        "动作": "牵手对视"
+        "场景": "马场/林间公路",
+        "服装": "骑士风婚纱",
+        "动作": "马上对视"
       }
     },
     {
-      "id": "lv050",
-      "series": "lv050",
+      "id": "hor06",
+      "series": "hor",
       "mode": "couple",
-      "title": "石阶 · 搂肩",
-      "file": "templates/lv050.png",
-      "desc": "市场石阶上的搂肩微笑",
+      "title": "以梦为马 · 06",
+      "file": "templates/hor06.png",
+      "desc": "马场骏马与林间公路，婚纱照里的电影海报",
       "components": {
-        "服装": "休闲装持花",
-        "场景": "市集石阶",
-        "妆容": "自然清透",
-        "动作": "并排搂肩"
+        "场景": "马场/林间公路",
+        "服装": "骑士风婚纱",
+        "动作": "马上对视"
       }
     },
     {
-      "id": "lv051",
-      "series": "lv051",
+      "id": "hor07",
+      "series": "hor",
       "mode": "couple",
-      "title": "天台 · 共舞",
-      "file": "templates/lv051.png",
-      "desc": "黄昏天台的相拥共舞",
+      "title": "以梦为马 · 07",
+      "file": "templates/hor07.png",
+      "desc": "马场骏马与林间公路，婚纱照里的电影海报",
       "components": {
-        "服装": "礼服",
-        "场景": "天台黄昏",
-        "妆容": "自然清透",
-        "动作": "相拥共舞"
+        "场景": "马场/林间公路",
+        "服装": "骑士风婚纱",
+        "动作": "马上对视"
       }
     },
     {
-      "id": "lv053",
-      "series": "lv053",
+      "id": "hor08",
+      "series": "hor",
       "mode": "couple",
-      "title": "花丛 · 相拥",
-      "file": "templates/lv053.png",
-      "desc": "野花丛中的相拥微笑",
+      "title": "以梦为马 · 08",
+      "file": "templates/hor08.png",
+      "desc": "马场骏马与林间公路，婚纱照里的电影海报",
       "components": {
-        "服装": "白色系服装",
-        "场景": "野花丛",
-        "妆容": "自然清透",
-        "动作": "相拥微笑"
+        "场景": "马场/林间公路",
+        "服装": "骑士风婚纱",
+        "动作": "马上对视"
       }
     },
     {
-      "id": "lv054",
-      "series": "lv054",
+      "id": "hor09",
+      "series": "hor",
       "mode": "couple",
-      "title": "石阶 · 背靠背",
-      "file": "templates/lv054.png",
-      "desc": "夜晚石阶的背靠背",
+      "title": "以梦为马 · 09",
+      "file": "templates/hor09.png",
+      "desc": "马场骏马与林间公路，婚纱照里的电影海报",
       "components": {
-        "服装": "休闲情侣装",
-        "场景": "夜晚石阶",
-        "妆容": "自然清透",
-        "动作": "背靠背"
+        "场景": "马场/林间公路",
+        "服装": "骑士风婚纱",
+        "动作": "马上对视"
       }
     },
     {
-      "id": "lv055",
-      "series": "lv055",
+      "id": "min01",
+      "series": "min",
       "mode": "couple",
-      "title": "小巷 · 回头",
-      "file": "templates/lv055.png",
-      "desc": "粉花小巷的前倾回头笑",
+      "title": "白色极简 · 01",
+      "file": "templates/min01.png",
+      "desc": "韩式白色拱门与极简光影，高级感不需要堆料",
       "components": {
-        "服装": "婚纱礼服",
-        "场景": "绿植粉花小巷",
-        "妆容": "自然清透",
-        "动作": "前倾回头"
+        "场景": "白色拱门极简空间",
+        "服装": "缎面主纱+黑西装",
+        "动作": "拱门剪影"
       }
     },
     {
-      "id": "lv056",
-      "series": "lv056",
+      "id": "min02",
+      "series": "min",
       "mode": "couple",
-      "title": "海边 · 吻颊",
-      "file": "templates/lv056.png",
-      "desc": "海边阴天的背后吻颊",
+      "title": "白色极简 · 02",
+      "file": "templates/min02.png",
+      "desc": "韩式白色拱门与极简光影，高级感不需要堆料",
       "components": {
-        "服装": "白裙休闲装",
-        "场景": "海边",
-        "妆容": "自然清透",
-        "动作": "背后吻颊"
+        "场景": "白色拱门极简空间",
+        "服装": "缎面主纱+黑西装",
+        "动作": "拱门剪影"
       }
     },
     {
-      "id": "lv057",
-      "series": "lv057",
+      "id": "min03",
+      "series": "min",
       "mode": "couple",
-      "title": "街口 · 礼服",
-      "file": "templates/lv057.png",
-      "desc": "欧式街道的牵手过街",
+      "title": "白色极简 · 03",
+      "file": "templates/min03.png",
+      "desc": "韩式白色拱门与极简光影，高级感不需要堆料",
       "components": {
-        "服装": "白色礼服",
-        "场景": "欧式街道斑马线",
-        "妆容": "自然清透",
-        "动作": "牵手过街"
+        "场景": "白色拱门极简空间",
+        "服装": "缎面主纱+黑西装",
+        "动作": "拱门剪影"
       }
     },
     {
-      "id": "lv058",
-      "series": "lv058",
+      "id": "min04",
+      "series": "min",
       "mode": "couple",
-      "title": "木桥 · 对视",
-      "file": "templates/lv058.png",
-      "desc": "木桥上的相拥对视",
+      "title": "白色极简 · 04",
+      "file": "templates/min04.png",
+      "desc": "韩式白色拱门与极简光影，高级感不需要堆料",
       "components": {
-        "服装": "露背婚纱",
-        "场景": "木桥",
-        "妆容": "自然清透",
-        "动作": "相拥对视"
+        "场景": "白色拱门极简空间",
+        "服装": "缎面主纱+黑西装",
+        "动作": "拱门剪影"
       }
     },
     {
-      "id": "lv059",
-      "series": "lv059",
+      "id": "min05",
+      "series": "min",
       "mode": "couple",
-      "title": "长椅 · 秋日",
-      "file": "templates/lv059.png",
-      "desc": "秋日公园长椅的微笑",
+      "title": "白色极简 · 05",
+      "file": "templates/min05.png",
+      "desc": "韩式白色拱门与极简光影，高级感不需要堆料",
       "components": {
-        "服装": "秋装",
-        "场景": "秋日公园",
-        "妆容": "自然清透",
-        "动作": "长椅持书"
+        "场景": "白色拱门极简空间",
+        "服装": "缎面主纱+黑西装",
+        "动作": "拱门剪影"
       }
     },
     {
-      "id": "lv060",
-      "series": "lv060",
+      "id": "min06",
+      "series": "min",
       "mode": "couple",
-      "title": "海边 · 拥吻",
-      "file": "templates/lv060.png",
-      "desc": "日落海边的拥吻",
+      "title": "白色极简 · 06",
+      "file": "templates/min06.png",
+      "desc": "韩式白色拱门与极简光影，高级感不需要堆料",
       "components": {
-        "服装": "婚纱头纱",
-        "场景": "海边日落",
-        "妆容": "自然清透",
-        "动作": "拥吻"
+        "场景": "白色拱门极简空间",
+        "服装": "缎面主纱+黑西装",
+        "动作": "拱门剪影"
       }
     },
     {
-      "id": "lv061",
-      "series": "lv061",
+      "id": "min07",
+      "series": "min",
       "mode": "couple",
-      "title": "石阶 · 红裙",
-      "file": "templates/lv061.png",
-      "desc": "石阶上的对视微笑",
+      "title": "白色极简 · 07",
+      "file": "templates/min07.png",
+      "desc": "韩式白色拱门与极简光影，高级感不需要堆料",
       "components": {
-        "服装": "红波点裙+格纹西装",
-        "场景": "石阶",
-        "妆容": "自然清透",
-        "动作": "对视微笑"
+        "场景": "白色拱门极简空间",
+        "服装": "缎面主纱+黑西装",
+        "动作": "拱门剪影"
       }
     },
     {
-      "id": "lv062",
-      "series": "lv062",
+      "id": "min08",
+      "series": "min",
       "mode": "couple",
-      "title": "门廊 · 皮裙",
-      "file": "templates/lv062.png",
-      "desc": "城市门廊的冷艳摆拍",
+      "title": "白色极简 · 08",
+      "file": "templates/min08.png",
+      "desc": "韩式白色拱门与极简光影，高级感不需要堆料",
       "components": {
-        "服装": "黑皮裙+米色外套",
-        "场景": "城市门廊",
-        "妆容": "自然清透",
-        "动作": "前后摆拍"
+        "场景": "白色拱门极简空间",
+        "服装": "缎面主纱+黑西装",
+        "动作": "拱门剪影"
       }
     },
     {
-      "id": "lv064",
-      "series": "lv064",
+      "id": "min09",
+      "series": "min",
       "mode": "couple",
-      "title": "灯笼 · 捏脸",
-      "file": "templates/lv064.png",
-      "desc": "红灯笼庭院里的捏脸逗趣",
+      "title": "白色极简 · 09",
+      "file": "templates/min09.png",
+      "desc": "韩式白色拱门与极简光影，高级感不需要堆料",
       "components": {
-        "服装": "中式礼服",
-        "场景": "红灯笼庭院",
-        "妆容": "自然清透",
-        "动作": "捏脸嬉笑"
+        "场景": "白色拱门极简空间",
+        "服装": "缎面主纱+黑西装",
+        "动作": "拱门剪影"
       }
     },
     {
-      "id": "lv065",
-      "series": "lv065",
+      "id": "spk01",
+      "series": "spk",
       "mode": "couple",
-      "title": "窗台 · 逗笑",
-      "file": "templates/lv065.png",
-      "desc": "石墙窗台的持叶逗笑",
+      "title": "暮色仙女棒 · 01",
+      "file": "templates/spk01.png",
+      "desc": "暮色海边的仙女棒光绘，九宫格的浪漫收尾",
       "components": {
-        "服装": "碎花裙+白衬衫",
-        "场景": "石墙窗台",
-        "妆容": "自然清透",
-        "动作": "并坐逗笑"
+        "场景": "暮色海边",
+        "服装": "红裙/黑裙+西装",
+        "动作": "仙女棒光绘"
       }
     },
     {
-      "id": "lv066",
-      "series": "lv066",
+      "id": "spk02",
+      "series": "spk",
       "mode": "couple",
-      "title": "林荫 · 并肩",
-      "file": "templates/lv066.png",
-      "desc": "金色逆光下的林荫并肩",
+      "title": "暮色仙女棒 · 02",
+      "file": "templates/spk02.png",
+      "desc": "暮色海边的仙女棒光绘，九宫格的浪漫收尾",
       "components": {
-        "服装": "皮衣毛线帽+连帽外套",
-        "场景": "林荫小道",
-        "妆容": "自然清透",
-        "动作": "并肩站立"
+        "场景": "暮色海边",
+        "服装": "红裙/黑裙+西装",
+        "动作": "仙女棒光绘"
+      }
+    },
+    {
+      "id": "spk03",
+      "series": "spk",
+      "mode": "couple",
+      "title": "暮色仙女棒 · 03",
+      "file": "templates/spk03.png",
+      "desc": "暮色海边的仙女棒光绘，九宫格的浪漫收尾",
+      "components": {
+        "场景": "暮色海边",
+        "服装": "红裙/黑裙+西装",
+        "动作": "仙女棒光绘"
+      }
+    },
+    {
+      "id": "spk04",
+      "series": "spk",
+      "mode": "couple",
+      "title": "暮色仙女棒 · 04",
+      "file": "templates/spk04.png",
+      "desc": "暮色海边的仙女棒光绘，九宫格的浪漫收尾",
+      "components": {
+        "场景": "暮色海边",
+        "服装": "红裙/黑裙+西装",
+        "动作": "仙女棒光绘"
+      }
+    },
+    {
+      "id": "spk05",
+      "series": "spk",
+      "mode": "couple",
+      "title": "暮色仙女棒 · 05",
+      "file": "templates/spk05.png",
+      "desc": "暮色海边的仙女棒光绘，九宫格的浪漫收尾",
+      "components": {
+        "场景": "暮色海边",
+        "服装": "红裙/黑裙+西装",
+        "动作": "仙女棒光绘"
+      }
+    },
+    {
+      "id": "spk06",
+      "series": "spk",
+      "mode": "couple",
+      "title": "暮色仙女棒 · 06",
+      "file": "templates/spk06.png",
+      "desc": "暮色海边的仙女棒光绘，九宫格的浪漫收尾",
+      "components": {
+        "场景": "暮色海边",
+        "服装": "红裙/黑裙+西装",
+        "动作": "仙女棒光绘"
+      }
+    },
+    {
+      "id": "spk07",
+      "series": "spk",
+      "mode": "couple",
+      "title": "暮色仙女棒 · 07",
+      "file": "templates/spk07.png",
+      "desc": "暮色海边的仙女棒光绘，九宫格的浪漫收尾",
+      "components": {
+        "场景": "暮色海边",
+        "服装": "红裙/黑裙+西装",
+        "动作": "仙女棒光绘"
+      }
+    },
+    {
+      "id": "spk08",
+      "series": "spk",
+      "mode": "couple",
+      "title": "暮色仙女棒 · 08",
+      "file": "templates/spk08.png",
+      "desc": "暮色海边的仙女棒光绘，九宫格的浪漫收尾",
+      "components": {
+        "场景": "暮色海边",
+        "服装": "红裙/黑裙+西装",
+        "动作": "仙女棒光绘"
+      }
+    },
+    {
+      "id": "spk09",
+      "series": "spk",
+      "mode": "couple",
+      "title": "暮色仙女棒 · 09",
+      "file": "templates/spk09.png",
+      "desc": "暮色海边的仙女棒光绘，九宫格的浪漫收尾",
+      "components": {
+        "场景": "暮色海边",
+        "服装": "红裙/黑裙+西装",
+        "动作": "仙女棒光绘"
+      }
+    },
+    {
+      "id": "lig01",
+      "series": "lig",
+      "mode": "couple",
+      "title": "悬崖灯塔 · 01",
+      "file": "templates/lig01.png",
+      "desc": "涉地可支灯塔与黑礁石海岸，一张大场景镇住九宫格",
+      "components": {
+        "场景": "悬崖灯塔/黑礁石海岸",
+        "服装": "主纱+西装",
+        "动作": "海岸远眺"
+      }
+    },
+    {
+      "id": "lig02",
+      "series": "lig",
+      "mode": "couple",
+      "title": "悬崖灯塔 · 02",
+      "file": "templates/lig02.png",
+      "desc": "涉地可支灯塔与黑礁石海岸，一张大场景镇住九宫格",
+      "components": {
+        "场景": "悬崖灯塔/黑礁石海岸",
+        "服装": "主纱+西装",
+        "动作": "海岸远眺"
+      }
+    },
+    {
+      "id": "lig03",
+      "series": "lig",
+      "mode": "couple",
+      "title": "悬崖灯塔 · 03",
+      "file": "templates/lig03.png",
+      "desc": "涉地可支灯塔与黑礁石海岸，一张大场景镇住九宫格",
+      "components": {
+        "场景": "悬崖灯塔/黑礁石海岸",
+        "服装": "主纱+西装",
+        "动作": "海岸远眺"
+      }
+    },
+    {
+      "id": "lig04",
+      "series": "lig",
+      "mode": "couple",
+      "title": "悬崖灯塔 · 04",
+      "file": "templates/lig04.png",
+      "desc": "涉地可支灯塔与黑礁石海岸，一张大场景镇住九宫格",
+      "components": {
+        "场景": "悬崖灯塔/黑礁石海岸",
+        "服装": "主纱+西装",
+        "动作": "海岸远眺"
+      }
+    },
+    {
+      "id": "lig05",
+      "series": "lig",
+      "mode": "couple",
+      "title": "悬崖灯塔 · 05",
+      "file": "templates/lig05.png",
+      "desc": "涉地可支灯塔与黑礁石海岸，一张大场景镇住九宫格",
+      "components": {
+        "场景": "悬崖灯塔/黑礁石海岸",
+        "服装": "主纱+西装",
+        "动作": "海岸远眺"
+      }
+    },
+    {
+      "id": "lig06",
+      "series": "lig",
+      "mode": "couple",
+      "title": "悬崖灯塔 · 06",
+      "file": "templates/lig06.png",
+      "desc": "涉地可支灯塔与黑礁石海岸，一张大场景镇住九宫格",
+      "components": {
+        "场景": "悬崖灯塔/黑礁石海岸",
+        "服装": "主纱+西装",
+        "动作": "海岸远眺"
+      }
+    },
+    {
+      "id": "lig07",
+      "series": "lig",
+      "mode": "couple",
+      "title": "悬崖灯塔 · 07",
+      "file": "templates/lig07.png",
+      "desc": "涉地可支灯塔与黑礁石海岸，一张大场景镇住九宫格",
+      "components": {
+        "场景": "悬崖灯塔/黑礁石海岸",
+        "服装": "主纱+西装",
+        "动作": "海岸远眺"
+      }
+    },
+    {
+      "id": "lig08",
+      "series": "lig",
+      "mode": "couple",
+      "title": "悬崖灯塔 · 08",
+      "file": "templates/lig08.png",
+      "desc": "涉地可支灯塔与黑礁石海岸，一张大场景镇住九宫格",
+      "components": {
+        "场景": "悬崖灯塔/黑礁石海岸",
+        "服装": "主纱+西装",
+        "动作": "海岸远眺"
+      }
+    },
+    {
+      "id": "lig09",
+      "series": "lig",
+      "mode": "couple",
+      "title": "悬崖灯塔 · 09",
+      "file": "templates/lig09.png",
+      "desc": "涉地可支灯塔与黑礁石海岸，一张大场景镇住九宫格",
+      "components": {
+        "场景": "悬崖灯塔/黑礁石海岸",
+        "服装": "主纱+西装",
+        "动作": "海岸远眺"
       }
     }
   ]
