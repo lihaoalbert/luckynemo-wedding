@@ -1617,6 +1617,7 @@ action 只能是以下之一：
 - {{"type": "navigate", "page": "/pages/upload/upload"}} 引导去页面（可选页：/pages/upload/upload 上传、/pages/makeup/makeup 定妆、/pages/wardrobe/wardrobe 选服装场景、/pages/pose/pose 选动作神态）
 - {{"type": "update_selection", "fields": {{"scenes": ["场景名"], "poses": ["动作名"], "set_id": "set-01", "makeup_id": "hz002", "makeup_notes": "用户自己的化妆要求"}}}} 修改选择（只能用可选资产里的值；makeup_notes 是自由文本，记录用户提的化妆意见，如"卧蚕明显一点""唇色要豆沙色"）
 - {{"type": "regenerate_makeup", "instruction": "腮红淡一点"}} 按修正指令重新出定妆照
+- {{"type": "makeup_photo", "who": "me或partner", "makeup_id": "hz214"}} 对话里直接出定妆照：用户发照片说"用这张修/做一张定妆照""修一张原始图作为定妆照"时用——底图=用户刚发的图；who 按"这是谁的定妆照"判断（新郎/老公/男方=操作者本人时用 me，新娘/老婆/伴侣用 partner，参考对话里用户的自称，拿不准先问）；makeup_id 用可选妆造里的值，用户说"原始/原图/最像本人"或没指定妆容时默认原图直出版（女 hz214/男 hz108）。用这个动作时 reply 说明"正在生成定妆照"
 - {{"type": "show_result"}} 把最新生成好的成片/定妆照发给用户看
 - {{"type": "show_uploads"}} 把用户已上传的照片发给用户看
 - {{"type": "set_mode", "mode": "solo"}} 切换拍摄模式（solo=个人写真，couple=婚纱照）
@@ -1639,6 +1640,7 @@ action 只能是以下之一：
 - "用这张出片/帮我生成/出一张看看" → generate_photo
 - "把这两张照片里的人生成一张合照/帮我俩合拍一张" → duo_photo（真人生成合照）；用户明确说"做模板/定制模卡"才用 custom_moka，两者别混
 - "改一下刚出的图/去个眼镜/这张去掉XX" → edit_photo（改成片）；"改妆容/重新定妆" → regenerate_makeup（改定妆照），别混
+- "用这张修/做一张定妆照""修一张原始图作为定妆照" → makeup_photo（who 按对话判断，给对 makeup_id）
 - 【禁止光说不给按钮】reply 里说"点这里/点下面"时，action 必须同时给对应按钮（navigate 或 generate_photo）；AI 答应在做的操作必须有 action 落地，绝不允许只回"好的，我明白了"却什么都不做
 
 【意见反馈流程】用户报 bug 或提功能想法时，先追问细节（action 用 none），把问题整理成一句话问用户"我帮你把这条反馈提交给团队吗？"。用户明确同意（好/提交/嗯）→ submit_feedback，text 是你整理后的完整描述（含用户补充的细节）。用户之前的消息里带图的（历史中标注[N张图]），反馈会一并带上。
@@ -1866,8 +1868,10 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
                 contact = body.order_no if who == "me" else f"{body.order_no}-B"
                 added = 0
                 for key in body.images[:3]:
+                    # 去重只看目标相册：chat 上传会先在 -chat 暂存相册登记同 key，
+                    # 全表去重会导致永远 added=0（反馈 #22 的根因）
                     exists = conn.execute(
-                        "SELECT 1 FROM uploads WHERE oss_key=?", (key,)).fetchone()
+                        "SELECT 1 FROM uploads WHERE oss_key=? AND contact=?", (key, contact)).fetchone()
                     if not exists:
                         conn.execute(
                             "INSERT INTO uploads(contact,filename,oss_key,size,content_type,created_at)"
@@ -1879,6 +1883,61 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
                 action = {"type": "add_base_photo", "added": added, "who": who}
                 if added:
                     reply += f"\n（已把 {added} 张保存为{'你的' if who == 'me' else '伴侣的'}拍摄底图 ✅）"
+
+        elif atype == "makeup_photo":
+            # 对话里直接出定妆照：刚发的图作底照 + 指定妆容（默认原图直出版）
+            if not body.images:
+                action = {"type": "none"}
+                reply = "我还没收到图片哦，点输入框旁边的 📷 传一张试试～"
+            else:
+                who = action.get("who") if action.get("who") in ("me", "partner") else "me"
+                role = "A" if who == "me" else "B"
+                if not order["members"].get(role, {}).get("auth_ok"):
+                    action = {"type": "none"}
+                    reply += "\n（出定妆照前，需要本人先完成真人认证哦，去「我的」页核验一下）"
+                else:
+                    # 底图先存进对应相册（A/B 分存）
+                    contact = body.order_no if role == "A" else f"{body.order_no}-B"
+                    base_key = body.images[0]
+                    if not conn.execute("SELECT 1 FROM uploads WHERE oss_key=? AND contact=?",
+                                        (base_key, contact)).fetchone():
+                        conn.execute(
+                            "INSERT INTO uploads(contact,filename,oss_key,size,content_type,created_at)"
+                            " VALUES(?,?,?,?,?,?)",
+                            (contact, Path(base_key).name, base_key, 0, "image/jpeg", _now()))
+                    # 妆容：M3 给的 makeup_id 优先，缺省按性别给原图直出版
+                    site = Path(_env("SITE_DIR", "/var/www/luckynemo"))
+                    catalog = _load_makeup_catalog(site)
+                    style = next((s for s in catalog if s["id"] == action.get("makeup_id")), None)
+                    if not style:
+                        gender = "male" if action.get("gender") == "male" else "female"
+                        style = next(s for s in catalog
+                                     if s["id"] == ("hz108" if gender == "male" else "hz214"))
+                    # 定妆限量与 /api/mp/job 一致：每单免费 10 次，超出扣免费额度
+                    makeup_count = conn.execute(
+                        "SELECT COUNT(*) FROM mp_jobs WHERE order_no=? AND kind='makeup_photo'",
+                        (body.order_no,)).fetchone()[0]
+                    if makeup_count >= 10:
+                        if (order["free_used"] or 0) < order["free_quota"]:
+                            _mp_touch(conn, body.order_no, free_used=(order["free_used"] or 0) + 1)
+                        else:
+                            action = {"type": "none"}
+                            reply += "\n（免费定妆次数用完啦，充值后再继续）"
+                    if action.get("type") != "none":
+                        payload = {"role": role, "makeup_id": style["id"], "makeup_name": style["name"],
+                                   "makeup_prompt": style["prompt"], "gender": style.get("gender", "female"),
+                                   "engine": "seedream", "base_key": base_key,
+                                   "makeup_notes": "", "hairstyle": "", "hairstyle_name": ""}
+                        conn.execute(
+                            "INSERT INTO mp_jobs(order_no,kind,payload_json,status,created_at,updated_at)"
+                            " VALUES(?,?,?,?,?,?)",
+                            (body.order_no, "makeup_photo",
+                             json.dumps(payload, ensure_ascii=False), "queued", _now(), _now()))
+                        conn.commit()
+                        log.info("mp chat makeup_photo order_no=%s role=%s makeup=%s",
+                                 body.order_no, role, style["id"])
+                        action = {"type": "makeup_photo", "page": "/pages/makeup/makeup"}
+                        reply += f"\n（正在用这张照片生成「{style['name']}」定妆照，去定妆页看进度 ✅）"
 
         elif atype == "custom_moka":
             # 定制专属模卡：描述/范例图 → 队列生成（worker 做安全审核+质检重试），每单免费 3 次

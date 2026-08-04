@@ -386,6 +386,9 @@ Page({
       app.globalData.selection = selection;
     } else if (action.type === 'regenerate_makeup' && action.page) {
       setTimeout(() => wx.navigateTo({ url: action.page }), 800);
+    } else if (action.type === 'makeup_photo' && action.page) {
+      // 对话里直接出定妆照：任务已在服务端创建，定妆页会自动恢复等待页并轮询
+      setTimeout(() => wx.navigateTo({ url: action.page }), 800);
     } else if ((action.type === 'show_result' || action.type === 'show_uploads') && action.photos && action.photos.length) {
       this.push('ai', '', null, action.photos);
     } else if (action.type === 'set_mode' && action.mode) {

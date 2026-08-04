@@ -102,6 +102,7 @@
 
 ## 更新日志
 
+- 2026-08-04 修复反馈 #22（"还是没法新增底图，前面说改好了"）：根因=add_base_photo 全表去重，chat 上传先登记 -chat 暂存相册导致目标相册永远 added=0——改为只按目标相册去重；另新增 chat 动作 `makeup_photo`（发照片说"修一张定妆照"→ 直接建定妆任务，底图入对应相册+原图直出版兜底，限额与 /api/mp/job 一致），chat.js 导航定妆页（自动恢复等待页）；线上原话实测通过（job#87 hz108 原图直出版 role=A，脸不动换灰棚 ✓）；新郎海滩照已补录 A 相册；反馈已回复，未处理清零
 - 2026-08-04 修复反馈 #21（新娘新底图被误判定制模卡 + 求"原图只换背景"选项）：①M3 提示词加硬约束——消息含"底图/新底图/上传/补传/重新上传"一律 add_base_photo，严禁 custom_moka；②红妆阁新增「原图」系列 hz214（女）/hz108（男）原图直出版（spec.use_original：人物 100% 不动仅换浅灰棚拍背景），app.py `_compose_makeup_prompt` 新分支、worker 该模式只用底图一张且不融合妆容建议/不改发型/不走 vidu；新娘面部特写已补录 B 相册（原来只在 chat 暂存）；用该照片实测 hz214 出图：脸完全不动、海滩背景换灰棚 ✓；反馈已回复。注：误触发的 custom_moka 占了 AXEZ 一次 DIY 免费额度（剩 2 次）
 - 2026-08-04 虚拟支付密钥上线：OfferID/AppKey（现网+沙箱）配入 ECS `.env`，VP_ENV=1 沙箱，luckynemo 重启 active，prepare 端点线上验证 401（配置生效）；更正小程序 AppID 为 wx213d47a529c7055c（旧 wxfab69c703920891e 作废）；待 MP 后台配代币+发货推送地址、iOS 开通、沙箱真机联调
 - 2026-08-04 微信虚拟支付对接（代币模式）：app.py 新增 mp_sessions/mp_pay_orders 表 + /api/mp/vpay/prepare（signData/paySig/signature 三要素）/confirm（幂等到账+归属校验）/notify（验签到账）；mp_login 存 session_key；小程序 app.js `vpay()` 统一支付入口（未配置回退客服），result/me 页接入；本地 E2E（签名校验/到账/幂等/403）通过；app.py 已部署 ECS 重启 active（VP_* 未配置，线上现为回退态）；待：MP 控制台 offerId/AppKey 配 .env、沙箱真机联调、小程序上传
