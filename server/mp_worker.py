@@ -27,7 +27,6 @@ import requests
 SERVER_DIR = Path(__file__).resolve().parent
 DB_PATH = SERVER_DIR / "data" / "app.db"
 TOOLKIT_ENV = Path("/opt/luckynemo/toolkit/.env")
-ARK_BASE = "https://ark.cn-beijing.volces.com"
 POLL_INTERVAL = 5
 TMP = Path("/tmp/mp_worker")
 TMP.mkdir(exist_ok=True)
@@ -46,7 +45,6 @@ def _load_env() -> dict:
 
 
 ENV = _load_env()
-ARK_KEY = ENV.get("ARK_API_KEY", "")
 SEEDREAM_MODEL = ENV.get("SEEDREAM_MODEL", "doubao-seedream-5-0-pro-260628")
 VIDU_KEY = ENV.get("VIDU_API_KEY", "")
 MINIMAX_KEY = ENV.get("MINIMAX_API_KEY", "")
@@ -97,6 +95,22 @@ def oss_put_url(key: str, data: bytes, content_type: str, expire: int = 7 * 8640
 
 
 # ---------------- Ark / Seedream ----------------
+#: 生图双通道：「iFocusing 路由」(ifocus，默认) + 「火山直连」(direct，备用)。
+#: 一侧欠费/限流/异常时自动 failover 另一侧；ARK_CHANNEL 环境变量可强制指定主通道
+ARK_CHANNELS = {
+    "ifocus": ("https://router.i-focusing.com", "IFOCUS_API_KEY"),
+    "direct": ("https://ark.cn-beijing.volces.com", "ARK_API_KEY"),
+}
+
+
+def _ark_channels() -> list:
+    """按主备顺序返回 [(通道名, base, key)]，只保留配了 key 的通道。"""
+    primary = ENV.get("ARK_CHANNEL", "ifocus")
+    names = [primary] + [n for n in ARK_CHANNELS if n != primary]
+    return [(n, ARK_CHANNELS[n][0], ENV.get(ARK_CHANNELS[n][1], ""))
+            for n in names if ENV.get(ARK_CHANNELS[n][1], "")]
+
+
 def seedream(prompt: str, ref_files: list[Path]) -> bytes:
     imgs = []
     for p in ref_files:
@@ -109,13 +123,25 @@ def seedream(prompt: str, ref_files: list[Path]) -> bytes:
                                   "文字，水印，logo，畸形手，面部畸变"}
     if imgs:
         payload["image"] = imgs
-    r = requests.post(f"{ARK_BASE}/api/v3/images/generations", json=payload,
-                      headers={"Authorization": f"Bearer {ARK_KEY}"}, timeout=300)
-    data = r.json()
-    if r.status_code >= 300 or "error" in data:
-        raise RuntimeError(f"Seedream 失败：{json.dumps(data.get('error', data), ensure_ascii=False)[:300]}")
-    url = data["data"][0]["url"]
-    return requests.get(url, timeout=120).content
+    channels = _ark_channels()
+    if not channels:
+        raise RuntimeError("生图通道未配置（IFOCUS_API_KEY / ARK_API_KEY 均缺失）")
+    last_err = None
+    for i, (name, base, key) in enumerate(channels):
+        try:
+            r = requests.post(f"{base}/api/v3/images/generations", json=payload,
+                              headers={"Authorization": f"Bearer {key}"}, timeout=300)
+            data = r.json()
+            if r.status_code >= 300 or "error" in data:
+                raise RuntimeError(json.dumps(data.get("error", data), ensure_ascii=False)[:300])
+            if i > 0:
+                log(f"Seedream 主通道失败，已由备用通道 {name} 完成")
+            url = data["data"][0]["url"]
+            return requests.get(url, timeout=120).content
+        except Exception as e:  # noqa: BLE001
+            last_err = e
+            log(f"Seedream 通道 {name} 失败：{str(e)[:200]}")
+    raise RuntimeError(f"Seedream 全部通道失败：{str(last_err)[:300]}")
 
 
 # ---------------- 面部分析（LLM 化妆师建议） ----------------
@@ -706,8 +732,8 @@ def fail_job(job_id: int, err: str) -> None:
 
 
 def main() -> None:
-    if not ARK_KEY:
-        log("缺 ARK_API_KEY，退出")
+    if not _ark_channels():
+        log("缺生图通道密钥（IFOCUS_API_KEY / ARK_API_KEY），退出")
         sys.exit(1)
     log("mp_worker 启动")
     while True:
