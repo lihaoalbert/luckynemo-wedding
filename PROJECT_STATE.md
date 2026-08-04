@@ -20,7 +20,7 @@
 | 后端 API | https://luckynemo.ibi.ren/api/health | FastAPI，ECS 127.0.0.1:8090，systemd `luckynemo.service`（Restart=always，重启 ECS 会自启） |
 | 小程序 worker | systemd `luckynemo-worker.service` | `/opt/luckynemo/server/mp_worker.py`，轮询 mp_jobs → Seedream → OSS results/，单张 ≈44s（2026-07-29 E2E 通过） |
 | 小程序工程 | 本地 `miniprogram/` | **AppID wx213d47a529c7055c**（2026-08-04 更正，旧记录 wxfab69c703920891e 作废；ECS MP_APPID 与 project.config.json 均为新号）；后端端点 /api/mp/*；待：认证回调、真机体验 |
-| 虚拟支付 | /api/mp/vpay/* | 代币模式（1元=10币；39币→1张 / 490币→50 张）。prepare/confirm（幂等）/notify 三端点已上线。**密钥已配 ECS `.env`（OfferID 1450606065，现网+沙箱 AppKey），当前 VP_ENV=1 沙箱**。待：①MP 虚拟支付后台配代币（1元=10币）+ 发货推送地址 `https://luckynemo.ibi.ren/api/mp/vpay/notify` ②iOS 额外开通（仅支持代币）③沙箱真机联调后 VP_ENV 改 0；到账对账用 MP「交易订单」后台 |
+| 虚拟支付 | /api/mp/vpay/* | 代币模式「金币」**1 元 = 1 币**（MP 后台已配，发布后不可改；价格须整数元：单张 3.9 已改 4 元）。4币→1张 / 49币→50 张。prepare/confirm（幂等）/notify 三端点已上线。**密钥已配 ECS `.env`（OfferID 1450606065，现网+沙箱 AppKey），当前 VP_ENV=1 沙箱**。待：①MP 后台点「联调发布」代币 + 配发货推送地址 `https://luckynemo.ibi.ren/api/mp/vpay/notify` ②iOS 额外开通（仅支持代币）③沙箱真机联调后 VP_ENV 改 0；到账对账用 MP「交易订单」后台 |
 | 飞书订单台 | https://acn56kbby6qx.feishu.cn/base/FQNsbNZsfaQGfUsjET8cXGNJnvH | 两张表：「订单」（tblHSraRw4jSN5vv）、「故事问卷」（tblAyGGg6ySGZJY8）。**故事问卷在 Base 顶部第二个表标签页**，直达链接：`https://acn56kbby6qx.feishu.cn/base/FQNsbNZsfaQGfUsjET8cXGNJnvH?table=tblAyGGg6ySGZJY8` |
 
 服务器：阿里云 ECS 8.133.241.103（与 ibi.ren 同机），SSH `ssh -i /Users/app/intfocus-albert.pem root@8.133.241.103`
