@@ -70,4 +70,51 @@ App({
       });
     });
   },
+  // 虚拟支付（代币模式）：后端签名三要素 → wx.requestVirtualPayment → confirm 补偿到账
+  // 未开通/不支持/未配置时回退客服流程
+  vpay(product, title) {
+    if (!wx.requestVirtualPayment) return this.vpayFallback(title);
+    const order = this.globalData.order || {};
+    const platform = (wx.getDeviceInfo ? wx.getDeviceInfo().platform : '') || 'android';
+    this.req('/api/mp/vpay/prepare', 'POST', {
+      order_no: order.order_no || '',
+      product,
+      open_token: this.globalData.openToken,
+      platform,
+    }).then(res => {
+      wx.requestVirtualPayment({
+        signData: res.signData,
+        paySig: res.paySig,
+        signature: res.signature,
+        mode: res.mode,
+        success: () => {
+          // Midas 发货推送可能延迟/缺失，客户端主动 confirm 补偿到账（服务端幂等）
+          this.req('/api/mp/vpay/confirm', 'POST', {
+            out_trade_no: res.outTradeNo,
+            open_token: this.globalData.openToken,
+          }).then(() => {
+            wx.showModal({ title: '支付成功', content: '额度已到账，去生成吧', showCancel: false });
+          }).catch(() => {
+            wx.showToast({ title: '支付成功，额度稍后到账', icon: 'none' });
+          });
+        },
+        fail: (e) => {
+          if (!/cancel/i.test((e && e.errMsg) || '')) {
+            wx.showToast({ title: '支付未完成', icon: 'none' });
+          }
+        },
+      });
+    }).catch(e => this.vpayFallback(title, e.message));
+  },
+  vpayFallback(title, msg) {
+    wx.showModal({
+      title: title || '充值 / 续购',
+      content: (msg === '虚拟支付未配置（VP_OFFER_ID/VP_APP_KEY）' ? '线上支付即将开通。' : (msg ? msg + '。' : ''))
+        + '可先扫码联系客服完成下单。',
+      confirmText: '复制客服微信',
+      success: (r) => {
+        if (r.confirm) wx.setClipboardData({ data: 'LuckyNemo2026' });
+      },
+    });
+  },
 });

@@ -45,13 +45,13 @@ Page({
   },
 
   recharge() {
-    wx.showModal({
-      title: '充值 / 续购',
-      content: '内测期间每人 20 张免费额度。用完可选：3.9 元/张，或 49 元套餐 50 张。线上支付开通中，可先联系客服下单。',
-      confirmText: '复制客服微信',
+    wx.showActionSheet({
+      itemList: ['3.9 元 / 张（按张付费）', '49 元套餐 · 50 张（最划算）'],
       success: (r) => {
-        if (r.confirm) wx.setClipboardData({ data: 'LuckyNemo2026' });
+        const pack = r.tapIndex === 1;
+        app.vpay(pack ? 'pack49' : 'per_photo', pack ? '49 元套餐 · 50 张' : '3.9 元/张');
       },
+      fail: () => {},
     });
   },
 

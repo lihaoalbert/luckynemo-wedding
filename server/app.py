@@ -192,6 +192,17 @@ def _migrate() -> None:
         "created_at TEXT NOT NULL, updated_at TEXT NOT NULL,"
         "UNIQUE(order_no, role))"
     )
+    # 虚拟支付：登录态（session_key 做用户登录态签名）+ 支付单
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS mp_sessions("
+        "openid TEXT PRIMARY KEY, session_key TEXT NOT NULL, updated_at TEXT NOT NULL)"
+    )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS mp_pay_orders("
+        "out_trade_no TEXT PRIMARY KEY, order_no TEXT NOT NULL, openid TEXT NOT NULL,"
+        "product TEXT NOT NULL, coins INTEGER NOT NULL, grant_count INTEGER NOT NULL,"
+        "status TEXT NOT NULL DEFAULT 'created', created_at TEXT NOT NULL, paid_at TEXT DEFAULT '')"
+    )
     conn.commit()
     # 存量订单迁移：已认证通过的订单视为成员 A 已认证
     for row in conn.execute(
@@ -505,6 +516,17 @@ MP_SECRET = _env("MP_SECRET")
 IFOCUS_API_KEY = _env("IFOCUS_API_KEY", "")
 IFOCUS_BASE = _env("IFOCUS_BASE", "https://router.i-focusing.com/api/ark")
 IFOCUS_API_VERSION = _env("IFOCUS_API_VERSION", "2024-01-01")
+#: 微信虚拟支付（代币模式，iOS 强制；MP 控制台「虚拟支付 → 基本配置」取 offerId/AppKey）
+#: 文档：https://developers.weixin.qq.com/miniprogram/dev/platform-capabilities/business-capabilities/virtual-payment.html
+VP_OFFER_ID = _env("VP_OFFER_ID", "")
+VP_APP_KEY = _env("VP_APP_KEY", "")                      # 现网 AppKey
+VP_APP_KEY_SANDBOX = _env("VP_APP_KEY_SANDBOX", "")      # 沙箱 AppKey
+VP_ENV = int(_env("VP_ENV", "0"))                        # 0=现网 1=沙箱
+#: 商品表：代币比例 1 元 = 10 币；per_photo=39 币→1 张额度，pack49=490 币→50 张额度
+VP_PRODUCTS = {
+    "per_photo": {"coins": 39, "grant": 1, "title": "3.9 元/张"},
+    "pack49": {"coins": 490, "grant": 50, "title": "49 元 · 50 张"},
+}
 #: 本站对外地址（拼认证回调用）
 PUBLIC_BASE = _env("PUBLIC_BASE", "https://luckynemo.ibi.ren")
 #: MiniMax（性别识别等轻量多模态调用）
@@ -662,6 +684,15 @@ def mp_login(code: str) -> JSONResponse:
         raise HTTPException(status_code=502, detail=f"微信接口异常：{exc}")
     if "openid" not in data:
         raise HTTPException(status_code=400, detail=f"登录失败：{data.get('errmsg', data)}")
+    # 存 session_key（虚拟支付的用户登录态签名要用）
+    if data.get("session_key"):
+        conn = _db()
+        conn.execute(
+            "INSERT INTO mp_sessions(openid, session_key, updated_at) VALUES(?,?,?) "
+            "ON CONFLICT(openid) DO UPDATE SET session_key=excluded.session_key, updated_at=excluded.updated_at",
+            (data["openid"], data["session_key"], _now()))
+        conn.commit()
+        conn.close()
     log.info("mp login ok openid=%s", data["openid"][:8] + "***")
     return JSONResponse({"ok": True, "openid": data["openid"]})
 
@@ -1360,6 +1391,148 @@ def mp_job_create(body: MpJobIn) -> JSONResponse:
         return JSONResponse({"ok": True, "status": "queued"})
     finally:
         conn.close()
+
+
+# ---------------- 微信虚拟支付（代币模式） ----------------
+# 商品即额度：用户付 39/490 币 → 到账 1/50 张 paid_count。
+# 到账以 Midas 发货推送（/api/mp/vpay/notify）为准，客户端 confirm 为补偿通道（内测期信任客户端
+# 成功回调，后台可用 MP「虚拟支付 → 交易订单」对账；正式放量前应加平台查单核验）。
+
+def _vp_appkey() -> str:
+    return VP_APP_KEY_SANDBOX if VP_ENV == 1 else VP_APP_KEY
+
+
+def _vp_hmac(data: str, key: str) -> str:
+    return hmac.new(key.encode("utf-8"), data.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def _vp_openid(open_token: str) -> str:
+    return open_token[3:] if open_token.startswith("wx-") else ""
+
+
+def _vp_grant(conn: sqlite3.Connection, pay: sqlite3.Row) -> None:
+    """到账（幂等）：created → paid 才加额度。"""
+    cur = conn.execute(
+        "UPDATE mp_pay_orders SET status='paid', paid_at=? WHERE out_trade_no=? AND status='created'",
+        (_now(), pay["out_trade_no"]))
+    if cur.rowcount == 1:
+        conn.execute(
+            "UPDATE mp_orders SET paid_count=paid_count+?, updated_at=? WHERE order_no=?",
+            (pay["grant_count"], _now(), pay["order_no"]))
+        log.info("vpay 到账 out_trade_no=%s order_no=%s +%d 张",
+                 pay["out_trade_no"], pay["order_no"], pay["grant_count"])
+
+
+class MpVpayPrepareIn(BaseModel):
+    order_no: str = Field(min_length=6, max_length=40)
+    product: str = Field(min_length=2, max_length=20)
+    open_token: str = Field(min_length=6, max_length=120)
+    platform: str = "android"
+
+
+@app.post("/api/mp/vpay/prepare")
+def mp_vpay_prepare(body: MpVpayPrepareIn) -> JSONResponse:
+    """下单并签名：signData/paySig/signature 三要素给 wx.requestVirtualPayment。"""
+    if not VP_OFFER_ID or not _vp_appkey():
+        raise HTTPException(status_code=503, detail="虚拟支付未配置（VP_OFFER_ID/VP_APP_KEY）")
+    product = VP_PRODUCTS.get(body.product)
+    if not product:
+        raise HTTPException(status_code=400, detail="未知商品")
+    openid = _vp_openid(body.open_token)
+    conn = _db()
+    try:
+        if not openid:
+            raise HTTPException(status_code=401, detail="支付需要微信登录态，请重启小程序后再试")
+        sess = conn.execute(
+            "SELECT session_key FROM mp_sessions WHERE openid=?", (openid,)).fetchone()
+        if not sess:
+            raise HTTPException(status_code=401, detail="登录态已过期，请重启小程序后再试")
+        if not _mp_get_order(conn, body.order_no):
+            raise HTTPException(status_code=404, detail="订单不存在")
+        platform = body.platform if body.platform in ("android", "ios", "windows", "mac") else "android"
+        out_trade_no = f"VP{int(time.time())}{secrets.token_hex(3)}".upper()
+        sign_data = json.dumps({
+            "offerId": VP_OFFER_ID,
+            "buyQuantity": product["coins"],
+            "env": VP_ENV,
+            "currencyType": "CNY",
+            "platform": platform,
+            "productId": "",
+            "goodsPrice": "",
+            "outTradeNo": out_trade_no,
+            "attach": body.order_no,
+        }, separators=(",", ":"))
+        conn.execute(
+            "INSERT INTO mp_pay_orders(out_trade_no,order_no,openid,product,coins,grant_count,status,created_at)"
+            " VALUES(?,?,?,?,?,?,'created',?)",
+            (out_trade_no, body.order_no, openid, body.product,
+             product["coins"], product["grant"], _now()))
+        conn.commit()
+        return JSONResponse({
+            "ok": True,
+            "signData": sign_data,
+            "paySig": _vp_hmac(sign_data, _vp_appkey()),
+            "signature": _vp_hmac(sign_data, sess[0]),
+            "mode": "short_series_coin",
+            "outTradeNo": out_trade_no,
+        })
+    finally:
+        conn.close()
+
+
+class MpVpayConfirmIn(BaseModel):
+    out_trade_no: str = Field(min_length=8, max_length=64)
+    open_token: str = Field(min_length=6, max_length=120)
+
+
+@app.post("/api/mp/vpay/confirm")
+def mp_vpay_confirm(body: MpVpayConfirmIn) -> JSONResponse:
+    """客户端支付成功后的到账确认（Midas 推送可能延迟/缺失时的补偿通道，幂等）。"""
+    conn = _db()
+    conn.row_factory = sqlite3.Row
+    try:
+        pay = conn.execute(
+            "SELECT * FROM mp_pay_orders WHERE out_trade_no=?", (body.out_trade_no,)).fetchone()
+        if not pay:
+            raise HTTPException(status_code=404, detail="支付单不存在")
+        if pay["openid"] != _vp_openid(body.open_token):
+            raise HTTPException(status_code=403, detail="支付单不属于当前用户")
+        _vp_grant(conn, pay)
+        conn.commit()
+        order = _mp_get_order(conn, pay["order_no"])
+        return JSONResponse({"ok": True, "paid_count": order["paid_count"] if order else 0})
+    finally:
+        conn.close()
+
+
+@app.post("/api/mp/vpay/notify")
+async def mp_vpay_notify(request: Request) -> JSONResponse:
+    """Midas 发货推送：验签（hmac(appkey, uri&body)）→ 到账。头里没有签名时仅记录不处理。"""
+    raw = (await request.body()).decode("utf-8", "replace")
+    sig = (request.headers.get("Wechatpay-Signature") or request.headers.get("X-Pay-Sig")
+           or request.headers.get("pay-sig") or "")
+    log.info("vpay notify headers=%s body=%s", dict(request.headers), raw[:800])
+    expected = _vp_hmac("/api/mp/vpay/notify&" + raw, _vp_appkey()) if _vp_appkey() else ""
+    if not sig or not hmac.compare_digest(sig, expected):
+        log.warning("vpay notify 验签不通过（sig=%s），仅记录", sig[:16])
+        return JSONResponse({"code": "FAIL", "message": "sign mismatch"})
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return JSONResponse({"code": "FAIL", "message": "bad json"})
+    out_trade_no = (data.get("out_trade_no") or data.get("outTradeNo")
+                    or (data.get("order") or {}).get("out_trade_no") or "")
+    conn = _db()
+    conn.row_factory = sqlite3.Row
+    try:
+        pay = conn.execute(
+            "SELECT * FROM mp_pay_orders WHERE out_trade_no=?", (out_trade_no,)).fetchone()
+        if pay:
+            _vp_grant(conn, pay)
+            conn.commit()
+    finally:
+        conn.close()
+    return JSONResponse({"code": "SUCCESS", "message": "OK"})
 
 
 @app.get("/api/mp/me")

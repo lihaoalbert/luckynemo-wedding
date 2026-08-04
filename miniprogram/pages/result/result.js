@@ -82,15 +82,8 @@ Page({
   },
 
   pay(kind, amount) {
-    // v1：AppID/商户号下来前，引导客服核销（线上支付开通后替换为 wx.requestPayment）
-    wx.showModal({
-      title: '支付通道即将开通',
-      content: `你选择了「${kind === 'pack49' ? '49 元套餐' : '3.9 元/张'}」（¥${amount}）。小程序支付正在开通中，可先扫码联系客服完成下单。`,
-      confirmText: '复制客服微信',
-      success: (r) => {
-        if (r.confirm) wx.setClipboardData({ data: 'LuckyNemo2026' });
-      },
-    });
+    // 虚拟支付（代币模式）：3.9 元/张 = 39 币，49 元套餐 = 490 币；未开通时 app.vpay 自动回退客服
+    app.vpay(kind, kind === 'pack49' ? '49 元套餐 · 50 张' : '3.9 元/张');
   },
 
   upgrade() {
