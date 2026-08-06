@@ -20,7 +20,7 @@
 | 后端 API | https://luckynemo.ibi.ren/api/health | FastAPI，ECS 127.0.0.1:8090，systemd `luckynemo.service`（Restart=always，重启 ECS 会自启） |
 | 小程序 worker | systemd `luckynemo-worker.service` | `/opt/luckynemo/server/mp_worker.py`，轮询 mp_jobs → Seedream → OSS results/，单张 ≈44s（2026-07-29 E2E 通过） |
 | 小程序工程 | 本地 `miniprogram/` | **AppID wx213d47a529c7055c**（2026-08-04 更正，旧记录 wxfab69c703920891e 作废；ECS MP_APPID 与 project.config.json 均为新号）；后端端点 /api/mp/*；待：认证回调、真机体验 |
-| 虚拟支付 | /api/mp/vpay/* | 代币模式「金币」**1 元 = 1 币**（MP 后台已配，发布后不可改；价格须整数元：单张 3.9 已改 4 元）。4币→1张 / 49币→50 张。prepare/confirm（幂等）/notify 三端点已上线。**密钥已配 ECS `.env`（OfferID 1450606065，现网+沙箱 AppKey），当前 VP_ENV=1 沙箱**。待：①MP 后台点「联调发布」代币（金币已配 1元=1币）②**iOS 开通：虚拟支付→基础配置页（前置：先配小程序简称）；iOS 不开通则 iPhone 完全无法支付（独立开关默认关闭）；iOS 仅现网可测（无沙箱）、iOS15+/微信8.0.68+/大陆 Apple ID/最低 1 元；iOS 费率 Apple 12%（腾讯 5% 2026 减免）；iOS 退款走 App Store，退款问询 3 秒应答接口 xpay_subscribe_ios_refund_query_notify 待补** ③Android 沙箱真机联调后 VP_ENV 改 0。注：vp 通知走小程序「消息推送」通道而非 vp 后台独立配置，notify 端点非必需（到账靠 confirm 补偿闭环）；对账用 MP「交易订单」或 query_order API |
+| 虚拟支付 | /api/mp/vpay/* | 代币模式「金币」**1 元 = 1 币**（MP 后台已配并「联调发布」；价格须整数元：单张 3.9 已改 4 元）。4币→1张 / 49币→50 张。prepare/confirm（幂等）/notify 三端点已上线。**密钥已配 ECS `.env`（OfferID 1450606065，现网+沙箱 AppKey），当前 VP_ENV=1 沙箱**。**Android 沙箱真机联调已通过（2026-08-06，AXEZ 4 元充值到账，paySig 前缀 bug 已修，main a98a51e）**。待：①**VP_ENV 改 0 切现网（现网测试必须用正式版小程序，env=0）**②**iOS 开通：虚拟支付→基础配置页（前置：先配小程序简称）；iOS 不开通则 iPhone 完全无法支付（独立开关默认关闭）；iOS 仅现网可测（无沙箱）、iOS15+/微信8.0.68+/大陆 Apple ID/最低 1 元；iOS 费率 Apple 12%（腾讯 5% 2026 减免）；iOS 退款走 App Store，退款问询 3 秒应答接口 xpay_subscribe_ios_refund_query_notify 待补** ③沙箱 Midas 不推发货通知属正常，到账靠 confirm 补偿闭环（已验证）。注：vp 通知走小程序「消息推送」通道而非 vp 后台独立配置，notify 端点非必需；对账用 MP「交易订单」或 query_order API |
 | 飞书订单台 | https://acn56kbby6qx.feishu.cn/base/FQNsbNZsfaQGfUsjET8cXGNJnvH | 两张表：「订单」（tblHSraRw4jSN5vv）、「故事问卷」（tblAyGGg6ySGZJY8）。**故事问卷在 Base 顶部第二个表标签页**，直达链接：`https://acn56kbby6qx.feishu.cn/base/FQNsbNZsfaQGfUsjET8cXGNJnvH?table=tblAyGGg6ySGZJY8` |
 
 服务器：阿里云 ECS 8.133.241.103（与 ibi.ren 同机），SSH `ssh -i /Users/app/intfocus-albert.pem root@8.133.241.103`
@@ -102,6 +102,7 @@
 
 ## 更新日志
 
+- 2026-08-06 虚拟支付 Android 沙箱真机联调通过：AXEZ 充值 4 元（4币→1张）成功，prepare→沙箱支付→confirm 到账闭环验证（mp_pay_orders VP178603085047614C paid，18s 到账，沙箱无 Midas 推送属正常，confirm 补偿通道生效）；代码已提交 main/payment a98a51e 推 origin，miniprogram/app.js 同步到上传工作树（moka 分支未提交态，仅 3 行诊断改动）；剩：VP_ENV 改 0 切现网（须正式版小程序验证）、iOS IAP 开通
 - 2026-08-06 修复反馈 #24（充值选 4元/张 报"支付未完成"，Android 真机）：根因=prepare 的 paySig 少拼官方固定前缀（正确公式 `hmac_sha256(appKey, "requestVirtualPayment&"+signData)`，signature 用 session_key 原样 HMAC 是对的未动）；server/app.py 已改并部署 ECS 重启 active，prepare 冒烟正常；小程序 app.js 支付失败时改弹窗展示 errCode/errMsg（-15006=paySig 错/-15009=代币未发布/-15011=现网版不可用沙箱 env=1），**待微信开发者工具重新上传小程序**；注意沙箱联调只能用开发版/体验版，线上正式版 env=1 会报 -15011；反馈已回复 done
 - 2026-08-06 确认虚拟支付 MP 后台状态（用户提供截图）：沙箱 AppKey + 现网 AppKey 均已签发，OfferID 1450606065 与 ECS 配置一致；「是否启用苹果IAP支付」开关仍为关闭，「是否启用平台路径」亦关闭。剩余待办不变：代币配置页点「联调发布」金币 → Android 沙箱真机联调 → VP_ENV 改 0 切现网；iOS 需先配小程序简称再开 IAP 开关（无沙箱，只能现网测）
 - 2026-08-04 修复反馈 #23（原图直出把汗珠也保留了）：use_original 提示词加"皮肤清理"（去汗珠/油光/瑕疵，五官不动、痣保留、不过度磨皮）；chat makeup_photo 动作新增 note 字段透传用户修饰要求（worker 以"仅限皮肤层面"约束附加进提示词）；用新娘照片重出验证：汗珠去除、长相未动 ✓（job#91）；反馈已回复，未处理清零
