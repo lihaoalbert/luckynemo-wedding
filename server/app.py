@@ -1484,7 +1484,7 @@ def mp_vpay_prepare(body: MpVpayPrepareIn) -> JSONResponse:
         return JSONResponse({
             "ok": True,
             "signData": sign_data,
-            "paySig": _vp_hmac(sign_data, _vp_appkey()),
+            "paySig": _vp_hmac("requestVirtualPayment&" + sign_data, _vp_appkey()),
             "signature": _vp_hmac(sign_data, sess[0]),
             "mode": "short_series_coin",
             "outTradeNo": out_trade_no,
