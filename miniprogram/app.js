@@ -100,7 +100,9 @@ App({
         },
         fail: (e) => {
           if (!/cancel/i.test((e && e.errMsg) || '')) {
-            wx.showToast({ title: '支付未完成', icon: 'none' });
+            // 展示 errCode/errMsg 便于真机排查（-15006=paySig 错 / -15009=代币未发布 / -15011=现网版不能用沙箱 env=1）
+            const detail = e ? `${e.errCode !== undefined ? e.errCode + ' ' : ''}${e.errMsg || ''}` : '';
+            wx.showModal({ title: '支付未完成', content: detail || '请稍后再试', showCancel: false });
           }
         },
       });
