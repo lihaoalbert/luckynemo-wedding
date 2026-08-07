@@ -12,10 +12,15 @@ App({
     ref: '',
   },
   onLaunch(options) {
-    // 分享进入：share=协同创作加入订单；ref=裂变来源
+    // 分享进入：share=协同创作加入订单；ref=裂变来源（分享卡片/海报小程序码 scene=r_xxx）
     const query = (options && options.query) || {};
     if (query.share) this.globalData.pendingShare = query.share;
     if (query.ref) this.globalData.ref = query.ref;
+    if (query.scene) {
+      // 小程序码进入：scene=r_<share_token>（URL 编码过）
+      const scene = decodeURIComponent(query.scene);
+      if (scene.startsWith('r_')) this.globalData.ref = scene.slice(2);
+    }
     // 优先用 wx.login 换 openid；失败回退设备 token（开发期兜底）
     // tokenPromise：页面在拿到 token 之前不得创建订单（否则 422）
     this.globalData.tokenPromise = new Promise((resolve) => {

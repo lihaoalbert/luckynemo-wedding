@@ -39,49 +39,75 @@ Page({
     });
   },
 
-  // 分享海报：成品图 + 品牌条（朋友圈素材，P1 裂变）
+  // 分享海报：成品图 + 品牌条 + 小程序码（扫码进入带裂变归因，P1 裂变奖励）
   makePoster(url) {
     wx.showLoading({ title: '海报生成中' });
+    const order = app.globalData.order || {};
+    // 小程序码（可选，失败不挡海报）
+    const qrPromise = new Promise((resolve) => {
+      app.req('/api/mp/qrcode', 'GET', { order_no: order.order_no })
+        .then(res => {
+          wx.downloadFile({
+            url: res.url,
+            success: (r) => resolve(r.tempFilePath),
+            fail: () => resolve(null),
+          });
+        })
+        .catch(() => resolve(null));
+    });
     wx.downloadFile({
       url,
       success: (dl) => {
         wx.getImageInfo({
           src: dl.tempFilePath,
           success: (info) => {
-            const W = 600, H = 900, STRIP = 110;
-            const ctx = wx.createCanvasContext('poster', this);
-            // cover 裁切铺满上部
-            const scale = Math.max(W / info.width, (H - STRIP) / info.height);
-            const w = info.width * scale, h = info.height * scale;
-            ctx.drawImage(dl.tempFilePath, (W - w) / 2, (H - STRIP - h) / 2, w, h);
-            // 品牌条
-            ctx.setFillStyle('#1c1714');
-            ctx.fillRect(0, H - STRIP, W, STRIP);
-            ctx.setFillStyle('#fdf8f4');
-            ctx.setFontSize(30);
-            ctx.setTextAlign('center');
-            ctx.fillText('徐大恩 AI 照相馆', W / 2, H - STRIP + 46);
-            ctx.setFontSize(22);
-            ctx.setFillStyle('#c9b8ac');
-            ctx.fillText('不出门，拍好婚纱照 · 小程序搜「徐大恩」', W / 2, H - STRIP + 84);
-            ctx.draw(false, () => {
-              wx.canvasToTempFilePath({
-                canvasId: 'poster',
-                success: (r) => {
-                  wx.saveImageToPhotosAlbum({
-                    filePath: r.tempFilePath,
-                    success: () => wx.showToast({ title: '海报已存相册，去朋友圈晒吧' }),
-                    fail: () => wx.showToast({ title: '保存失败，检查相册权限', icon: 'none' }),
-                  });
-                },
-                complete: () => wx.hideLoading(),
-              }, this);
-            });
+            qrPromise.then(qrPath => this._drawPoster(dl.tempFilePath, info, qrPath));
           },
           fail: () => { wx.hideLoading(); wx.showToast({ title: '海报生成失败', icon: 'none' }); },
         });
       },
       fail: () => { wx.hideLoading(); wx.showToast({ title: '下载原图失败', icon: 'none' }); },
+    });
+  },
+
+  _drawPoster(imgPath, info, qrPath) {
+    const W = 600, H = 900, STRIP = 130;
+    const ctx = wx.createCanvasContext('poster', this);
+    // cover 裁切铺满上部
+    const scale = Math.max(W / info.width, (H - STRIP) / info.height);
+    const w = info.width * scale, h = info.height * scale;
+    ctx.drawImage(imgPath, (W - w) / 2, (H - STRIP - h) / 2, w, h);
+    // 品牌条
+    ctx.setFillStyle('#1c1714');
+    ctx.fillRect(0, H - STRIP, W, STRIP);
+    ctx.setFillStyle('#fdf8f4');
+    ctx.setFontSize(30);
+    ctx.setTextAlign(qrPath ? 'left' : 'center');
+    ctx.fillText('徐大恩 AI 照相馆', qrPath ? 40 : W / 2, H - STRIP + 50);
+    ctx.setFontSize(22);
+    ctx.setFillStyle('#c9b8ac');
+    ctx.fillText(qrPath ? '不出门，拍好婚纱照 · 扫码试试' : '不出门，拍好婚纱照 · 小程序搜「徐大恩」',
+                 qrPath ? 40 : W / 2, H - STRIP + 92);
+    // 小程序码（圆角白底衬底）
+    if (qrPath) {
+      ctx.setFillStyle('#ffffff');
+      ctx.beginPath();
+      ctx.arc(W - 65, H - STRIP / 2, 52, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.drawImage(qrPath, W - 113, H - STRIP / 2 - 48, 96, 96);
+    }
+    ctx.draw(false, () => {
+      wx.canvasToTempFilePath({
+        canvasId: 'poster',
+        success: (r) => {
+          wx.saveImageToPhotosAlbum({
+            filePath: r.tempFilePath,
+            success: () => wx.showToast({ title: '海报已存相册，去朋友圈晒吧' }),
+            fail: () => wx.showToast({ title: '保存失败，检查相册权限', icon: 'none' }),
+          });
+        },
+        complete: () => wx.hideLoading(),
+      }, this);
     });
   },
 

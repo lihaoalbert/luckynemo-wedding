@@ -159,6 +159,9 @@ def _migrate() -> None:
         conn.execute("ALTER TABLE mp_orders ADD COLUMN ref TEXT DEFAULT ''")
     if "free_quota" not in cols:
         conn.execute("ALTER TABLE mp_orders ADD COLUMN free_quota INTEGER DEFAULT 20")
+    # 裂变奖励标记：受邀订单首次生成成功后给邀请人 +1 张免费额度（只奖一次）
+    if "ref_rewarded" not in cols:
+        conn.execute("ALTER TABLE mp_orders ADD COLUMN ref_rewarded INTEGER DEFAULT 0")
     # 设备表：协同创作（新娘/新郎两台手机同一订单）
     conn.execute(
         "CREATE TABLE IF NOT EXISTS mp_devices("
@@ -561,6 +564,66 @@ MP_AUTH_INVITE_URL = _env(
 MP_APPID = _env("MP_APPID")
 MP_SECRET = _env("MP_SECRET")
 
+# ---------------- 小程序码（裂变海报扫码进入，scene 带邀请人 share_token） ----------------
+_wx_token_cache: dict = {}
+
+
+def _wx_access_token() -> str:
+    """微信 client_credential access_token（内存缓存，提前 5 分钟刷新）。"""
+    now = time.time()
+    tok = _wx_token_cache.get("token")
+    if tok and now < _wx_token_cache.get("expires", 0):
+        return tok
+    r = requests.get(
+        "https://api.weixin.qq.com/cgi-bin/token",
+        params={"grant_type": "client_credential", "appid": MP_APPID, "secret": MP_SECRET},
+        timeout=15)
+    data = r.json()
+    if "access_token" not in data:
+        raise RuntimeError(f"获取微信 access_token 失败：{data}")
+    _wx_token_cache["token"] = data["access_token"]
+    _wx_token_cache["expires"] = now + int(data.get("expires_in", 7200)) - 300
+    return data["access_token"]
+
+
+def _wx_qrcode_png(scene: str, page: str = "pages/chat/chat") -> bytes:
+    """wxacode.getUnlimited 生成小程序码（scene ≤32 字符，携带裂变归因）。"""
+    r = requests.post(
+        "https://api.weixin.qq.com/wxa/getwxacodeunlimit",
+        params={"access_token": _wx_access_token()},
+        json={"scene": scene, "page": page, "check_path": False,
+              "width": 280, "env_version": "release"},
+        timeout=30)
+    # 失败时返回的是 JSON 错误而非 PNG
+    if r.headers.get("Content-Type", "").startswith("application/json"):
+        raise RuntimeError(f"小程序码生成失败：{r.text[:200]}")
+    return r.content
+
+
+@app.get("/api/mp/qrcode")
+def mp_qrcode(order_no: str) -> JSONResponse:
+    """订单分享小程序码（scene=r_<share_token>），OSS 缓存一份重复使用。"""
+    conn = _db()
+    try:
+        row = conn.execute("SELECT share_token FROM mp_orders WHERE order_no=?",
+                           (order_no,)).fetchone()
+    finally:
+        conn.close()
+    if not row or not row[0]:
+        raise HTTPException(status_code=404, detail="订单不存在或无分享标识")
+    key = f"qrcodes/{row[0]}.png"
+    url = oss_signed_get_url(key, expire=300)
+    try:
+        head = requests.head(url, timeout=10)
+        exists = head.status_code == 200
+    except requests.RequestException:
+        exists = False
+    if not exists:
+        png = _wx_qrcode_png(f"r_{row[0]}")
+        oss_put(key, png, "image/png")
+        url = oss_signed_get_url(key, expire=300)
+    return JSONResponse({"ok": True, "url": url})
+
 #: iFocusing 真人认证 API（文档：router.i-focusing.com/user/docs 三步流程）
 IFOCUS_API_KEY = _env("IFOCUS_API_KEY", "")
 IFOCUS_BASE = _env("IFOCUS_BASE", "https://router.i-focusing.com/api/ark")
@@ -622,6 +685,18 @@ def oss_signed_get_url(key: str, expire: int = 7 * 86400) -> str:
     sign = _oss_sign_string(OSS_SK, f"GET\n\n\n{expires}\n{resource}")
     return (f"{OSS_ENDPOINT}/{quote(key)}?OSSAccessKeyId={OSS_AK}"
             f"&Expires={expires}&Signature={quote(sign)}")
+
+
+def oss_put(key: str, data: bytes, content_type: str) -> None:
+    """OSS PUT 直传（服务端小文件：小程序码等）。"""
+    date = email.utils.formatdate(usegmt=True)
+    resource = f"/{OSS_BUCKET}/{key}"
+    string_to_sign = f"PUT\n\n{content_type}\n{date}\n{resource}"
+    headers = {"Date": date, "Content-Type": content_type,
+               "Authorization": f"OSS {OSS_AK}:{_oss_sign_string(OSS_SK, string_to_sign)}"}
+    r = requests.put(f"{OSS_ENDPOINT}/{quote(key)}", data=data, headers=headers, timeout=60)
+    if r.status_code >= 300:
+        raise RuntimeError(f"OSS PUT 失败：HTTP {r.status_code} {r.text[:200]}")
 
 
 def _safe_oss_delete(key: str) -> None:

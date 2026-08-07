@@ -395,6 +395,7 @@ def run_template_series(job_id: int, order_no: str, payload: dict) -> None:
     conn.execute("UPDATE mp_orders SET status='done', updated_at=datetime('now') WHERE order_no=?", (order_no,))
     conn.commit()
     conn.close()
+    _maybe_ref_reward(order_no)
     log(f"job#{job_id} template_series 完成 {series_id} 共 {len(urls)} 张")
 
 
@@ -899,7 +900,30 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
     conn.execute("UPDATE mp_orders SET status='done', updated_at=datetime('now') WHERE order_no=?", (order_no,))
     conn.commit()
     conn.close()
+    _maybe_ref_reward(order_no)
     log(f"job#{job_id} 完成 -> {key}")
+
+
+def _maybe_ref_reward(order_no: str) -> None:
+    """裂变奖励（2026-08-07）：受邀订单首次生成成功 → 邀请人 +1 张免费额度（只奖一次）。
+
+    order.ref = 邀请人 share_token（chat 分享卡片/海报小程序码带入）。
+    """
+    conn = db()
+    row = conn.execute("SELECT ref, ref_rewarded FROM mp_orders WHERE order_no=?",
+                       (order_no,)).fetchone()
+    if not row or not row[0] or row[1]:
+        conn.close()
+        return
+    referrer = conn.execute("SELECT order_no, free_quota FROM mp_orders WHERE share_token=?",
+                            (row[0],)).fetchone()
+    if referrer and referrer[0] != order_no:
+        conn.execute("UPDATE mp_orders SET free_quota=? WHERE order_no=?",
+                     ((referrer[1] or 20) + 1, referrer[0]))
+        log(f"裂变奖励：{order_no} 首次生成成功，邀请人 {referrer[0]} +1 张免费额度")
+    conn.execute("UPDATE mp_orders SET ref_rewarded=1 WHERE order_no=?", (order_no,))
+    conn.commit()
+    conn.close()
 
 
 def fail_job(job_id: int, err: str) -> None:
