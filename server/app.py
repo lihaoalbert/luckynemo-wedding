@@ -572,10 +572,11 @@ VP_APP_KEY = _env("VP_APP_KEY", "")                      # 现网 AppKey
 VP_APP_KEY_SANDBOX = _env("VP_APP_KEY_SANDBOX", "")      # 沙箱 AppKey
 VP_ENV = int(_env("VP_ENV", "0"))                        # 0=现网 1=沙箱
 #: 商品表：代币「金币」1 元 = 1 币（MP 后台已配，发布后不可改）；价格须整数元
-#: per_photo=4 币→1 张额度，pack49=49 币→50 张额度
+#: per_photo=4 币→1 张额度，pack52=52 币→20 张额度（2026-08-07 调价：原 49 币→50 张）
+#: iOS/Android 同价（用户会跨平台比价，费率差异当获客成本；iOS 通道费率 12%）
 VP_PRODUCTS = {
     "per_photo": {"coins": 4, "grant": 1, "title": "4 元/张"},
-    "pack49": {"coins": 49, "grant": 50, "title": "49 元 · 50 张"},
+    "pack52": {"coins": 52, "grant": 20, "title": "52 元 · 20 张"},
 }
 #: 本站对外地址（拼认证回调用）
 PUBLIC_BASE = _env("PUBLIC_BASE", "https://luckynemo.ibi.ren")
@@ -1456,7 +1457,7 @@ def mp_job_create(body: MpJobIn) -> JSONResponse:
 
 
 # ---------------- 微信虚拟支付（代币模式） ----------------
-# 商品即额度：用户付 39/490 币 → 到账 1/50 张 paid_count。
+# 商品即额度：用户付 4/52 币 → 到账 1/20 张 paid_count。
 # 到账以 Midas 发货推送（/api/mp/vpay/notify）为准，客户端 confirm 为补偿通道（内测期信任客户端
 # 成功回调，后台可用 MP「虚拟支付 → 交易订单」对账；正式放量前应加平台查单核验）。
 

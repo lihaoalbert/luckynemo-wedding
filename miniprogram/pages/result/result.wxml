@@ -34,7 +34,7 @@
       <view class="go">→</view>
     </view>
     <view class="opt hot" bindtap="buyPack">
-      <view><b>49 元 · 50 张</b><view class="sub">多风格多场景，最划算</view></view>
+      <view><b>52 元 · 20 张</b><view class="sub">多风格多场景，最划算</view></view>
       <view class="go">→</view>
     </view>
   </view>

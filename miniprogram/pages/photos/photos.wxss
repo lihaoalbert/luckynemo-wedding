@@ -13,3 +13,4 @@
   padding: 2rpx 14rpx; border-radius: 999rpx;
   background: rgba(0, 0, 0, 0.45); color: #fff; font-size: 20rpx;
 }
+.tip { margin-top: 20rpx; font-size: 22rpx; color: var(--ink-soft, #a89a90); text-align: center; }

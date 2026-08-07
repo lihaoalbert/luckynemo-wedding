@@ -1,4 +1,4 @@
-// 结果页：免费成片 + 付费升级（4 元/张 或 49 套餐）+ 下载分享
+// 结果页：免费成片 + 付费升级（4 元/张 或 52 套餐 · 20 张）+ 下载分享
 const app = getApp();
 
 Page({
@@ -78,12 +78,12 @@ Page({
   },
 
   buyPack() {
-    wx.showModal({ title: '49 元套餐', content: '50 张高清婚纱照，多风格多场景，最划算', confirmText: '买它', success: () => this.pay('pack49', 49) });
+    wx.showModal({ title: '52 元套餐', content: '20 张高清婚纱照，多风格多场景，最划算', confirmText: '买它', success: () => this.pay('pack52', 52) });
   },
 
   pay(kind, amount) {
-    // 虚拟支付（代币模式，1 元=1 金币）：4 元/张 = 4 币，49 元套餐 = 49 币；未开通时 app.vpay 自动回退客服
-    app.vpay(kind, kind === 'pack49' ? '49 元套餐 · 50 张' : '4 元/张');
+    // 虚拟支付（代币模式，1 元=1 金币）：4 元/张 = 4 币，52 元套餐 = 52 币；未开通时 app.vpay 自动回退客服
+    app.vpay(kind, kind === 'pack52' ? '52 元套餐 · 20 张' : '4 元/张');
   },
 
   upgrade() {

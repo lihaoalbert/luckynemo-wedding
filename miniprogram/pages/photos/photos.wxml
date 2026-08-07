@@ -9,4 +9,8 @@
       <view class="cell-label">{{item.label}}</view>
     </view>
   </view>
+  <view class="tip" wx:if="{{photos.length}}">点开图可左右滑动 · 长按可保存/做分享海报/删除</view>
+
+  <!-- 离屏 canvas：生成分享海报用 -->
+  <canvas canvas-id="poster" style="position:fixed;left:-3000rpx;top:0;width:600px;height:900px;"></canvas>
 </view>

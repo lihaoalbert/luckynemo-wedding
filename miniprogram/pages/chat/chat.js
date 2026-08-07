@@ -522,11 +522,13 @@ Page({
       return {
         title: '💌 邀请你一起拍婚纱照：点这里完成你的认证和照片',
         path: '/pages/chat/chat?share=' + order.share_token,
+        imageUrl: 'https://luckynemo.ibi.ren/moka/templates/mk005.png',
       };
     }
     return {
       title: '不出门拍好婚纱照，内测送你 20 张免费额度',
       path: '/pages/chat/chat' + (order.share_token ? '?ref=' + order.share_token : ''),
+      imageUrl: 'https://luckynemo.ibi.ren/moka/templates/mk005.png',
     };
   },
 });

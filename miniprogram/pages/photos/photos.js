@@ -30,11 +30,58 @@ Page({
     const idx = e.currentTarget.dataset.idx;
     const item = this.data.photos[idx];
     wx.showActionSheet({
-      itemList: ['保存到相册', '删除这张图'],
+      itemList: ['保存到相册', '生成分享海报', '删除这张图'],
       success: (r) => {
         if (r.tapIndex === 0) this.saveImg(item.url);
-        else if (r.tapIndex === 1) this.delPhoto(item.key);
+        else if (r.tapIndex === 1) this.makePoster(item.url);
+        else if (r.tapIndex === 2) this.delPhoto(item.key);
       },
+    });
+  },
+
+  // 分享海报：成品图 + 品牌条（朋友圈素材，P1 裂变）
+  makePoster(url) {
+    wx.showLoading({ title: '海报生成中' });
+    wx.downloadFile({
+      url,
+      success: (dl) => {
+        wx.getImageInfo({
+          src: dl.tempFilePath,
+          success: (info) => {
+            const W = 600, H = 900, STRIP = 110;
+            const ctx = wx.createCanvasContext('poster', this);
+            // cover 裁切铺满上部
+            const scale = Math.max(W / info.width, (H - STRIP) / info.height);
+            const w = info.width * scale, h = info.height * scale;
+            ctx.drawImage(dl.tempFilePath, (W - w) / 2, (H - STRIP - h) / 2, w, h);
+            // 品牌条
+            ctx.setFillStyle('#1c1714');
+            ctx.fillRect(0, H - STRIP, W, STRIP);
+            ctx.setFillStyle('#fdf8f4');
+            ctx.setFontSize(30);
+            ctx.setTextAlign('center');
+            ctx.fillText('徐大恩 AI 照相馆', W / 2, H - STRIP + 46);
+            ctx.setFontSize(22);
+            ctx.setFillStyle('#c9b8ac');
+            ctx.fillText('不出门，拍好婚纱照 · 小程序搜「徐大恩」', W / 2, H - STRIP + 84);
+            ctx.draw(false, () => {
+              wx.canvasToTempFilePath({
+                canvasId: 'poster',
+                success: (r) => {
+                  wx.saveImageToPhotosAlbum({
+                    filePath: r.tempFilePath,
+                    success: () => wx.showToast({ title: '海报已存相册，去朋友圈晒吧' }),
+                    fail: () => wx.showToast({ title: '保存失败，检查相册权限', icon: 'none' }),
+                  });
+                },
+                complete: () => wx.hideLoading(),
+              }, this);
+            });
+          },
+          fail: () => { wx.hideLoading(); wx.showToast({ title: '海报生成失败', icon: 'none' }); },
+        });
+      },
+      fail: () => { wx.hideLoading(); wx.showToast({ title: '下载原图失败', icon: 'none' }); },
     });
   },
 
@@ -69,5 +116,16 @@ Page({
         }).catch(err => wx.showToast({ title: err.message, icon: 'none' }));
       },
     });
+  },
+
+  onShareAppMessage() {
+    // 分享卡片带最新成品图（5:4 裁切由微信处理；P1 裂变）
+    const img = this.data.photos.length ? this.data.photos[0].url
+      : 'https://luckynemo.ibi.ren/moka/templates/mk005.png';
+    return {
+      title: '看看我们的婚纱照，不出门 AI 拍的 ✨',
+      path: '/pages/chat/chat',
+      imageUrl: img,
+    };
   },
 });

@@ -284,6 +284,42 @@ def run_custom_moka(job_id: int, order_no: str, payload: dict) -> None:
     log(f"job#{job_id} custom_moka 完成 -> {key}")
 
 
+def seedream_qc(prompt: str, refs: list[Path], expect_people: str, job_id: int, tag: str,
+                max_attempts: int = 2) -> bytes:
+    """生成 + VLM 质检兜底（2026-08-07 P1：从 custom_moka 推广到 template/duo/series）。
+
+    质检项：人数与预期一致 / 五官手部无畸形 / 无清晰可读文字水印 / 五官与参考图真实人物一致。
+    不通过带问题重试；最终不通过也交付最后一版（避免用户长时间等待后空手），日志留痕。
+    VLM 未配置时静默退化为直出（不挡主流程）。
+    """
+    if not MINIMAX_KEY:
+        return seedream(prompt, refs)
+    last_issue = ""
+    result = b""
+    for attempt in range(1, max_attempts + 1):
+        p = prompt + (f"\n上一版问题（必须避免）：{last_issue}" if last_issue else "")
+        result = seedream(p, refs)
+        gen_file = TMP / f"qc_{job_id}_{re.sub(r'[^A-Za-z0-9]', '_', tag)}_{attempt}.jpg"
+        gen_file.write_bytes(result)
+        try:
+            qc = vlm_json(
+                f"质检这张生成照片。要求：画面中必须是{expect_people}；五官手部无畸形；"
+                "无清晰可读文字/水印；人物五官与其余参考图里的真实人物是同一人（明显不像 = 不通过）。"
+                '只输出 JSON：{"pass": true或false, "issue": "不通过的一句话原因（通过则留空）"}',
+                [gen_file] + list(refs[:2]), max_tokens=200)
+        except Exception as e:
+            log(f"job#{job_id} {tag} 质检调用失败，直接交付：{e}")
+            return result
+        if qc.get("pass"):
+            if attempt > 1:
+                log(f"job#{job_id} {tag} 质检第 {attempt} 次通过")
+            return result
+        last_issue = str(qc.get("issue") or "质量不达标")[:100]
+        log(f"job#{job_id} {tag} 质检未过（第 {attempt}/{max_attempts} 次）：{last_issue}")
+    log(f"job#{job_id} {tag} 质检 {max_attempts} 次未过，交付最后一版（{last_issue}）")
+    return result
+
+
 def run_template_series(job_id: int, order_no: str, payload: dict) -> None:
     """系列整组生成（九宫格）：同一锚点对系列全部变体逐张换人，进度实时写进 result_json.urls。"""
     moka_path = SITE_DIR / "moka" / "index.json"
@@ -339,7 +375,8 @@ def run_template_series(job_id: int, order_no: str, payload: dict) -> None:
             log(f"job#{job_id} template_series 模板缺失 {tid}，跳过")
             continue
         log(f"job#{job_id} template_series {series_id} 第 {i}/{total} 张 {tid}")
-        img = seedream(prompt, photos + [tpl])
+        expect = "一男一女（情侣）" if payload.get("mode") == "couple" else "一位人物（与参考图同人）"
+        img = seedream_qc(prompt, photos + [tpl], expect, job_id, f"series_{tid}")
         key = f"results/{order_no}/{uuid.uuid4().hex[:8]}.jpg"
         url = oss_put_url(key, img, "image/jpeg")
         urls.append({"id": tid, "url": url, "oss_key": key})
@@ -823,7 +860,8 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
         if swap_note:
             prompt += f"。特别调整：{swap_note}"
         log(f"job#{job_id} template_photo 模板 {payload.get('template_id') or payload.get('custom_template_key')} 参考图 {len(photos)} 张")
-        result = seedream(prompt, photos)
+        expect = "一男一女（情侣）" if has_b else "一位人物（与参考图同人）"
+        result = seedream_qc(prompt, photos, expect, job_id, "template_photo")
     elif kind == "solo_photo":
         # 个人写真：定妆照锚点（A=本人/新娘；anchor_key_b 存在时为男士单人）+ 服装/场景视觉参考
         if payload.get("anchor_key_b") and not payload.get("anchor_key"):
@@ -845,7 +883,14 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
         raise RuntimeError("订单没有可用照片（uploads 表为空）")
     if result is None:
         log(f"job#{job_id} {kind} 参考图 {len(photos)} 张，生成中...")
-        result = seedream(prompt, photos)
+        # P1 品控兜底：合照/单人/婚纱照全链路 VLM 质检 + 带问题重试（2026-08-07）
+        if kind == "duo_photo":
+            expect = "两个人（与参考图人物一一对应）"
+        elif kind == "solo_photo" or payload.get("mode") != "couple":
+            expect = "一位人物（与参考图同人）"
+        else:
+            expect = "一男一女（情侣）"
+        result = seedream_qc(prompt, photos, expect, job_id, kind)
     key = f"results/{order_no}/{uuid.uuid4().hex[:8]}.jpg"
     url = oss_put_url(key, result, "image/jpeg")
     conn = db()

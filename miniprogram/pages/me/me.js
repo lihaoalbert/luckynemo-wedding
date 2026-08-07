@@ -121,10 +121,10 @@ Page({
 
   recharge() {
     wx.showActionSheet({
-      itemList: ['4 元 / 张（按张付费）', '49 元套餐 · 50 张（最划算）'],
+      itemList: ['4 元 / 张（按张付费）', '52 元套餐 · 20 张（最划算）'],
       success: (r) => {
         const pack = r.tapIndex === 1;
-        app.vpay(pack ? 'pack49' : 'per_photo', pack ? '49 元套餐 · 50 张' : '4 元/张');
+        app.vpay(pack ? 'pack52' : 'per_photo', pack ? '52 元套餐 · 20 张' : '4 元/张');
       },
       fail: () => {},
     });
@@ -198,6 +198,7 @@ Page({
     return {
       title: '不出门拍好婚纱照，内测送你 20 张免费额度',
       path: '/pages/chat/chat' + (order.share_token ? '?ref=' + order.share_token : ''),
+      imageUrl: 'https://luckynemo.ibi.ren/moka/templates/mk005.png',
     };
   },
 });
