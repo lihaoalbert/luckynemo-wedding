@@ -8,6 +8,9 @@ Page({
     uploads: { A: [], B: [] },
     photos: [],
     loading: true,
+    fsMode: '',   // 人脸三视图选片模式：'' | 'A' | 'B'
+    fsBase: '',   // 正脸底照 key
+    fsSides: [],  // 侧脸照 keys（最多 2 张）
   },
 
   onShow() {
@@ -24,24 +27,96 @@ Page({
     }).catch(() => this.setData({ loading: false }));
   },
 
-  previewImg(e) {
-    wx.previewImage({ urls: [e.currentTarget.dataset.url] });
+  onImgTap(e) {
+    if (this.data.fsMode) {
+      this.fsPick(e);
+      return;
+    }
+    this.previewImg(e);
   },
 
-  saveImg(e) {
-    const url = e.currentTarget.dataset.url;
-    wx.showLoading({ title: '保存中' });
-    wx.downloadFile({
-      url,
-      success: (r) => {
-        wx.saveImageToPhotosAlbum({
-          filePath: r.tempFilePath,
-          success: () => wx.showToast({ title: '已存到相册' }),
-          fail: () => wx.showToast({ title: '保存失败，检查相册权限', icon: 'none' }),
-        });
-      },
-      complete: () => wx.hideLoading(),
+  previewImg(e) {
+    // 全屏预览支持左右滑动：传当前相册整组 urls + 当前图
+    const role = e.currentTarget.dataset.role;
+    const album = role && this.data.uploads[role] ? this.data.uploads[role] : this.data.photos;
+    wx.previewImage({
+      urls: album.map(p => p.url),
+      current: e.currentTarget.dataset.url,
     });
+  },
+
+  goPhotos() {
+    wx.navigateTo({ url: '/pages/photos/photos' });
+  },
+
+  // ---- 人脸三视图选片（反馈 #26：侧脸不像） ----
+  fsStart(e) {
+    const role = e.currentTarget.dataset.role;
+    this.setData({ fsMode: role, fsBase: '', fsSides: [] });
+    this._fsMark();
+    wx.showToast({ title: '先点 1 张正脸底照', icon: 'none' });
+  },
+
+  fsPick(e) {
+    const role = e.currentTarget.dataset.role;
+    const key = e.currentTarget.dataset.key;
+    if (role !== this.data.fsMode) {
+      wx.showToast({ title: '生成谁的就选谁的照片', icon: 'none' });
+      return;
+    }
+    let { fsBase, fsSides } = this.data;
+    if (fsBase === key) {
+      fsBase = '';
+    } else if (fsSides.includes(key)) {
+      fsSides = fsSides.filter(k => k !== key);
+    } else if (!fsBase) {
+      fsBase = key;
+    } else if (fsSides.length < 2) {
+      fsSides = fsSides.concat(key);
+    } else {
+      wx.showToast({ title: '侧脸最多选 2 张', icon: 'none' });
+      return;
+    }
+    this.setData({ fsBase, fsSides });
+    this._fsMark();
+  },
+
+  _fsMark() {
+    // 给已选照片打角标（底照/侧1/侧2），其余清空
+    const mark = (list) => list.map(it => {
+      let m = '';
+      if (it.key === this.data.fsBase) m = '底照';
+      else {
+        const i = this.data.fsSides.indexOf(it.key);
+        if (i >= 0) m = `侧${i + 1}`;
+      }
+      return { ...it, fsMark: m };
+    });
+    this.setData({
+      'uploads.A': mark(this.data.uploads.A),
+      'uploads.B': mark(this.data.uploads.B),
+    });
+  },
+
+  fsCancel() {
+    this.setData({ fsMode: '', fsBase: '', fsSides: [] });
+    this._fsMark();
+  },
+
+  fsConfirm() {
+    const { fsMode, fsBase, fsSides } = this.data;
+    if (!fsBase || !fsSides.length) return;
+    app.req('/api/mp/job', 'POST', {
+      order_no: this.data.order.order_no, kind: 'face_sheet',
+      payload: { role: fsMode, base_key: fsBase, side_keys: fsSides },
+    }).then(() => {
+      wx.showModal({
+        title: '已开始生成',
+        content: '人脸三视图约 1 分钟出图，好了会出现在下方「生成的照片」里（下拉刷新或稍后再进来看）。之后生成的照片侧脸会更像本人。',
+        showCancel: false,
+      });
+      this.fsCancel();
+    }).catch(err => wx.showToast({ title: err.message || '提交失败', icon: 'none' }));
   },
 
   recharge() {
@@ -86,26 +161,6 @@ Page({
         if (!r.confirm) return;
         app.req('/api/mp/delete', 'POST', {
           order_no: this.data.order.order_no, target: 'upload', oss_key: key,
-        }).then(() => {
-          wx.showToast({ title: '已删除' });
-          this.onShow();
-        }).catch(err => wx.showToast({ title: err.message, icon: 'none' }));
-      },
-    });
-  },
-
-  // 删除生成的照片
-  delPhoto(e) {
-    const key = e.currentTarget.dataset.key;
-    wx.showModal({
-      title: '删除这张生成图？',
-      content: '会从云端彻底删除，不可恢复。',
-      confirmText: '删除',
-      confirmColor: '#c0736a',
-      success: (r) => {
-        if (!r.confirm) return;
-        app.req('/api/mp/delete', 'POST', {
-          order_no: this.data.order.order_no, target: 'photo', oss_key: key,
         }).then(() => {
           wx.showToast({ title: '已删除' });
           this.onShow();

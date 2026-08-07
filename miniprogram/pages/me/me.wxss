@@ -52,3 +52,11 @@
 .share-link { border: none; text-align: left; width: 100%; }
 .share-link::after { border: none; }
 .arrow { color: var(--ink-soft); }
+.img-wrap { position: relative; }
+.img-wrap image { width: 150rpx; height: 200rpx; border-radius: 12rpx; background: var(--blush); }
+.fs-mark {
+  position: absolute; top: 6rpx; left: 6rpx;
+  padding: 2rpx 12rpx; border-radius: 999rpx;
+  background: var(--accent); color: #fff; font-size: 20rpx;
+}
+.btn.ghost { border: 1rpx solid #d0c4bc; color: #a89a90; background: transparent; }

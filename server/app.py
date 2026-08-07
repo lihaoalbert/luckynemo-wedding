@@ -1350,8 +1350,8 @@ def mp_job_create(body: MpJobIn) -> JSONResponse:
         order = _mp_get_order(conn, body.order_no)
         if not order:
             raise HTTPException(status_code=404, detail="订单不存在")
-        # 定妆/单人写真只需对应成员认证（新郎定妆查 B）；婚纱照成片需订单所需成员全部认证
-        if body.kind in ("makeup_photo", "solo_photo"):
+        # 定妆/单人写真/人脸三视图只需对应成员认证（新郎侧查 B）；婚纱照成片需订单所需成员全部认证
+        if body.kind in ("makeup_photo", "solo_photo", "face_sheet"):
             role = (body.payload or {}).get("role", "A")
             role = "B" if role == "B" else "A"
             if not order["members"].get(role, {}).get("auth_ok"):
@@ -1574,7 +1574,8 @@ def mp_me(order_no: str) -> JSONResponse:
                 photos.append({
                     "kind": r[0], "url": result["url"], "key": result.get("oss_key", ""), "time": r[2],
                     "label": {"makeup_photo": "定妆照", "free_photo": "婚纱照",
-                              "solo_photo": "个人写真", "paid_photo": "付费成片"}.get(r[0], r[0]),
+                              "solo_photo": "个人写真", "paid_photo": "付费成片",
+                              "face_sheet": "人脸三视图"}.get(r[0], r[0]),
                 })
             # 系列整组（template_series）结果在 result.urls 数组里，逐张入列（反馈 #25）
             for item in result.get("urls") or []:
@@ -1623,7 +1624,7 @@ _MP_CHAT_SYS = """你是「徐大恩 LuckyNemo」小程序的 AI 小助手，语
 {{"reply": "对用户说的话", "action": {{...}}}}
 action 只能是以下之一：
 - {{"type": "navigate", "page": "/pages/upload/upload"}} 引导去页面（可选页：/pages/upload/upload 上传、/pages/makeup/makeup 定妆、/pages/wardrobe/wardrobe 选服装场景、/pages/pose/pose 选动作神态）
-- {{"type": "update_selection", "fields": {{"scenes": ["场景名"], "poses": ["动作名"], "set_id": "set-01", "makeup_id": "hz002", "makeup_notes": "用户自己的化妆要求"}}}} 修改选择（只能用可选资产里的值；makeup_notes 是自由文本，记录用户提的化妆意见，如"卧蚕明显一点""唇色要豆沙色"）
+- {{"type": "update_selection", "fields": {{"scenes": ["场景名"], "poses": ["动作名"], "set_id": "set-01", "makeup_id": "hz002", "makeup_notes": "用户自己的化妆要求", "heights": "两人身高信息"}}}} 修改选择（只能用可选资产里的值；makeup_notes 是自由文本，记录用户提的化妆意见，如"卧蚕明显一点""唇色要豆沙色"；heights 是自由文本，用户提到身高时记录，如"新郎183cm新娘165cm"，用于还原身高差）
 - {{"type": "regenerate_makeup", "instruction": "腮红淡一点"}} 按修正指令重新出定妆照
 - {{"type": "makeup_photo", "who": "me或partner", "makeup_id": "hz214", "note": "用户的修饰要求（可空）"}} 对话里直接出定妆照：用户发照片说"用这张修/做一张定妆照""修一张原始图作为定妆照"时用——底图=用户刚发的图；who 按"这是谁的定妆照"判断（新郎/老公/男方=操作者本人时用 me，新娘/老婆/伴侣用 partner，参考对话里用户的自称，拿不准先问）；makeup_id 用可选妆造里的值，用户说"原始/原图/最像本人"或没指定妆容时默认原图直出版（女 hz214/男 hz108）；note 带用户的附加修饰要求（如"把脸上的汗去掉"）。用这个动作时 reply 说明"正在生成定妆照"
 - {{"type": "show_result"}} 把最新生成好的成片/定妆照发给用户看
@@ -1772,6 +1773,9 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
                 sel["makeup_id"] = fields["makeup_id"]
             if isinstance(fields.get("makeup_notes"), str) and fields["makeup_notes"].strip():
                 sel["makeup_notes"] = fields["makeup_notes"].strip()[:200]
+            # 身高信息（反馈 #27：还原两人身高差，生成时写进 prompt）
+            if isinstance(fields.get("heights"), str) and fields["heights"].strip():
+                sel["heights"] = fields["heights"].strip()[:100]
             if isinstance(fields.get("set_id"), str) and fields["set_id"] in valid_sets:
                 sel["set_id"] = fields["set_id"]
             for key, valid in (("scenes", valid_scenes), ("poses", all_poses)):

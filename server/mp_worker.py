@@ -111,13 +111,13 @@ def _ark_channels() -> list:
             for n in names if ENV.get(ARK_CHANNELS[n][1], "")]
 
 
-def seedream(prompt: str, ref_files: list[Path]) -> bytes:
+def seedream(prompt: str, ref_files: list[Path], size: str = "2K") -> bytes:
     imgs = []
     for p in ref_files:
         b64 = base64.b64encode(p.read_bytes()).decode()
         mime = "image/jpeg" if p.suffix.lower() in (".jpg", ".jpeg") else "image/png"
         imgs.append(f"data:{mime};base64,{b64}")
-    payload = {"model": SEEDREAM_MODEL, "prompt": prompt, "size": "2K",
+    payload = {"model": SEEDREAM_MODEL, "prompt": prompt, "size": size,
                "watermark": False, "response_format": "url",
                "negative_prompt": "纸张，书本，文件，杂物，垃圾，多余人物，多余肢体，悬空物体，"
                                   "文字，水印，logo，畸形手，面部畸变"}
@@ -316,6 +316,9 @@ def run_template_series(job_id: int, order_no: str, payload: dict) -> None:
         raise RuntimeError("请先上传本人照片，再做一键同款")
     if payload.get("mode") == "couple" and not has_b:
         raise RuntimeError("情侣模板需要另一方也上传照片（协同创作邀请 TA，或在对话里发 TA 的照片）")
+    # 人脸三视图注入（反馈 #26 侧脸不像）：A/B 各自有三视图就带上
+    face_refs = _face_sheet_refs(order_no, ["A", "B"] if payload.get("mode") == "couple" else ["A"])
+    photos += face_refs
     prompt = (
         "最后一张参考图是完整的摄影作品模板，前面的参考图是要替换上去的人物。"
         "把模板中的人物替换为参考图的人物（多人时按性别一一对应替换），"
@@ -323,6 +326,11 @@ def run_template_series(job_id: int, order_no: str, payload: dict) -> None:
         "只替换人物的五官与面部特征，真实人体比例约7.5头身，与场景自然融合有投影，"
         "摄影级质感，无文字无水印"
     )
+    if face_refs:
+        prompt += "。" + FACE_SHEET_ANCHOR
+    heights = _order_heights(order_no)
+    if heights and payload.get("mode") == "couple":
+        prompt += f"。两人真实身高：{heights}，严格还原身高差与各自体型"
     total = len(variant_ids)
     urls = []
     for i, tid in enumerate(variant_ids, 1):
@@ -351,6 +359,75 @@ def run_template_series(job_id: int, order_no: str, payload: dict) -> None:
     conn.commit()
     conn.close()
     log(f"job#{job_id} template_series 完成 {series_id} 共 {len(urls)} 张")
+
+
+def _latest_face_sheet(order_no: str, role: str) -> Path | None:
+    """取成员最新一张人脸三视图（face_sheet 任务产物），没有返回 None。"""
+    conn = db()
+    rows = conn.execute(
+        "SELECT payload_json, result_json FROM mp_jobs"
+        " WHERE order_no=? AND kind='face_sheet' AND status='done' ORDER BY id DESC LIMIT 5",
+        (order_no,)).fetchall()
+    conn.close()
+    for pj, rj in rows:
+        payload = json.loads(pj) if pj else {}
+        result = json.loads(rj) if rj else {}
+        if payload.get("role", "A") != role:
+            continue
+        key = result.get("oss_key")
+        if key:
+            try:
+                return oss_get(key, TMP / f"{order_no}_{role}_facesheet.jpg")
+            except Exception as e:
+                log(f"人脸三视图下载失败 {key}: {e}")
+    return None
+
+
+def _order_heights(order_no: str) -> str:
+    """读订单 selection 里的身高信息（chat set_heights 收集，反馈 #27）。"""
+    conn = db()
+    row = conn.execute("SELECT selection_json FROM mp_orders WHERE order_no=?", (order_no,)).fetchone()
+    conn.close()
+    sel = json.loads(row[0]) if row and row[0] else {}
+    return str(sel.get("heights") or "")
+
+
+def _face_sheet_refs(order_no: str, roles: list[str]) -> list[Path]:
+    """收集各成员的人脸三视图（存在的才给）。"""
+    refs = []
+    for role in roles:
+        f = _latest_face_sheet(order_no, role)
+        if f:
+            refs.append(f)
+    return refs
+
+
+def run_face_sheet(job_id: int, order_no: str, payload: dict) -> None:
+    """人脸三视图：正脸底照 + 用户原始侧脸照为参考，生成正/左/右脸部特写卡（反馈 #26）。
+
+    只有脸部特写、不参考服装；产物供 template/duo/series 生成时作侧脸身份锚点。
+    """
+    role = "B" if payload.get("role") == "B" else "A"
+    base_key = payload.get("base_key")
+    side_keys = [k for k in (payload.get("side_keys") or []) if k][:2]
+    if not base_key:
+        raise RuntimeError("人脸三视图任务缺 base_key（正脸底照）")
+    if not side_keys:
+        raise RuntimeError("人脸三视图任务缺 side_keys（侧脸原照，至少 1 张）")
+    photos = [oss_get(base_key, TMP / f"{order_no}_{role}_facebase.jpg")]
+    for i, key in enumerate(side_keys):
+        photos.append(oss_get(key, TMP / f"{order_no}_{role}_faceside{i}.jpg"))
+    prompt = "同一人物" + FACE_SHEET_LAYOUT + FACE_SHEET_IDENTITY
+    log(f"job#{job_id} face_sheet 角色 {role} 参考图 {len(photos)} 张")
+    img = seedream(prompt, photos, size="2560x1440")
+    key = f"results/{order_no}/{uuid.uuid4().hex[:8]}.jpg"
+    url = oss_put_url(key, img, "image/jpeg")
+    conn = db()
+    conn.execute("UPDATE mp_jobs SET status='done', result_json=?, updated_at=datetime('now') WHERE id=?",
+                 (json.dumps({"url": url, "oss_key": key, "role": role}, ensure_ascii=False), job_id))
+    conn.commit()
+    conn.close()
+    log(f"job#{job_id} face_sheet 完成 角色 {role} -> {key}")
 
 
 # ---------------- Vidu 参考生图（定妆照优先通道） ----------------
@@ -407,6 +484,16 @@ def makeup_with_vidu(prompt: str, ref_files: list[Path]) -> bytes:
 
 # ---------------- 任务执行 ----------------
 SITE_DIR = Path(ENV.get("SITE_DIR", "/var/www/luckynemo"))
+
+#: 人脸三视图规范（与 tools/luckynemo-toolkit video_pipeline 同源移植，2026-08-07，
+#: 反馈 #26：婚纱照大量侧脸对视，单正脸参考侧脸失真；版式改动请两边同步）
+FACE_SHEET_LAYOUT = ("，输出一张16:9图：从左到右依次为同一人物的正面脸部特写、左侧脸特写、"
+                     "右侧脸特写，只有头部特写，不显示服装与身体，纯白背景，无边框")
+FACE_SHEET_IDENTITY = ("，保持与参考图人物五官、脸型完全一致，侧脸的鼻梁高度、下颌线、"
+                       "耳朵形状严格按侧面参考照还原，不要美化成标准模板脸")
+#: 生成任务注入人脸三视图时的锚定尾缀
+FACE_SHEET_ANCHOR = ("随附的人脸三视图（正/左/右侧脸部特写）是人物五官的权威参考："
+                     "人物的侧脸鼻梁高度、下颌线、耳朵形状严格按三视图还原，不要美化成标准模板脸")
 
 
 def scene_index() -> dict:
@@ -561,6 +648,9 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
     if kind == "template_series":
         run_template_series(job_id, order_no, payload)
         return
+    if kind == "face_sheet":
+        run_face_sheet(job_id, order_no, payload)
+        return
     result = None
     if kind == "edit_photo":
         # 成片局部修图：以已生成的成片为底，按用户指令只改指定部分（去眼镜/调表情/改细节）
@@ -581,12 +671,20 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
             raise RuntimeError("合照任务缺人物照片")
         photos = [oss_get(k, TMP / f"{order_no}_duo_{i}.jpg") for i, k in enumerate(keys)]
         note = str(payload.get("note") or "").strip()
+        # 人脸三视图注入（反馈 #26 侧脸不像）
+        face_refs = _face_sheet_refs(order_no, ["A", "B"])
+        photos += face_refs
         prompt = (
             "参考图是要合在一起拍摄的两个人（可能一张照片一个人，也可能一张里已有两人）。"
             "生成一张这两个人的亲密合照：两人的五官与参考图人物一一对应保持一致，"
             "两人自然依偎或牵手，温馨浪漫的场景与柔和暖光，真实人体比例约7.5头身，"
             "人物与地面有自然接触和投影，摄影级质感，无文字无水印"
         )
+        if face_refs:
+            prompt += "。" + FACE_SHEET_ANCHOR
+        heights = _order_heights(order_no)
+        if heights:
+            prompt += f"。两人真实身高：{heights}，严格还原身高差与各自体型"
         if note:
             prompt += f"。场景氛围要求：{note}"
     elif kind == "makeup_photo":
@@ -682,6 +780,9 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
             if not tpl_path.is_file():
                 raise RuntimeError(f"模板不存在 {payload.get('template_id')}")
             tpl = tpl_path
+        # 人脸三视图注入（反馈 #26 侧脸不像）：加在模板图之前，保持"最后一张是模板"
+        face_refs = _face_sheet_refs(order_no, ["A", "B"] if has_b else ["A"])
+        photos += face_refs
         photos.append(tpl)
         # 微调：换服装（附加服装参考图）
         swap_note = payload.get("swap_note", "")
@@ -696,6 +797,11 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
             "只替换人物的五官与面部特征，真实人体比例约7.5头身，与场景自然融合有投影，"
             "摄影级质感，无文字无水印"
         )
+        if face_refs:
+            prompt += "。" + FACE_SHEET_ANCHOR
+        heights = _order_heights(order_no)
+        if heights and has_b:
+            prompt += f"。两人真实身高：{heights}，严格还原身高差与各自体型"
         if swap_note:
             prompt += f"。特别调整：{swap_note}"
         log(f"job#{job_id} template_photo 模板 {payload.get('template_id') or payload.get('custom_template_key')} 参考图 {len(photos)} 张")

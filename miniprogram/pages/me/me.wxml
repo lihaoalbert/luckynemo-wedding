@@ -38,35 +38,45 @@
     <view class="card" wx:if="{{uploads.A.length || uploads.B.length}}">
       <view class="card-title serif">我上传的照片</view>
       <view class="sec" wx:if="{{uploads.A.length}}">
-        <view class="sec-k">{{order.mode === 'couple' ? '她的' : '我的'}}（{{uploads.A.length}}）<text class="sec-tip">长按可删除</text></view>
+        <view class="sec-k">{{order.mode === 'couple' ? '她的' : '我的'}}（{{uploads.A.length}}）<text class="sec-tip">{{fsMode ? '点选照片' : '长按可删除'}}</text></view>
         <view class="imgs">
-          <image wx:for="{{uploads.A}}" wx:key="key" src="{{item.url}}" mode="aspectFill"
-                 data-url="{{item.url}}" data-key="{{item.key}}" bindtap="previewImg" bindlongpress="delUpload" lazy-load />
+          <view class="img-wrap" wx:for="{{uploads.A}}" wx:key="key">
+            <image src="{{item.url}}" mode="aspectFill"
+                   data-url="{{item.url}}" data-key="{{item.key}}" data-role="A" bindtap="onImgTap" bindlongpress="delUpload" lazy-load />
+            <view class="fs-mark" wx:if="{{item.fsMark}}">{{item.fsMark}}</view>
+          </view>
         </view>
       </view>
       <view class="sec" wx:if="{{uploads.B.length}}">
-        <view class="sec-k">他的（{{uploads.B.length}}）<text class="sec-tip">长按可删除</text></view>
+        <view class="sec-k">他的（{{uploads.B.length}}）<text class="sec-tip">{{fsMode ? '点选照片' : '长按可删除'}}</text></view>
         <view class="imgs">
-          <image wx:for="{{uploads.B}}" wx:key="key" src="{{item.url}}" mode="aspectFill"
-                 data-url="{{item.url}}" data-key="{{item.key}}" bindtap="previewImg" bindlongpress="delUpload" lazy-load />
+          <view class="img-wrap" wx:for="{{uploads.B}}" wx:key="key">
+            <image src="{{item.url}}" mode="aspectFill"
+                   data-url="{{item.url}}" data-key="{{item.key}}" data-role="B" bindtap="onImgTap" bindlongpress="delUpload" lazy-load />
+            <view class="fs-mark" wx:if="{{item.fsMark}}">{{item.fsMark}}</view>
+          </view>
         </view>
       </view>
     </view>
 
-    <!-- 生成的照片 -->
+    <!-- 人脸三视图（反馈 #26：治侧脸不像） -->
+    <view class="card" wx:if="{{uploads.A.length || uploads.B.length}}">
+      <view class="card-title serif">人脸三视图</view>
+      <view class="quota-sub">用正脸底照 + 侧脸原照生成五官三视图，之后生成的照片里侧脸更像本人</view>
+      <block wx:if="{{!fsMode}}">
+        <button class="btn mini" data-role="A" bindtap="fsStart">为{{order.mode === 'couple' ? '她' : '我'}}生成 →</button>
+        <button class="btn mini" wx:if="{{order.mode === 'couple' && uploads.B.length}}" data-role="B" bindtap="fsStart">为他生成 →</button>
+      </block>
+      <block wx:else>
+        <view class="quota-sub">在上方照片里点选：先点 1 张正脸作底照，再点 1~2 张侧脸照（已选：底照 {{fsBase ? 1 : 0}} 张 / 侧脸 {{fsSides.length}} 张）</view>
+        <button class="btn mini" bindtap="fsConfirm" disabled="{{!fsBase || !fsSides.length}}">开始生成（约 1 分钟）</button>
+        <button class="btn mini ghost" bindtap="fsCancel">取消</button>
+      </block>
+    </view>
+
+    <!-- 生成的照片（二级页，防列表过长） -->
     <view class="card" wx:if="{{photos.length}}">
-      <view class="card-title serif">生成的照片</view>
-      <view class="photo-item" wx:for="{{photos}}" wx:key="key">
-        <image class="photo-img" src="{{item.url}}" mode="aspectFill" data-url="{{item.url}}" bindtap="previewImg" lazy-load />
-        <view class="photo-info">
-          <view class="photo-kind">{{item.label}}</view>
-          <view class="photo-time">{{item.time}}</view>
-          <view class="photo-ops">
-            <view class="photo-save" data-url="{{item.url}}" bindtap="saveImg">保存</view>
-            <view class="photo-del" data-key="{{item.key}}" bindtap="delPhoto">删除</view>
-          </view>
-        </view>
-      </view>
+      <view class="link-row" bindtap="goPhotos">生成的照片（{{photos.length}} 张，含定妆照/系列组图）<text class="arrow">→</text></view>
     </view>
 
     <!-- 其他 -->

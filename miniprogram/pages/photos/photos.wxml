@@ -1,0 +1,12 @@
+<view class="page">
+  <view class="empty" wx:if="{{!photos.length && !loading}}">
+    <view class="empty-txt">还没有生成的照片，去创作页出一张吧～</view>
+  </view>
+
+  <view class="grid" wx:if="{{photos.length}}">
+    <view class="cell" wx:for="{{photos}}" wx:key="key" data-url="{{item.url}}" bindtap="previewImg" bindlongpress="showOps" data-idx="{{index}}">
+      <image src="{{item.url}}" mode="aspectFill" lazy-load />
+      <view class="cell-label">{{item.label}}</view>
+    </view>
+  </view>
+</view>
