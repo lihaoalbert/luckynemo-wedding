@@ -406,6 +406,8 @@ def run_face_sheet(job_id: int, order_no: str, payload: dict) -> None:
     """人脸三视图：正脸底照 + 用户原始侧脸照为参考，生成正/左/右脸部特写卡（反馈 #26）。
 
     只有脸部特写、不参考服装；产物供 template/duo/series 生成时作侧脸身份锚点。
+    2026-08-07 画质实测：5.0 Pro 三视角分镜 2K×3 + 本地拼接 > 4.5@4K 单图
+    （发丝/皮肤细节更好且画幅规范），故分镜生成后 Pillow 横拼。
     """
     role = "B" if payload.get("role") == "B" else "A"
     base_key = payload.get("base_key")
@@ -414,12 +416,28 @@ def run_face_sheet(job_id: int, order_no: str, payload: dict) -> None:
         raise RuntimeError("人脸三视图任务缺 base_key（正脸底照）")
     if not side_keys:
         raise RuntimeError("人脸三视图任务缺 side_keys（侧脸原照，至少 1 张）")
-    photos = [oss_get(base_key, TMP / f"{order_no}_{role}_facebase.jpg")]
-    for i, key in enumerate(side_keys):
-        photos.append(oss_get(key, TMP / f"{order_no}_{role}_faceside{i}.jpg"))
-    prompt = "同一人物" + FACE_SHEET_LAYOUT + FACE_SHEET_IDENTITY
-    log(f"job#{job_id} face_sheet 角色 {role} 参考图 {len(photos)} 张")
-    img = seedream(prompt, photos, size="2560x1440")
+    base = oss_get(base_key, TMP / f"{order_no}_{role}_facebase.jpg")
+    sides = [oss_get(k, TMP / f"{order_no}_{role}_faceside{i}.jpg")
+             for i, k in enumerate(side_keys)]
+    views = []
+    for tag, view in (("front", "正面脸部特写"), ("left", "左侧脸特写"), ("right", "右侧脸特写")):
+        refs = [base] if tag == "front" else [base] + sides
+        prompt = (f"同一人物{view}，只有头部特写，不显示服装与身体，纯白背景，无边框，竖版"
+                  + FACE_SHEET_IDENTITY)
+        log(f"job#{job_id} face_sheet 角色 {role} {tag} 参考图 {len(refs)} 张")
+        views.append(seedream(prompt, refs, size="1440x2560"))
+    # 横拼 3 张竖版（4320x2560）
+    from PIL import Image
+    import io
+    imgs = [Image.open(io.BytesIO(b)) for b in views]
+    canvas = Image.new("RGB", (sum(i.width for i in imgs), max(i.height for i in imgs)), "white")
+    x = 0
+    for im in imgs:
+        canvas.paste(im, (x, 0))
+        x += im.width
+    buf = io.BytesIO()
+    canvas.save(buf, format="JPEG", quality=92)
+    img = buf.getvalue()
     key = f"results/{order_no}/{uuid.uuid4().hex[:8]}.jpg"
     url = oss_put_url(key, img, "image/jpeg")
     conn = db()
@@ -486,9 +504,9 @@ def makeup_with_vidu(prompt: str, ref_files: list[Path]) -> bytes:
 SITE_DIR = Path(ENV.get("SITE_DIR", "/var/www/luckynemo"))
 
 #: 人脸三视图规范（与 tools/luckynemo-toolkit video_pipeline 同源移植，2026-08-07，
-#: 反馈 #26：婚纱照大量侧脸对视，单正脸参考侧脸失真；版式改动请两边同步）
-FACE_SHEET_LAYOUT = ("，输出一张16:9图：从左到右依次为同一人物的正面脸部特写、左侧脸特写、"
-                     "右侧脸特写，只有头部特写，不显示服装与身体，纯白背景，无边框")
+#: 反馈 #26：婚纱照大量侧脸对视，单正脸参考侧脸失真）。
+#: 生成方式（2026-08-07 画质实测定稿）：5.0 Pro 三视角分镜 2K×3 + Pillow 横拼，
+#: 优于 4.5@4K 单图（发丝/皮肤细节更好、画幅规范）
 FACE_SHEET_IDENTITY = ("，保持与参考图人物五官、脸型完全一致，侧脸的鼻梁高度、下颌线、"
                        "耳朵形状严格按侧面参考照还原，不要美化成标准模板脸")
 #: 生成任务注入人脸三视图时的锚定尾缀

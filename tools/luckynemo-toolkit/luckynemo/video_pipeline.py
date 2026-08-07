@@ -18,6 +18,7 @@ import argparse
 import json
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -48,10 +49,9 @@ CHAR_SHEET_LAYOUT = ("，左侧为脸部正面特写，右侧为三视图：正�
                      "中等比例，站姿自然；纯白背景，无边框，16:9")
 #: 形象卡保持身份一致的提示词尾缀（同 frames 的人物锚定）
 CHAR_SHEET_IDENTITY = "，保持与参考图人物五官、脸型完全一致"
-#: 人脸三视图资产版式（反馈 #26：婚纱照大量侧脸对视，单正脸参考侧脸失真）。
-#: 只有脸部特写、不参考服装；参考图含用户原始侧脸照，侧脸轮廓（鼻梁/下颌线/耳朵）以原照为准
-FACE_SHEET_LAYOUT = ("，输出一张16:9图：从左到右依次为同一人物的正面脸部特写、左侧脸特写、"
-                     "右侧脸特写，只有头部特写，不显示服装与身体，纯白背景，无边框")
+#: 人脸三视图身份锚定尾缀（反馈 #26：婚纱照大量侧脸对视，单正脸参考侧脸失真）。
+#: 生成方式（2026-08-07 画质实测定稿）：三视角分镜 2K×3 + ffmpeg 横拼，
+#: 优于 4.5@4K 单图（发丝/皮肤细节更好、画幅规范），与 server/mp_worker 同源
 FACE_SHEET_IDENTITY = ("，保持与参考图人物五官、脸型完全一致，侧脸的鼻梁高度、下颌线、"
                        "耳朵形状严格按侧面参考照还原，不要美化成标准模板脸")
 
@@ -439,6 +439,8 @@ def cmd_assets(args: argparse.Namespace) -> int:
                 entry.update({"file": str(dest), "source": spec})
                 # 人脸三视图（可选）：声明 side 侧面原照后生成，只有脸部特写不参考服装，
                 # 专治侧脸对视镜头失真（反馈 #26）
+                # 生成方式（2026-08-07 画质实测定稿）：三视角分镜 2K×3 + ffmpeg 横拼，
+                # 优于 4.5@4K 单图（发丝/皮肤细节更好、画幅规范），与 server/mp_worker 同源
                 side = spec.get("side")
                 if side:
                     sides = side if isinstance(side, list) else [side]
@@ -455,15 +457,31 @@ def cmd_assets(args: argparse.Namespace) -> int:
                     elif face_dest.is_file():
                         print(f"characters/{name}_face 已存在，跳过（断点续跑）。")
                     else:
-                        prompt = "同一人物" + FACE_SHEET_LAYOUT + FACE_SHEET_IDENTITY
-                        print(f"characters/{name}_face 人脸三视图生成（base + {len(side_paths)} 张侧脸原照）...")
-                        urls = client.generate_image(
-                            prompt=prompt, size=args.char_size,
-                            reference_images=[str(base.resolve())] + [str(p.resolve()) for p in side_paths],
-                            model=config.get_model("SEEDREAM_MODEL", ark.SEEDREAM_5_PRO),
-                            watermark=False)
-                        for url in urls or [f"<dry-run-url-characters-{name}-face>"]:
-                            client.download(url, face_dest)
+                        view_files = []
+                        for tag, view in (("front", "正面脸部特写"), ("left", "左侧脸特写"), ("right", "右侧脸特写")):
+                            refs = [base] if tag == "front" else [base] + side_paths
+                            prompt = (f"同一人物{view}，只有头部特写，不显示服装与身体，"
+                                      f"纯白背景，无边框，竖版" + FACE_SHEET_IDENTITY)
+                            vdest = cat_dir / f"{name}_face_{tag}.png"
+                            print(f"characters/{name}_face 人脸三视图 {tag} 生成（参考图 {len(refs)} 张）...")
+                            urls = client.generate_image(
+                                prompt=prompt, size="1440x2560",
+                                reference_images=[str(p.resolve()) for p in refs],
+                                model=config.get_model("SEEDREAM_MODEL", ark.SEEDREAM_5_PRO),
+                                watermark=False)
+                            for url in urls or [f"<dry-run-url-characters-{name}-face-{tag}>"]:
+                                client.download(url, vdest)
+                            view_files.append(vdest)
+                        if args.dry_run:
+                            print(f"[dry-run] ffmpeg hstack 拼接 3 视角 -> {face_dest}（跳过）")
+                        else:
+                            cmd = ["ffmpeg", "-y", "-loglevel", "error"]
+                            for vf in view_files:
+                                cmd += ["-i", str(vf)]
+                            cmd += ["-filter_complex", "[0][1][2]hstack=3", str(face_dest)]
+                            subprocess.run(cmd, check=True)
+                            for vf in view_files:
+                                vf.unlink()
                     if side_paths and face_dest.is_file():
                         entry["face_file"] = str(face_dest)
             # 场景四宫格：{"desc": 特征描述, "views"?: {...}, "style"?: str}
