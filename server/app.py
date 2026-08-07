@@ -1576,6 +1576,13 @@ def mp_me(order_no: str) -> JSONResponse:
                     "label": {"makeup_photo": "定妆照", "free_photo": "婚纱照",
                               "solo_photo": "个人写真", "paid_photo": "付费成片"}.get(r[0], r[0]),
                 })
+            # 系列整组（template_series）结果在 result.urls 数组里，逐张入列（反馈 #25）
+            for item in result.get("urls") or []:
+                if isinstance(item, dict) and item.get("url"):
+                    photos.append({
+                        "kind": r[0], "url": item["url"], "key": item.get("oss_key", ""),
+                        "time": r[2], "label": "系列组图",
+                    })
         return JSONResponse({
             "ok": True,
             "order": {

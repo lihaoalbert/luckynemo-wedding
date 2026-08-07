@@ -5,6 +5,7 @@
 # 客户个人素材与交付物（隐私，不入库）
 referrence/
 production/
+couples/
 server/data/
 
 # 大体积二进制（视频/展示素材，线上走 OSS/ECS）

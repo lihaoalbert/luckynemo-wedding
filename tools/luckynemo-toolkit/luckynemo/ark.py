@@ -223,7 +223,9 @@ class ArkClient:
         :param last_frame: 尾帧图 URL（首尾帧接龙用）
         :param reference_images: 多模态参考图（role=reference_image，官方文档确认）；
             提示词里按顺序用"图片1/图片2"指代。人物参考原则上需先入素材库（asset://），
-            未入库裸传会被反 Deepfake 按图概率拦截
+            未入库裸传会被反 Deepfake 按图概率拦截。
+            【实测 2026-08-04】首尾帧与参考图互斥，同传会被 400 拒绝
+            （first/last frame content cannot be mixed with reference media content）
         :param duration: 4-15 秒整数
         :param resolution: 480p/720p/1080p/4K（Mini 仅 720p，Fast 无 1080p）
         :param generate_audio: 是否生成原生音频（默关闭，配音单独做可控性更高）
@@ -231,6 +233,13 @@ class ArkClient:
         """
         if not VIDEO_DURATION_RANGE[0] <= duration <= VIDEO_DURATION_RANGE[1]:
             raise ValueError(f"duration 必须在 {VIDEO_DURATION_RANGE[0]}-{VIDEO_DURATION_RANGE[1]} 秒之间，收到 {duration}")
+        # 平台限制调用前校验（避免白烧一次请求）：
+        # - 首尾帧与参考图互斥（2026-08-04 实测 400）
+        # - 参考图 ≤9 张（TODO(校准)：按官方"全能参考"上限，待文档核实）
+        if (first_frame or last_frame) and reference_images:
+            raise ValueError("[ark] 首尾帧与参考图互斥（平台实测 400），不能同传")
+        if reference_images and len(reference_images) > 9:
+            raise ValueError(f"[ark] 参考图最多 9 张，收到 {len(reference_images)} 张")
 
         content: list[dict[str, Any]] = []
         if text:
