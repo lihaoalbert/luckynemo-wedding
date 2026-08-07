@@ -19,9 +19,10 @@
 
 - `main`：主干，始终保持可部署状态。**只有 main 能上生产**，禁止从功能分支直接部署 ECS。
 - `miniprogram`：小程序组（miniprogram/ 前端 + server/ mp 接口）。
-- `moka`：模版组（模卡/妆造资产与生成管线）。
+- `moka`：模版组（模卡/妆造资产与生成管线）。**独立工作区 `/Users/app/LuckyNemo-Wedding-moka`（git worktree，2026-08-07 建）**，模卡优化都在那边做。
 - `video`：视频组（视频管线与视频相关 worker）。
 - 功能分支从 main 拉，完成后 PR 回 main；定期（至少每次开工前）把 main 合回自己的分支，避免长漂移。
+- worktree 不带 `.env`（凭据不进库）：新工作区要用 server/toolkit 时，自己从主仓拷贝对应 `.env`。
 
 ### 文件归属（减少冲突）
 
