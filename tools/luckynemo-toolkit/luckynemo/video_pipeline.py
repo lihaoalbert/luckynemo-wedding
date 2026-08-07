@@ -48,6 +48,12 @@ CHAR_SHEET_LAYOUT = ("，左侧为脸部正面特写，右侧为三视图：正�
                      "中等比例，站姿自然；纯白背景，无边框，16:9")
 #: 形象卡保持身份一致的提示词尾缀（同 frames 的人物锚定）
 CHAR_SHEET_IDENTITY = "，保持与参考图人物五官、脸型完全一致"
+#: 人脸三视图资产版式（反馈 #26：婚纱照大量侧脸对视，单正脸参考侧脸失真）。
+#: 只有脸部特写、不参考服装；参考图含用户原始侧脸照，侧脸轮廓（鼻梁/下颌线/耳朵）以原照为准
+FACE_SHEET_LAYOUT = ("，输出一张16:9图：从左到右依次为同一人物的正面脸部特写、左侧脸特写、"
+                     "右侧脸特写，只有头部特写，不显示服装与身体，纯白背景，无边框")
+FACE_SHEET_IDENTITY = ("，保持与参考图人物五官、脸型完全一致，侧脸的鼻梁高度、下颌线、"
+                       "耳朵形状严格按侧面参考照还原，不要美化成标准模板脸")
 
 
 #: 场景资产四宫格规范（用户规范 2026-08-06）：2x2 四宫格，每格 9:16 竖版，
@@ -122,6 +128,11 @@ def validate_assets_block(data: dict) -> list[str]:
                     errors.append(f"assets.characters.{name}.prompt 必须是非空字符串（服装/妆容描述）")
                 else:
                     declared[cat].add(name)
+                side = value.get("side")
+                if side is not None:
+                    sides = side if isinstance(side, list) else [side]
+                    if not all(isinstance(s, str) and s for s in sides):
+                        errors.append(f"assets.characters.{name}.side 必须是照片文件名或文件名列表")
             elif cat == "scenes" and isinstance(value, dict):
                 # 四宫格场景规范：{"desc": 特征描述, "views"?: {...}, "style"?: str}
                 if not isinstance(value.get("desc"), str) or not value["desc"]:
@@ -426,6 +437,35 @@ def cmd_assets(args: argparse.Namespace) -> int:
                     for url in urls or [f"<dry-run-url-characters-{name}>"]:
                         client.download(url, dest)
                 entry.update({"file": str(dest), "source": spec})
+                # 人脸三视图（可选）：声明 side 侧面原照后生成，只有脸部特写不参考服装，
+                # 专治侧脸对视镜头失真（反馈 #26）
+                side = spec.get("side")
+                if side:
+                    sides = side if isinstance(side, list) else [side]
+                    side_paths = []
+                    for s in sides:
+                        p = refs_dir / s
+                        if not p.is_file():
+                            print(f"characters/{name} side 照片不存在：{p}", file=sys.stderr)
+                            continue
+                        side_paths.append(p)
+                    face_dest = cat_dir / f"{name}_face.png"
+                    if not side_paths:
+                        pass
+                    elif face_dest.is_file():
+                        print(f"characters/{name}_face 已存在，跳过（断点续跑）。")
+                    else:
+                        prompt = "同一人物" + FACE_SHEET_LAYOUT + FACE_SHEET_IDENTITY
+                        print(f"characters/{name}_face 人脸三视图生成（base + {len(side_paths)} 张侧脸原照）...")
+                        urls = client.generate_image(
+                            prompt=prompt, size=args.char_size,
+                            reference_images=[str(base.resolve())] + [str(p.resolve()) for p in side_paths],
+                            model=config.get_model("SEEDREAM_MODEL", ark.SEEDREAM_5_PRO),
+                            watermark=False)
+                        for url in urls or [f"<dry-run-url-characters-{name}-face>"]:
+                            client.download(url, face_dest)
+                    if side_paths and face_dest.is_file():
+                        entry["face_file"] = str(face_dest)
             # 场景四宫格：{"desc": 特征描述, "views"?: {...}, "style"?: str}
             # ——2x2 四宫格同空间四方向关联视图，版式/视角/风格由模板组装
             elif cat == "scenes" and isinstance(spec, dict):
@@ -481,6 +521,12 @@ def cmd_assets(args: argparse.Namespace) -> int:
                 else:
                     entry["asset_id"] = asset_pipeline.upload_asset(
                         group_id, Path(entry["file"]), name=f"{cat}_{name}")
+            if args.upload and entry.get("face_file") and not entry.get("face_asset_id"):
+                if args.dry_run:
+                    print(f"[dry-run] {cat}/{name}_face 将入库方舟素材库")
+                else:
+                    entry["face_asset_id"] = asset_pipeline.upload_asset(
+                        group_id, Path(entry["face_file"]), name=f"{cat}_{name}_face")
             manifest[cat][name] = entry
             _save_manifest(out_dir, manifest)
     print(f"资产准备完毕 -> {out_dir}/{MANIFEST_NAME}。请人工品控资产图后再跑 draft/final。")
@@ -501,6 +547,17 @@ def _shot_references(shot: dict, manifest: dict, *, prefer_asset: bool) -> tuple
         entry = characters.get(name)
         if entry:
             refs.append(_manifest_ref(entry, prefer_asset=prefer_asset))
+    # 人脸三视图紧随其后（形象卡锁服装身形，人脸三视图锁正/侧脸五官，反馈 #26）
+    for name in char_names:
+        entry = characters.get(name) or {}
+        face_ref = None
+        if prefer_asset and entry.get("face_asset_id"):
+            fid = entry["face_asset_id"]
+            face_ref = fid if fid.startswith("asset://") else f"asset://{fid}"
+        elif entry.get("face_file"):
+            face_ref = str(Path(entry["face_file"]).resolve())
+        if face_ref:
+            refs.append(face_ref)
     has_scene = False
     scene_name = refs_tag.get("scene")
     if scene_name and (manifest.get("scenes") or {}).get(scene_name):

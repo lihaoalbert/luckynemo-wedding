@@ -4,11 +4,17 @@
     "characters": {
       "bride_gown": {
         "base": "bride.jpg",
-        "prompt": "新娘穿白色韩式轻婚纱（吊带V领、蓬松裙摆），淡雅新娘妆，黑色长发自然披散"
+        "prompt": "新娘穿白色韩式轻婚纱（吊带V领、蓬松裙摆），淡雅新娘妆，黑色长发自然披散",
+        "side": [
+          "bride_side.jpg"
+        ]
       },
       "groom_suit": {
         "base": "groom.jpg",
-        "prompt": "新郎穿黑色西装配白衬衫黑领结，干净短发，淡妆"
+        "prompt": "新郎穿黑色西装配白衬衫黑领结，干净短发，淡妆",
+        "side": [
+          "groom_side.jpg"
+        ]
       }
     },
     "scenes": {
