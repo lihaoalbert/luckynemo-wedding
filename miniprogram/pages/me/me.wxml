@@ -38,7 +38,7 @@
     <view class="card" wx:if="{{uploads.A.length || uploads.B.length}}">
       <view class="card-title serif">我上传的照片</view>
       <view class="sec" wx:if="{{uploads.A.length}}">
-        <view class="sec-k">{{order.mode === 'couple' ? '她的' : '我的'}}（{{uploads.A.length}}）<text class="sec-tip">{{fsMode ? '点选照片' : '长按可删除'}}</text></view>
+        <view class="sec-k">我的（{{uploads.A.length}}）<text class="sec-tip">{{fsMode ? '点选照片' : '长按可删除'}}</text></view>
         <view class="imgs">
           <view class="img-wrap" wx:for="{{uploads.A}}" wx:key="key">
             <image src="{{item.url}}" mode="aspectFill"
@@ -48,7 +48,7 @@
         </view>
       </view>
       <view class="sec" wx:if="{{uploads.B.length}}">
-        <view class="sec-k">他的（{{uploads.B.length}}）<text class="sec-tip">{{fsMode ? '点选照片' : '长按可删除'}}</text></view>
+        <view class="sec-k">伴侣的（{{uploads.B.length}}）<text class="sec-tip">{{fsMode ? '点选照片' : '长按可删除'}}</text></view>
         <view class="imgs">
           <view class="img-wrap" wx:for="{{uploads.B}}" wx:key="key">
             <image src="{{item.url}}" mode="aspectFill"
@@ -64,8 +64,8 @@
       <view class="card-title serif">人脸三视图</view>
       <view class="quota-sub">用正脸底照 + 侧脸原照生成五官三视图，之后生成的照片里侧脸更像本人</view>
       <block wx:if="{{!fsMode}}">
-        <button class="btn mini" data-role="A" bindtap="fsStart">为{{order.mode === 'couple' ? '她' : '我'}}生成 →</button>
-        <button class="btn mini" wx:if="{{order.mode === 'couple' && uploads.B.length}}" data-role="B" bindtap="fsStart">为他生成 →</button>
+        <button class="btn mini" data-role="A" bindtap="fsStart">为我生成 →</button>
+        <button class="btn mini" wx:if="{{uploads.B.length}}" data-role="B" bindtap="fsStart">为 TA 生成 →</button>
       </block>
       <block wx:else>
         <view class="quota-sub">在上方照片里点选：先点 1 张正脸作底照，再点 1~2 张侧脸照（已选：底照 {{fsBase ? 1 : 0}} 张 / 侧脸 {{fsSides.length}} 张）</view>
