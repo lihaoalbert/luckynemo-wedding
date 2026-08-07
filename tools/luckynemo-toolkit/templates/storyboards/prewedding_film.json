@@ -1,0 +1,371 @@
+{
+  "title": "韩式婚照电影：我们的一天（Studio Wonkyu 风竖屏 photo film）",
+  "assets": {
+    "characters": {
+      "bride_gown": {
+        "base": "bride.jpg",
+        "prompt": "新娘穿白色韩式轻婚纱（吊带V领、蓬松裙摆），淡雅新娘妆，黑色长发自然披散"
+      },
+      "groom_suit": {
+        "base": "groom.jpg",
+        "prompt": "新郎穿黑色西装配白衬衫黑领结，干净短发，淡妆"
+      }
+    },
+    "scenes": {
+      "white_studio": {
+        "desc": "现代·城市，上午，晴，夏季，普通工作日。高调纯白摄影空间，明亮柔和自然光，地面为浅色原木地板连续铺满，空间中心点位于房间主轴中央。左侧立面区域归属为整面落地窗与轻薄白纱帘，右侧立面区域归属为米白墙面与复古扶手椅、边柜组合立面；",
+        "views": {
+          "front": "主要视觉为房间向落地窗方向延伸的纵深透视与窗边尽头，纯立面正视全景，画面左侧为落地窗立面边缘，画面右侧为米白墙面边缘",
+          "back": "主要视觉为房间向入口方向延伸的纵深透视与室内全景，纯立面正视全景",
+          "left": "落地窗与白纱帘连续立面，柔和窗光透入",
+          "right": "米白墙面与复古扶手椅、边柜连续立面"
+        },
+        "style": "韩式婚纱摄影，高调柔光，胶片颗粒，低饱和奶油色调，真实透视比例，细节清晰不过度锐化"
+      },
+      "dark_studio": {
+        "desc": "现代·城市摄影棚，夜晚，无天气，四季通用，工作日。深色纯色背景摄影空间，柔和侧光勾勒空间层次，高对比细腻影调，黑白摄影氛围，地面为深灰哑光地坪连续铺满，空间中心点位于棚内主轴中央。左侧立面区域归属为深灰吸光背景布立面，右侧立面区域归属为黑色吸光幕布与摄影灯架立面；",
+        "views": {
+          "front": "主要视觉为摄影棚向背景布方向延伸的纵深透视与背景尽头，纯立面正视全景，画面左侧为深灰背景布立面边缘，画面右侧为黑色幕布立面边缘",
+          "back": "主要视觉为摄影棚向入口方向延伸的纵深透视与棚内全景，纯立面正视全景",
+          "left": "深灰吸光背景布连续立面",
+          "right": "黑色吸光幕布与摄影灯架连续立面"
+        },
+        "style": "黑白摄影，高对比柔和影调，细腻胶片颗粒，真实透视比例，细节清晰不过度锐化"
+      },
+      "night_street": {
+        "desc": "现代·中国，夜晚，雨后，夏季，普通工作日。潮湿反光的城市街道沥青路面，两侧为连续老式商铺立面与霓虹灯招牌，路灯暖光，空间中心点位于街道主轴斑马线中段。左侧立面区域归属为街道左侧连续商铺与霓虹招牌立面，右侧立面区域归属为街道右侧连续商铺与路灯行道树立面；",
+        "views": {
+          "front": "主要视觉为街道向远处延伸的纵深透视与街尽头霓虹光斑，纯立面正视全景，画面左侧为左侧商铺立面边缘，画面右侧为右侧商铺立面边缘",
+          "back": "主要视觉为街道向反方向延伸的纵深透视与街景远景，纯立面正视全景",
+          "left": "街道左侧连续商铺与霓虹招牌立面，潮湿墙面反射灯光",
+          "right": "街道右侧连续商铺与路灯行道树立面，潮湿墙面反射灯光"
+        },
+        "style": "参考院线电影，真人电影风格，影视大片，真实透视比例，霓虹散景光斑，细节清晰不过度锐化"
+      }
+    },
+    "props": {
+      "bouquet": "gen:白色满天星新娘捧花，纯白背景静物摄影，柔光，韩式婚礼",
+      "ring": "gen:细钻戒指特写，纯白背景珠宝摄影，柔光",
+      "veil": "gen:轻薄白色新娘头纱，纯白背景静物摄影，柔光飘逸"
+    }
+  },
+  "shots": [
+    {
+      "id": 1,
+      "duration": 4,
+      "frame_prompt": "竖构图9:16，手部特写：新郎黑色西装袖口与新娘白色婚纱边缘之间，两人交握的手，新娘无名指一枚细钻戒，高调柔光纯白背景，韩式婚纱摄影，浅景深，胶片颗粒，低饱和奶油色调",
+      "video_prompt": "新郎拇指轻轻摩挲新娘的手背，手指缓缓收紧交握，镜头极缓慢推近，光线明亮稳定",
+      "narration": "",
+      "mood": "温柔开场",
+      "refs": {
+        "scene": "white_studio",
+        "props": [
+          "ring"
+        ],
+        "characters": [
+          "bride_gown",
+          "groom_suit"
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "duration": 4,
+      "frame_prompt": "竖构图9:16，新娘侧脸特写，轻薄白色头纱覆盖半张脸，闭着眼，高调过曝纯白背景，柔和窗光，浅景深，胶片颗粒，低饱和奶油色调",
+      "video_prompt": "头纱被微风轻轻吹起又落下，新娘睫毛微颤，缓缓抬眼，嘴角轻轻上扬",
+      "narration": "",
+      "mood": "轻盈梦幻",
+      "refs": {
+        "scene": "white_studio",
+        "props": [
+          "veil"
+        ],
+        "characters": [
+          "bride_gown"
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "duration": 4,
+      "frame_prompt": "竖构图9:16，新郎半身像，黑色西装白衬衫，低头双手整理领结，明亮室内，落地窗柔和侧光，浅景深，韩式婚纱摄影，胶片颗粒",
+      "video_prompt": "新郎低头系好领结，缓缓抬眼看向画面右侧，露出微笑，窗边光线明亮稳定",
+      "narration": "",
+      "mood": "期待紧张",
+      "refs": {
+        "scene": "white_studio",
+        "characters": [
+          "groom_suit"
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "duration": 4,
+      "frame_prompt": "竖构图9:16，新郎新娘逆光半身轮廓，额头相抵，新娘手持白色满天星捧花，窗外绿色散景严重虚化，高调过曝，逆光轮廓光晕，胶片颗粒",
+      "video_prompt": "两人额头轻抵保持不动，身体随呼吸微微轻晃，轮廓边缘光晕柔亮，新娘捧花轻微起伏",
+      "narration": "",
+      "mood": "静谧深情",
+      "refs": {
+        "scene": "white_studio",
+        "props": [
+          "bouquet"
+        ],
+        "characters": [
+          "bride_gown",
+          "groom_suit"
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "duration": 5,
+      "frame_prompt": "竖构图9:16，白色高调室内，新娘穿白色婚纱坐在复古扶手椅中，手捧满天星花束掩住嘴笑，新郎白衬衫黑西裤侧身坐在椅子扶手上看着她，落地窗光，浅景深，低饱和奶油色调",
+      "video_prompt": "新娘缓缓放下花束露出笑容，转头看向新郎，新郎也笑了，镜头缓慢横移",
+      "narration": "",
+      "mood": "明快甜蜜",
+      "refs": {
+        "scene": "white_studio",
+        "props": [
+          "bouquet"
+        ],
+        "characters": [
+          "bride_gown",
+          "groom_suit"
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "duration": 5,
+      "frame_prompt": "竖构图9:16，米白色沙发，新娘白纱靠在新郎肩头闭着眼，新郎白衬衫黑西裤端正坐着，明亮落地窗光，浅景深，韩式婚纱摄影，胶片颗粒，低饱和奶油色调",
+      "video_prompt": "新娘闭着眼嘴角上扬，新郎侧头看她，抬手轻轻握住她的手，两人保持依偎不动",
+      "narration": "",
+      "mood": "安稳依靠",
+      "refs": {
+        "scene": "white_studio",
+        "characters": [
+          "bride_gown",
+          "groom_suit"
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "duration": 5,
+      "frame_prompt": "竖构图9:16，浅色地毯上新郎新娘面对面跪坐，双手交握，白色婚纱裙摆在地面铺开，高调纯白室内，柔和顶光，浅景深，胶片颗粒",
+      "video_prompt": "两人额头缓缓相抵，闭眼微笑，保持两秒，镜头缓慢推近，光线柔亮",
+      "narration": "",
+      "mood": "亲密宁静",
+      "refs": {
+        "scene": "white_studio",
+        "characters": [
+          "bride_gown",
+          "groom_suit"
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "duration": 5,
+      "frame_prompt": "竖构图9:16，宽大窗台，新郎新娘并肩而坐，白色婚纱裙摆沿窗台铺落，窗外城市散景过曝虚化，高调柔光，韩式婚纱摄影，低饱和奶油色调",
+      "video_prompt": "新娘抬手指向窗外远处，新郎顺着她指的方向望去，两人对视而笑",
+      "narration": "",
+      "mood": "轻松惬意",
+      "refs": {
+        "scene": "white_studio",
+        "characters": [
+          "bride_gown",
+          "groom_suit"
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "duration": 4,
+      "frame_prompt": "竖构图9:16，新郎仰面枕在新娘膝上，新娘低头看他，白色婚纱裙摆在沙发上铺展，高调明亮室内，柔和窗光，浅景深，胶片颗粒",
+      "video_prompt": "新娘低头笑，伸手轻拨新郎额前碎发，新郎闭着眼微笑，保持依偎",
+      "narration": "",
+      "mood": "宠溺温柔",
+      "refs": {
+        "scene": "white_studio",
+        "characters": [
+          "bride_gown",
+          "groom_suit"
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "duration": 5,
+      "frame_prompt": "竖构图9:16，纯白无影墙室内，新郎环抱新娘腰际将她抱起，白色婚纱裙摆与头纱扬起，两人相视大笑，高调明亮布光，韩式婚纱摄影，胶片颗粒",
+      "video_prompt": "新郎抱着新娘缓缓旋转半圈，裙摆和头纱随旋转轻轻飞扬，两人笑出声，旋转停下后额头相抵",
+      "narration": "",
+      "mood": "欢快飞扬",
+      "refs": {
+        "scene": "white_studio",
+        "props": [
+          "veil"
+        ],
+        "characters": [
+          "bride_gown",
+          "groom_suit"
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "duration": 4,
+      "frame_prompt": "竖构图9:16，新娘背影，露背白色婚纱，低盘发，面向整面落地窗站立，头纱垂落，高调过曝窗光，浅景深，韩式婚纱摄影，低饱和奶油色调",
+      "video_prompt": "新娘缓缓回头，越过肩膀看向镜头，轻轻微笑，头纱随转身微微飘动",
+      "narration": "",
+      "mood": "优雅回眸",
+      "refs": {
+        "scene": "white_studio",
+        "props": [
+          "veil"
+        ],
+        "characters": [
+          "bride_gown"
+        ]
+      }
+    },
+    {
+      "id": 12,
+      "duration": 4,
+      "frame_prompt": "竖构图9:16，黑白摄影，新郎半身肖像，手持白色满天星花束，深色纯色背景，高对比柔和侧光，细腻影调，胶片颗粒",
+      "video_prompt": "新郎低头看着花束，缓缓抬眼看向镜头，镜头极缓慢推近，影调保持稳定",
+      "narration": "",
+      "mood": "黑白质感",
+      "refs": {
+        "scene": "dark_studio",
+        "props": [
+          "bouquet"
+        ],
+        "characters": [
+          "groom_suit"
+        ]
+      }
+    },
+    {
+      "id": 13,
+      "duration": 4,
+      "frame_prompt": "竖构图9:16，黑白摄影，新郎侧脸特写，一枝白色满天星花枝虚前景在肩侧，柔和侧逆光勾勒轮廓，深色背景，细腻影调，胶片颗粒",
+      "video_prompt": "新郎侧脸静止片刻，缓慢眨一次眼，嘴角轻轻上扬，轮廓光保持稳定",
+      "narration": "",
+      "mood": "黑白静谧",
+      "refs": {
+        "scene": "dark_studio",
+        "props": [
+          "bouquet"
+        ],
+        "characters": [
+          "groom_suit"
+        ]
+      }
+    },
+    {
+      "id": 14,
+      "duration": 5,
+      "frame_prompt": "竖构图9:16，正上方俯拍，新娘平躺在蓬松的白色婚纱裙摆上，裙摆如云朵铺满整个画面，双臂自然摊开，高调纯白，柔光，韩式婚纱摄影，胶片颗粒",
+      "video_prompt": "新娘抬手轻轻遮住眼睛又拿开，对着镜头笑，身下裙纱轻微起伏，镜头极缓慢拉远",
+      "narration": "",
+      "mood": "轻盈俏皮",
+      "refs": {
+        "scene": "white_studio",
+        "characters": [
+          "bride_gown"
+        ]
+      }
+    },
+    {
+      "id": 15,
+      "duration": 5,
+      "frame_prompt": "竖构图9:16，正上方俯拍，新郎新娘并排躺在蓬松白纱上，头挨着头方向相反，零星粉色花瓣散落在白纱上，高调纯白柔光，韩式婚纱摄影，胶片颗粒",
+      "video_prompt": "两人同时侧头对视，鼻尖轻轻相碰，微笑，一片花瓣缓缓飘落在白纱上",
+      "narration": "",
+      "mood": "浪漫缱绻",
+      "refs": {
+        "scene": "white_studio",
+        "characters": [
+          "bride_gown",
+          "groom_suit"
+        ]
+      }
+    },
+    {
+      "id": 16,
+      "duration": 4,
+      "frame_prompt": "竖构图9:16，新娘趴卧在蓬松的白色裙纱上，双手托腮，小腿翘起，白纱铺满画面，高调纯白柔光，浅景深，韩式婚纱摄影，低饱和奶油色调",
+      "video_prompt": "新娘托着腮轻轻晃动翘起的小腿，对镜头眨一下眼微笑，镜头缓慢横移",
+      "narration": "",
+      "mood": "俏皮灵动",
+      "refs": {
+        "scene": "white_studio",
+        "characters": [
+          "bride_gown"
+        ]
+      }
+    },
+    {
+      "id": 17,
+      "duration": 5,
+      "frame_prompt": "竖构图9:16，拥抱特写，新娘侧脸贴在新郎肩头闭着眼，白色蕾丝长袖，新郎下颌轻抵她头顶，米白柔光背景虚化，浅景深，胶片颗粒，低饱和奶油色调",
+      "video_prompt": "新娘闭着眼把拥抱收紧一点，新郎手掌在她后背轻轻收拢，两人静止两秒",
+      "narration": "",
+      "mood": "深情拥抱",
+      "refs": {
+        "scene": "white_studio",
+        "characters": [
+          "bride_gown",
+          "groom_suit"
+        ]
+      }
+    },
+    {
+      "id": 18,
+      "duration": 5,
+      "frame_prompt": "竖构图9:16，夜晚城市街道，新郎白衬衫新娘白裙牵手走在路边，背景霓虹灯招牌散景成彩色光斑，潮湿路面反射灯光，暖色实用灯，浅景深，胶片颗粒",
+      "video_prompt": "两人牵手慢慢向前走，新娘回头看向镜头笑，背景霓虹光斑轻轻闪烁，镜头横向稳定跟拍",
+      "narration": "",
+      "mood": "夜色温柔",
+      "refs": {
+        "scene": "night_street",
+        "characters": [
+          "bride_gown",
+          "groom_suit"
+        ]
+      }
+    },
+    {
+      "id": 19,
+      "duration": 5,
+      "frame_prompt": "竖构图9:16，夜晚路口斑马线，新郎新娘牵手奔跑，新娘白裙扬起，路灯与车灯散景成光斑，潮湿路面反光，暖冷光对比，胶片颗粒",
+      "video_prompt": "两人牵手跑过斑马线，新娘边跑边回头笑，裙摆飞扬，背景车灯拉成流动光斑，镜头横向跟拍",
+      "narration": "",
+      "mood": "热烈奔跑",
+      "refs": {
+        "scene": "night_street",
+        "characters": [
+          "bride_gown",
+          "groom_suit"
+        ]
+      }
+    },
+    {
+      "id": 20,
+      "duration": 5,
+      "frame_prompt": "竖构图9:16，黑白摄影，夜晚街边，新郎新娘面对面站立额头相抵，身后店铺暖光与街道散景虚化，高对比柔和影调，胶片颗粒",
+      "video_prompt": "两人缓缓靠近，鼻尖相触，轻轻接吻，保持两秒，镜头极缓慢推近，画面趋于静止",
+      "narration": "",
+      "mood": "黑白收尾",
+      "refs": {
+        "scene": "night_street",
+        "characters": [
+          "bride_gown",
+          "groom_suit"
+        ]
+      }
+    }
+  ]
+}

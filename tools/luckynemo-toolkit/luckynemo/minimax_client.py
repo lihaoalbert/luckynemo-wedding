@@ -1,7 +1,8 @@
-"""MiniMax API 客户端（音乐 / TTS / 声音克隆）。
+"""MiniMax API 客户端（音乐 / TTS / 声音克隆 / H3 视频）。
 
 图片生成已统一走火山 Seedream（:mod:`luckynemo.ark`），MiniMax 图片线
-因实测效果不佳已下架；本客户端只保留音乐、TTS、声音克隆能力。
+因实测效果不佳已下架；视频线 2026-08-04 接入 MiniMax-H3（V2 接口，
+/v2 前缀，content 结构对齐方舟 Seedance，首尾帧与参考图同样互斥）。
 接口规范来自另一项目的生产代码（已验证），实现风格对齐 :mod:`luckynemo.ark`。
 
 ====================================================================
@@ -41,6 +42,13 @@ import requests
 MUSIC_MODEL = "music-3.0"           # 现行同步接口（music-01 异步制已被官方下线）
 MUSIC_MODEL_FALLBACK = "music-3.0-free"  # 付费模型不可用时降级到限免版（RPM 3）
 TTS_MODEL = "speech-01-turbo"  # 声音克隆也必须 turbo
+#: MiniMax-H3 视频（V2 接口，/v2 路径，与 v1 同机不同前缀）
+VIDEO_MODEL = "MiniMax-H3"
+#: 视频单条时长合法范围（秒）
+VIDEO_DURATION_RANGE = (4, 15)
+#: 视频分辨率（H3 只有两档）
+VIDEO_RES_768P = "768P"
+VIDEO_RES_2K = "2K"
 
 
 class MiniMaxAPIError(RuntimeError):
@@ -73,6 +81,8 @@ class MiniMaxClient:
             raise ValueError("非 dry-run 模式必须提供 api_key")
         self.api_key = api_key or ""
         self.base_url = base_url.rstrip("/")
+        #: V2 接口（视频 H3）与 v1 同主机不同前缀：…/v1 → …/v2
+        self.base_url_v2 = self.base_url[: -len("/v1")] + "/v2" if self.base_url.endswith("/v1") else self.base_url + "/v2"
         self.dry_run = dry_run
         self.timeout = timeout
         self.max_retries = max_retries
@@ -104,6 +114,7 @@ class MiniMaxClient:
         method: str,
         path: str,
         *,
+        v2: bool = False,
         json_body: dict | None = None,
         files: dict | None = None,
         data: dict | None = None,
@@ -112,9 +123,10 @@ class MiniMaxClient:
     ) -> dict:
         """发送请求；网络错误重试（指数退避），HTTP ≥400 / 业务错误抛 MiniMaxAPIError。
 
+        :param v2: True 时走 V2 前缀（视频 H3 等 /v2 接口）
         :param timeout: 单次请求超时秒数（默认用客户端 timeout；音乐生成等慢接口传更大值）
         """
-        url = f"{self.base_url}{path}"
+        url = f"{self.base_url_v2 if v2 else self.base_url}{path}"
         if self.dry_run:
             shown: Any = json_body
             if files:
@@ -310,6 +322,126 @@ class MiniMaxClient:
                 return voice_id_hint
             raise MiniMaxAPIError("声音克隆成功但未返回 voice_id", body=json.dumps(result, ensure_ascii=False))
         return str(voice_id)
+
+    # ------------------------------------------------------------------
+    # 视频生成（MiniMax-H3，V2 异步任务制，2026-08-04 按官方文档接入）
+    # ------------------------------------------------------------------
+    def create_video_task(
+        self,
+        *,
+        model: str = VIDEO_MODEL,
+        text: str,
+        first_frame: str | None = None,
+        last_frame: str | None = None,
+        reference_images: list[str] | None = None,
+        duration: int = 5,
+        resolution: str = VIDEO_RES_768P,
+        ratio: str = "16:9",
+        watermark: bool = False,
+        callback_url: str | None = None,
+    ) -> str:
+        """创建 H3 视频任务，返回 task_id（POST /v2/video_generation）。
+
+        content 结构对齐方舟 Seedance：text 必填 + image_url（role=first_frame/
+        last_frame/reference_image）。【官方文档】首尾帧与参考图互斥（同方舟）。
+        :param resolution: "768P" 或 "2K"（H3 仅这两档）
+        :param ratio: i2v 时由输入图决定（服务端按 adaptive 处理，传值被忽略）；
+            t2v/r2v 支持 21:9/16:9/4:3/1:1/3:4/9:16
+        :param duration: 4-15 秒整数
+        媒体限制：请求体 ≤64MB，图片 ≤30MB/张，参考图 ≤9 张；本地小图可 base64 内联
+        """
+        if not VIDEO_DURATION_RANGE[0] <= duration <= VIDEO_DURATION_RANGE[1]:
+            raise ValueError(f"duration 必须在 {VIDEO_DURATION_RANGE[0]}-{VIDEO_DURATION_RANGE[1]} 秒之间，收到 {duration}")
+        # 官方限制调用前校验：
+        # - 首尾帧与参考图互斥；参考图 ≤9 张
+        # - resolution 仅 768P/2K；图片 ≤30MB/张、宽高 [256,5760]、长宽比 [0.4,2.5]、请求体 ≤64MB
+        if (first_frame or last_frame) and reference_images:
+            raise ValueError("[minimax] 首尾帧与参考图互斥（官方限制），不能同传")
+        if reference_images and len(reference_images) > 9:
+            raise ValueError(f"[minimax] 参考图最多 9 张，收到 {len(reference_images)} 张")
+        if resolution not in (VIDEO_RES_768P, VIDEO_RES_2K):
+            raise ValueError(f"[minimax] resolution 仅支持 768P/2K，收到 {resolution}")
+        for local in [first_frame, last_frame, *(reference_images or [])]:
+            if local and not local.startswith(("http://", "https://", "data:")):
+                size_mb = Path(local).stat().st_size / (1 << 20) if Path(local).is_file() else 0
+                if size_mb > 30:
+                    raise ValueError(f"[minimax] 图片超过 30MB 上限（{size_mb:.1f}MB）：{local}，请改用公网 URL")
+
+        content: list[dict[str, Any]] = [{"type": "text", "text": text}]
+        if first_frame and last_frame:
+            content.append({"type": "image_url", "image_url": {"url": self._img_url(first_frame)}, "role": "first_frame"})
+            content.append({"type": "image_url", "image_url": {"url": self._img_url(last_frame)}, "role": "last_frame"})
+        elif first_frame:
+            content.append({"type": "image_url", "image_url": {"url": self._img_url(first_frame)}})
+        elif last_frame:
+            content.append({"type": "image_url", "image_url": {"url": self._img_url(last_frame)}, "role": "last_frame"})
+        for ref in reference_images or []:
+            content.append({"type": "image_url", "image_url": {"url": self._img_url(ref)}, "role": "reference_image"})
+
+        payload: dict[str, Any] = {
+            "model": model,
+            "content": content,
+            "resolution": resolution,
+            "duration": duration,
+            "ratio": ratio,
+            "aigc_watermark": watermark,  # 合规标识统一由 delivery.py 兜底
+        }
+        if callback_url:
+            payload["callback_url"] = callback_url
+        result = self._request("POST", "/video_generation", v2=True, json_body=payload, timeout=120.0)
+        if self.dry_run:
+            return "dry-run-task-id"
+        task_id = result.get("task_id") or (result.get("task") or {}).get("id")
+        if not task_id:
+            raise MiniMaxAPIError("创建视频任务成功但未返回 task_id", body=json.dumps(result, ensure_ascii=False))
+        return str(task_id)
+
+    def get_video_task(self, task_id: str) -> dict:
+        """查询视频任务，返回 task 对象（GET /v2/query/video_generation?task_id=）。"""
+        if self.dry_run:
+            self._log_dry_run("GET", f"{self.base_url_v2}/query/video_generation?task_id={task_id}", None)
+            return {"id": task_id, "status": "succeeded", "_dry_run": True}
+        result = self._request("GET", "/query/video_generation", v2=True, params={"task_id": task_id})
+        task = result.get("task") or result
+        return task
+
+    def poll_video_task(self, task_id: str, *, interval: float = 5.0,
+                        timeout: float = 1800.0, verbose: bool = True) -> dict:
+        """轮询视频任务直到 succeeded / failed / 超时。"""
+        if self.dry_run:
+            print(f"[dry-run] 跳过轮询任务 {task_id}，直接视为 succeeded")
+            return self.get_video_task(task_id)
+        deadline = time.monotonic() + timeout
+        while True:
+            task = self.get_video_task(task_id)
+            status = task.get("status", "unknown")
+            if verbose:
+                print(f"  任务 {task_id} 状态：{status}")
+            if status == "succeeded":
+                return task
+            if status in ("failed", "cancelled"):
+                raise MiniMaxAPIError(f"视频任务{status}：{task_id}", body=json.dumps(task, ensure_ascii=False))
+            if time.monotonic() > deadline:
+                raise TimeoutError(f"轮询任务超时（{timeout}s）：{task_id}，最后状态 {status}")
+            time.sleep(interval)
+
+    @staticmethod
+    def extract_video_url(task: dict) -> str:
+        """从 task 对象取成片 URL（官方查询响应：task.content.url）。"""
+        url = (task.get("content") or {}).get("url") or task.get("video_url")
+        if not url:
+            raise MiniMaxAPIError("任务成功但未找到成片 URL", body=json.dumps(task, ensure_ascii=False)[:2000])
+        return str(url)
+
+    def _img_url(self, value: str) -> str:
+        """本地图片转 data URL（复用 ark.to_image_url）；URL/asset 串原样透传。
+
+        官方建议大文件走公网 URL 勿用 base64；首帧图几百 KB 内联没问题。
+        """
+        if self.dry_run:
+            return value
+        from .ark import to_image_url  # 延迟导入，避免模块级耦合
+        return to_image_url(value)
 
     # ------------------------------------------------------------------
     # 下载

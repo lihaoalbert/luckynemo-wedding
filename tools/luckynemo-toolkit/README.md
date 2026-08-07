@@ -9,7 +9,7 @@
 底座：**火山引擎方舟（Ark）+ MiniMax 双通道**。
 
 - 方舟（`luckynemo/ark.py`）：Seedream 图片 + Seedance 视频，是婚纱照/短片的主力线。所有 endpoint、模型 ID、payload 构造统一封装在 `ark.py`，带 `TODO(校准)` 注释。
-- MiniMax（`luckynemo/minimax_client.py`）：分镜脚本（MiniMax-M3，走 `llm.py`）、音乐、TTS、声音克隆。接口已按另一项目的生产代码验证。**图片生成统一走火山 Seedream（`ark.py`），MiniMax 图片线因实测效果不佳已下架**。
+- MiniMax（`luckynemo/minimax_client.py`）：分镜脚本（MiniMax-M3，走 `llm.py`）、音乐、TTS、声音克隆、**H3 视频（V2 接口 /v2 前缀，`--provider minimax` 接入 video_pipeline，2026-08-04 接入）**。接口已按另一项目的生产代码验证。**图片生成统一走火山 Seedream（`ark.py`），MiniMax 图片线因实测效果不佳已下架**。
 
 ## 安装
 
@@ -38,7 +38,7 @@ cp .env.example .env
 |---|---|---|
 | `ARK_API_KEY` | 火山方舟（Seedream 图片 + Seedance 视频） | 火山线必填 |
 | `ARK_BASE_URL` | 覆盖方舟 base URL（默认 https://ark.cn-beijing.volces.com） | 否 |
-| `MINIMAX_API_KEY` | MiniMax（分镜脚本 M3/音乐/TTS/声音克隆） | MiniMax 线必填 |
+| `MINIMAX_API_KEY` | MiniMax（分镜脚本 M3/音乐/TTS/声音克隆/H3 视频） | MiniMax 线必填 |
 | `MINIMAX_BASE_URL` | 覆盖 MiniMax base URL（默认 https://api.minimaxi.com/v1） | 否 |
 | `SEEDREAM_MODEL` | 覆盖图片模型（企业端点 ep-* 时用） | 否 |
 | `SEEDANCE_MODEL_DRAFT` / `SEEDANCE_MODEL_FINAL` | 覆盖视频草稿/定稿模型 | 否 |
@@ -81,24 +81,46 @@ python -m luckynemo.script_pipeline storyboard --template love_story \
 
 ### 生成与合成（video_pipeline）
 
-```bash
-SB=./分镜/客户B.json   # script_pipeline 的产出；或模板 templates/storyboards/growth_story.json
+**默认范式（2026-08-04 起）：r2v 多模态参考生视频，分类资产先行。** 不用首尾帧；人物/场景/道具资产先由 `assets` 子命令生成并入库，draft/final 按镜头 refs 标签组装参考图。
 
-# 1. 校验分镜 schema
+```bash
+SB=./分镜/客户B.json   # script_pipeline 的产出；或模板 templates/storyboards/prewedding_film.json
+
+# 1. 校验分镜 schema（含 assets 声明与 refs 标签检查）
 python -m luckynemo.video_pipeline validate $SB
 
-# 2. 逐镜生成首帧图（角色一致性锚点，品控锁首帧后再往下走，走火山 Seedream）
-python -m luckynemo.video_pipeline frames $SB --refs ./素材/客户B --out ./首帧/客户B
+# 2. 生成分类参考资产（人物=客户照片登记/gen 生成；场景/道具=Seedream 生成，场景自动空镜）
+#    --upload：逐资产入方舟素材库（真实人物资产过反 Deepfake 的正规通道），品控资产图后再往下走
+python -m luckynemo.video_pipeline assets $SB --refs ./素材/客户B --out ./资产/客户B --upload
 
-# 3a. 草稿：Mini 模型逐镜生成（约 0.5 元/秒，仅 720p）
-python -m luckynemo.video_pipeline draft $SB --frames ./首帧/客户B --out ./片段草稿/客户B
+# 2b. （可选）构图参考：首帧图转剪影（简易图不含人脸/服装细节，防污染画面）
+python -m luckynemo.video_pipeline layouts $SB --frames ./首帧/客户B --out ./构图/客户B
+
+# 3a. 草稿：Mini 模型逐镜生成（约 0.5 元/秒，仅 720p；默认 --mode r2v）
+python -m luckynemo.video_pipeline draft $SB --manifest ./资产/客户B/refs_manifest.json --layouts ./构图/客户B --out ./片段草稿/客户B
 
 # 3b. 定稿：标准版（约 0.95 元/秒）
-python -m luckynemo.video_pipeline final $SB --frames ./首帧/客户B --resolution 720p --out ./片段/客户B
+python -m luckynemo.video_pipeline final $SB --manifest ./资产/客户B/refs_manifest.json --layouts ./构图/客户B --resolution 720p --out ./片段/客户B
 
 # 4. 粗剪：按分镜顺序拼接 + 旁白（--audio）+ 可选 BGM 混流（--bgm，amix：旁白 1.0 / BGM 0.25）
 python -m luckynemo.video_pipeline roughcut $SB --clips ./片段/客户B --audio ./旁白.mp3 --bgm ./bgm.mp3 --out ./成片/客户B.mp4
 ```
+
+分镜资产声明（顶层 `assets` 块 + 每镜 `refs` 标签，见模板 `prewedding_film.json`）：
+- `characters`：**人物资产=脸+服装+妆容绑定的形象卡**（16:9：左脸正面特写+右侧全身正/侧/背三视图，纯白背景无边框；换装/换妆即新资产，如新造型声明新名字）。三种形态：`{"base": "照片文件名", "prompt": "服装妆容描述"}` → 以 base 照片为身份参考生成形象卡；`gen:提示词` → 无参考生成（虚拟人物）；`"照片文件名"` → 直接登记不生成。人物缺省全带。
+- `scenes`：**场景资产=同空间四方向关联视图四宫格**（2x2，每格 9:16 竖版：正面/反打/左立面/右立面，相机 1.6m/35mm，无人物）。dict 形态：`{"desc": "场景特征描述（时代地点/时间/天气/季节 + 地面材质/左右立面归属/中心点）", "views": {...可选四视角描述}, "style": "...可选图片风格"}`，版式与视角写法由 `SCENE_GRID_TEMPLATE` 自动组装；旧 `gen:提示词` 单图形态仍兼容。
+- `props`：一律 `gen:提示词`。
+- 每镜 `refs`：`{"characters": [...], "scene": "名字", "props": [...]}`，引用必须在 assets 中声明。
+
+**构图参考（layouts）**：简易图（首帧转剪影，不含人脸/服装细节，防污染画面；2026-08-06 双路线实验剪影版胜出线稿版）。先跑 `frames` 出首帧，再 `layouts` 批量转剪影；`draft`/`final` 加 `--layouts` 后参考列表末位自动追加 +"仅参考构图"锚定提示词。
+
+**i2v 旧模式**（首帧锚，可选兜底）：`draft`/`final` 加 `--mode i2v --frames ./首帧/客户B`；首帧由 `frames` 子命令生成；拟真人首帧需先用 `asset_pipeline` 入库拿 assets_registry.json 加 `--assets` 走 asset://。
+
+**防变脸**：r2v 模式下代码自动追加身份锚定提示词（"人物五官脸型严格参照人物参考图"）与场景锚定（"场景环境严格参照场景参考图"）；参考图 ≤9 张为平台上限（两 client 调用前校验）。
+
+**MiniMax-H3 引擎（2026-08-04 接入，待账号开通）**：`draft`/`final` 加 `--provider minimax`，模型 `MiniMax-H3`（`MINIMAX_VIDEO_MODEL` 可覆盖），分辨率自动映射 720p→768P / 1080p·4K→2K；asset:// 仅方舟可用，走 MiniMax 时 manifest 资产自动改用本地路径（自动转 data URL）。
+
+竖屏婚照电影（模板 `templates/storyboards/prewedding_film.json`，纯 BGM 无旁白）：`draft`/`final` 加 `--ratio 9:16`；`roughcut` 只传 `--bgm`；已有片段的镜头自动跳过（断点续跑）。
 
 ## 声音管线（MiniMax 线）
 
