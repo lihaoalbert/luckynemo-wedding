@@ -18,3 +18,19 @@
 .sec-title { font-size: 30rpx; font-weight: 600; margin-bottom: 4rpx; }
 .sub-btn { margin-top: 20rpx; background: var(--surface); color: var(--accent); border: 1rpx dashed var(--accent); }
 .dock .btn.gold { margin-top: 12rpx; }
+.slots { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 20rpx; }
+.slot {
+  position: relative; width: calc((100% - 16rpx) / 2); height: 300rpx;
+  border-radius: 20rpx; border: 2rpx dashed var(--hairline);
+  background: var(--surface); overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.slot.filled { border-style: solid; }
+.slot image { width: 100%; height: 100%; }
+.slot-k { font-size: 30rpx; font-weight: 600; color: var(--ink); }
+.slot-h { font-size: 24rpx; color: var(--ink-soft); margin-top: 8rpx; }
+.slot-tag {
+  position: absolute; left: 12rpx; bottom: 12rpx;
+  padding: 2rpx 14rpx; border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.45); color: #fff; font-size: 20rpx;
+}

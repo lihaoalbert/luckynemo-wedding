@@ -7,6 +7,26 @@ const WELCOME = [
   '第一步很简单，先完成一次「真人认证」。这是为了保护你们的脸：认证过的照片，只用来给你们自己生成作品，交付即删。',
 ];
 
+// 功能卡片配图（跳转按钮的图片化版本，图片即卖点；均为站点公开资产）
+const PAGE_CARDS = {
+  '/pages/upload/upload': {
+    img: 'https://luckynemo.ibi.ren/hongzhuang/hz013.png',
+    title: '上传照片', desc: '正脸 + 侧脸 + 全身，角度越全越像你',
+  },
+  '/pages/makeup/makeup': {
+    img: 'https://luckynemo.ibi.ren/hongzhuang/styles/hz001.png',
+    title: '定妆照', desc: '先给脸打个底，后面每张都像你',
+  },
+  '/pages/moka/moka': {
+    img: 'https://luckynemo.ibi.ren/moka/templates/mk005.png',
+    title: '同款大片', desc: '挑一张喜欢的大片，换成你们的脸',
+  },
+  '/pages/wardrobe/wardrobe': {
+    img: 'https://luckynemo.ibi.ren/wardrobe/img/婚纱/nz-001.jpg',
+    title: '高级定制', desc: '服装、场景、动作，自己搭配',
+  },
+};
+
 Page({
   data: {
     messages: [],      // [{role:'ai'|'me', text, action?}]
@@ -23,6 +43,10 @@ Page({
   },
 
   onLoad() {
+    // 首次使用先看落地页（效果展示+三步+隐私），只看一次
+    if (!wx.getStorageSync('landing_seen')) {
+      wx.navigateTo({ url: '/pages/landing/landing' });
+    }
     // 老用户跳过欢迎语（首次用户才看引导三句话）
     const saved = wx.getStorageSync('mp_order');
     if (!(saved && saved.order_no)) {
@@ -128,9 +152,9 @@ Page({
         this.setData({ dockText: '去定妆 →', dockPage: '/pages/makeup/makeup' });
         this.push('ai', '你的照片已经在我这里啦，直接去定妆吧～', { text: '去定妆 →', page: '/pages/makeup/makeup' });
       } else {
-        this.setData({ dockText: '去挑模卡 →', dockPage: '/pages/moka/moka' });
-        this.push('ai', '照片和定妆照都在，挑一张模卡一键同款吧～', { text: '去挑模卡 →', page: '/pages/moka/moka' });
-        this.push('ai', '想要独一无二的一张？把喜欢的样片发给我，再说一句想法，我帮你定制专属模卡 ✨');
+        this.setData({ dockText: '去挑同款大片 →', dockPage: '/pages/moka/moka' });
+        this.push('ai', '照片和定妆照都在，挑一张喜欢的大片，换成你们的脸吧～', { text: '去挑同款大片 →', page: '/pages/moka/moka' });
+        this.push('ai', '想要独一无二的一张？把喜欢的样片发给我，再说一句想法，我帮你定制专属大片 ✨');
         this.push('ai', '想换个妆容再拍一版？点这里', { text: '换个妆容 →', page: '/pages/makeup/makeup' });
         this.push('ai', '想自己搭配服装场景？进高级定制', { text: '高级定制 →', page: '/pages/wardrobe/wardrobe' });
       }
@@ -180,6 +204,10 @@ Page({
   },
 
   push(role, text, action, images) {
+    // 跳转按钮命中卡片映射时升级为图片卡片（更好懂也更好看）
+    if (action && action.page && PAGE_CARDS[action.page] && !action.card) {
+      action = Object.assign({}, action, { card: PAGE_CARDS[action.page] });
+    }
     const messages = this.data.messages.concat([{ role, text, action, images }]);
     this.setData({ messages });
     setTimeout(() => {
@@ -444,7 +472,7 @@ Page({
 
   // ---- 定制模卡：chat 动作触发后轮询任务，出图后给"用这张出片"按钮 ----
   pollDiyMoka() {
-    this.push('ai', '定制模卡绘制中，大概 1 分钟，好了我马上给你看 🎨');
+    this.push('ai', '专属大片绘制中，大概 1 分钟，好了我马上给你看 🎨');
     let tries = 0;
     const timer = setInterval(() => {
       tries += 1;
@@ -453,14 +481,14 @@ Page({
         if (!job) return;
         if (job.status === 'done' && job.result && job.result.url) {
           clearInterval(timer);
-          this.push('ai', '你的专属模卡画好啦 ✨ 满意就点下面按钮出片，想调整直接打字告诉我（比如"背景再亮一点"）', null, [job.result.url]);
+          this.push('ai', '你的专属大片画好啦 ✨ 满意就点下面按钮出片，想调整直接打字告诉我（比如"背景再亮一点"）', null, [job.result.url]);
           this.push('ai', '', { text: '用这张出片 →', kind: 'diy_use', key: job.result.oss_key, mode: job.result.mode || 'couple' });
         } else if (job.status === 'failed') {
           clearInterval(timer);
           this.push('ai', '这次定制没成功：' + ((job.result && job.result.error) || '请换个描述再试试'));
         } else if (tries >= 40) {
           clearInterval(timer);
-          this.push('ai', '画得有点久，稍后跟我说"看我的定制模卡"，我再帮你看看～');
+          this.push('ai', '画得有点久，稍后跟我说"看我的专属大片"，我再帮你看看～');
         }
       }).catch(() => {});
     }, 5000);

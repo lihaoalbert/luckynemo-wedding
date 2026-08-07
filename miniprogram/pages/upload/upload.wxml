@@ -1,7 +1,7 @@
 <view class="page">
   <view class="hero">
     <view class="eyebrow">Step 2 · 照片</view>
-    <view class="h1 serif">脸越清楚，越像你</view>
+    <view class="h1 serif">多角度照片，更像你</view>
   </view>
 
   <view class="card guide" bindtap="toggleGuide">
@@ -9,40 +9,77 @@
     <block wx:if="{{guideShow}}">
       <view class="li">✓ 别人帮你拍，别自拍；手机与眼平齐，一臂距离</view>
       <view class="li">✓ 白天靠窗顺光，背景干净，摘墨镜帽子</view>
-      <view class="li">✓ 需要：正脸 2 张 + 45° 侧脸 2 张 + 90° 侧脸 1 张</view>
+      <view class="li">✓ 正脸必传，左右侧脸和全身建议传——角度越全，生成越像</view>
       <view class="li warn">✗ 不开美颜磨皮（磨皮后学的就不是你的脸）</view>
       <view class="li warn">✗ 不用截图/朋友圈保存图，要原图</view>
     </block>
   </view>
 
-  <!-- 她的照片（A：定妆/写真的主角） -->
+  <!-- 我的照片（A：创建者；B 端设备只显示伴侣区） -->
   <view class="section" wx:if="{{myRole === 'A'}}">
-    <view class="sec-title serif">{{mode === 'couple' ? '她的照片（新娘）' : '你的照片'}}</view>
-    <view class="files">
-      <view class="file" wx:for="{{files}}" wx:key="index" wx:if="{{item.role === 'A'}}">
-        <image src="{{item.path}}" mode="aspectFill" class="thumb" />
-        <view class="finfo">
-          <view class="fstatus {{item.status === '完成' ? 'ok' : ''}}">{{item.status}}</view>
-          <view class="bar"><view class="bar-i" style="width: {{item.progress}}%"></view></view>
-        </view>
+    <view class="sec-title serif">我的照片</view>
+    <view class="slots">
+      <view class="slot {{slots.A.front.url ? 'filled' : ''}}" data-role="A" data-slot="front" bindtap="chooseSlot">
+        <image wx:if="{{slots.A.front.url}}" src="{{slots.A.front.url}}" mode="aspectFill" />
+        <block wx:else><view class="slot-k">正脸照</view><view class="slot-h">必传</view></block>
+        <view class="slot-tag" wx:if="{{slots.A.front.url}}">正脸 ✓</view>
+      </view>
+      <view class="slot {{slots.A.left.url ? 'filled' : ''}}" data-role="A" data-slot="left" bindtap="chooseSlot">
+        <image wx:if="{{slots.A.left.url}}" src="{{slots.A.left.url}}" mode="aspectFill" />
+        <block wx:else><view class="slot-k">左侧脸</view><view class="slot-h">建议传</view></block>
+        <view class="slot-tag" wx:if="{{slots.A.left.url}}">左侧 ✓</view>
+      </view>
+      <view class="slot {{slots.A.right.url ? 'filled' : ''}}" data-role="A" data-slot="right" bindtap="chooseSlot">
+        <image wx:if="{{slots.A.right.url}}" src="{{slots.A.right.url}}" mode="aspectFill" />
+        <block wx:else><view class="slot-k">右侧脸</view><view class="slot-h">建议传</view></block>
+        <view class="slot-tag" wx:if="{{slots.A.right.url}}">右侧 ✓</view>
+      </view>
+      <view class="slot {{slots.A.body.url ? 'filled' : ''}}" data-role="A" data-slot="body" bindtap="chooseSlot">
+        <image wx:if="{{slots.A.body.url}}" src="{{slots.A.body.url}}" mode="aspectFill" />
+        <block wx:else><view class="slot-k">全身照</view><view class="slot-h">建议传</view></block>
+        <view class="slot-tag" wx:if="{{slots.A.body.url}}">全身 ✓</view>
       </view>
     </view>
-    <button class="btn sub-btn" bindtap="chooseA">+ 上传{{mode === 'couple' ? '她的' : ''}}照片</button>
+    <button class="btn sub-btn" bindtap="chooseA">+ 上传更多照片（合照/生活照）</button>
   </view>
 
-  <!-- 他的照片（B：婚纱照；B 端设备只显示这个区） -->
+  <!-- 伴侣的照片（B：婚纱照；B 端设备显示为"你的照片"） -->
   <view class="section" wx:if="{{mode === 'couple'}}">
-    <view class="sec-title serif">{{myRole === 'B' ? '你的照片（新郎）' : '他的照片（新郎）'}}</view>
-    <view class="files">
-      <view class="file" wx:for="{{files}}" wx:key="index" wx:if="{{item.role === 'B'}}">
-        <image src="{{item.path}}" mode="aspectFill" class="thumb" />
-        <view class="finfo">
-          <view class="fstatus {{item.status === '完成' ? 'ok' : ''}}">{{item.status}}</view>
-          <view class="bar"><view class="bar-i" style="width: {{item.progress}}%"></view></view>
-        </view>
+    <view class="sec-title serif">{{myRole === 'B' ? '你的照片' : '伴侣的照片'}}</view>
+    <view class="slots">
+      <view class="slot {{slots.B.front.url ? 'filled' : ''}}" data-role="B" data-slot="front" bindtap="chooseSlot">
+        <image wx:if="{{slots.B.front.url}}" src="{{slots.B.front.url}}" mode="aspectFill" />
+        <block wx:else><view class="slot-k">正脸照</view><view class="slot-h">必传</view></block>
+        <view class="slot-tag" wx:if="{{slots.B.front.url}}">正脸 ✓</view>
+      </view>
+      <view class="slot {{slots.B.left.url ? 'filled' : ''}}" data-role="B" data-slot="left" bindtap="chooseSlot">
+        <image wx:if="{{slots.B.left.url}}" src="{{slots.B.left.url}}" mode="aspectFill" />
+        <block wx:else><view class="slot-k">左侧脸</view><view class="slot-h">建议传</view></block>
+        <view class="slot-tag" wx:if="{{slots.B.left.url}}">左侧 ✓</view>
+      </view>
+      <view class="slot {{slots.B.right.url ? 'filled' : ''}}" data-role="B" data-slot="right" bindtap="chooseSlot">
+        <image wx:if="{{slots.B.right.url}}" src="{{slots.B.right.url}}" mode="aspectFill" />
+        <block wx:else><view class="slot-k">右侧脸</view><view class="slot-h">建议传</view></block>
+        <view class="slot-tag" wx:if="{{slots.B.right.url}}">右侧 ✓</view>
+      </view>
+      <view class="slot {{slots.B.body.url ? 'filled' : ''}}" data-role="B" data-slot="body" bindtap="chooseSlot">
+        <image wx:if="{{slots.B.body.url}}" src="{{slots.B.body.url}}" mode="aspectFill" />
+        <block wx:else><view class="slot-k">全身照</view><view class="slot-h">建议传</view></block>
+        <view class="slot-tag" wx:if="{{slots.B.body.url}}">全身 ✓</view>
       </view>
     </view>
-    <button class="btn sub-btn" bindtap="chooseB">+ 上传{{myRole === 'B' ? '你的' : '他的'}}照片</button>
+    <button class="btn sub-btn" bindtap="chooseB">+ 上传更多照片（合照/生活照）</button>
+  </view>
+
+  <!-- 上传进度 -->
+  <view class="files" wx:if="{{files.length}}">
+    <view class="file" wx:for="{{files}}" wx:key="index">
+      <image src="{{item.path}}" mode="aspectFill" class="thumb" />
+      <view class="finfo">
+        <view class="fstatus {{item.status === '完成' ? 'ok' : ''}}">{{item.slotName ? item.slotName + ' · ' : ''}}{{item.status}}</view>
+        <view class="bar"><view class="bar-i" style="width: {{item.progress}}%"></view></view>
+      </view>
+    </view>
   </view>
 
   <view class="dock">

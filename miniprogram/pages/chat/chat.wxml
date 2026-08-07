@@ -17,7 +17,15 @@
               <image wx:for="{{item.images}}" wx:for-item="img" wx:key="*this"
                      src="{{img}}" mode="aspectFill" data-url="{{img}}" bindtap="previewImg" lazy-load />
             </view>
-            <view wx:if="{{item.action}}" class="act-btn" data-action="{{item.action}}" bindtap="onAction">
+            <view wx:if="{{item.action && item.action.card}}" class="act-card" data-action="{{item.action}}" bindtap="onAction">
+              <image class="act-card-img" src="{{item.action.card.img}}" mode="aspectFill" lazy-load />
+              <view class="act-card-body">
+                <view class="act-card-title">{{item.action.card.title}}</view>
+                <view class="act-card-desc">{{item.action.card.desc}}</view>
+              </view>
+              <view class="act-card-arrow">→</view>
+            </view>
+            <view wx:elif="{{item.action}}" class="act-btn" data-action="{{item.action}}" bindtap="onAction">
               {{item.action.text}}
             </view>
           </view>

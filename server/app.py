@@ -177,6 +177,10 @@ def _migrate() -> None:
     fb_cols = [r[1] for r in conn.execute("PRAGMA table_info(mp_feedback)")]
     if "reply" not in fb_cols:
         conn.execute("ALTER TABLE mp_feedback ADD COLUMN reply TEXT DEFAULT ''")
+    # 上传照片的拍摄槽位（front/left/right/body/''）：三视图素材自动归集（2026-08-07）
+    up_cols = [r[1] for r in conn.execute("PRAGMA table_info(uploads)")]
+    if "slot" not in up_cols:
+        conn.execute("ALTER TABLE uploads ADD COLUMN slot TEXT DEFAULT ''")
     conn.execute(
         "CREATE TABLE IF NOT EXISTS mp_assets("
         "id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -375,6 +379,7 @@ class UploadSignIn(BaseModel):
     filename: str = Field(min_length=1, max_length=255)
     content_type: str = Field(min_length=3, max_length=100)
     size: int = Field(gt=0)
+    slot: str = Field(default="", max_length=10)  # front/left/right/body/''（三视图素材槽位）
 
 
 @app.get("/api/health")
@@ -484,17 +489,61 @@ def upload_sign(body: UploadSignIn) -> JSONResponse:
     safe_name = _sanitize_segment(Path(body.filename).name)
     key = f"materials/{day}/{who}/{uuid.uuid4().hex[:8]}-{safe_name}"
     signed = oss_post_signature(key, body.content_type)
+    slot = body.slot if body.slot in ("front", "left", "right", "body") else ""
     conn = _db()
     try:
         conn.execute(
-            "INSERT INTO uploads(contact,filename,oss_key,size,content_type,created_at) VALUES(?,?,?,?,?,?)",
-            (who, body.filename, key, body.size, body.content_type, _now()),
+            "INSERT INTO uploads(contact,filename,oss_key,size,content_type,created_at,slot) VALUES(?,?,?,?,?,?,?)",
+            (who, body.filename, key, body.size, body.content_type, _now(), slot),
         )
         conn.commit()
     finally:
         conn.close()
-    log.info("upload signed who=%s key=%s size=%d", who, key, body.size)
+    log.info("upload signed who=%s key=%s size=%d slot=%s", who, key, body.size, slot)
     return JSONResponse({"ok": True, "key": key, **signed})
+
+
+class FaceSheetAutoIn(BaseModel):
+    order_no: str = Field(min_length=1, max_length=50)
+    role: str = Field(default="A", max_length=2)
+
+
+@app.post("/api/mp/face_sheet/auto")
+def mp_face_sheet_auto(body: FaceSheetAutoIn) -> JSONResponse:
+    """上传完成回调：正脸 + 至少 1 张侧脸凑齐时自动创建 face_sheet 任务（用户无感知）。
+
+    已有 queued/running/done 的三视图任务则不重复创建（手动重出走 me 页入口）。
+    """
+    role = "B" if body.role == "B" else "A"
+    contact = f"{body.order_no}-B" if role == "B" else body.order_no
+    conn = _db()
+    try:
+        front = conn.execute(
+            "SELECT oss_key FROM uploads WHERE contact=? AND slot='front' ORDER BY id DESC LIMIT 1",
+            (contact,)).fetchone()
+        sides = [r[0] for r in conn.execute(
+            "SELECT oss_key FROM uploads WHERE contact=? AND slot IN ('left','right')"
+            " ORDER BY id DESC LIMIT 2", (contact,)).fetchall()]
+        if not front or not sides:
+            return JSONResponse({"ok": True, "triggered": False,
+                                 "reason": "正脸或侧脸照片未凑齐"})
+        running = conn.execute(
+            "SELECT COUNT(*) FROM mp_jobs WHERE order_no=? AND kind='face_sheet'"
+            " AND status IN ('queued','running','done')"
+            " AND json_extract(payload_json,'$.role')=?",
+            (body.order_no, role)).fetchone()[0]
+        if running:
+            return JSONResponse({"ok": True, "triggered": False, "reason": "已有三视图"})
+        conn.execute(
+            "INSERT INTO mp_jobs(order_no,kind,payload_json,status,created_at,updated_at) VALUES(?,?,?,?,?,?)",
+            (body.order_no, "face_sheet",
+             json.dumps({"role": role, "base_key": front[0], "side_keys": sides}, ensure_ascii=False),
+             "queued", _now(), _now()))
+        conn.commit()
+        log.info("face_sheet auto queued order_no=%s role=%s", body.order_no, role)
+        return JSONResponse({"ok": True, "triggered": True})
+    finally:
+        conn.close()
 
 
 class WardrobeSelectionIn(BaseModel):
@@ -1339,7 +1388,7 @@ def _moka_series_size(payload: dict) -> int:
                 n = len(s.get("variants", []))
                 if n:
                     return n
-    raise HTTPException(status_code=400, detail=f"模卡系列不存在：{series_id}")
+    raise HTTPException(status_code=400, detail=f"大片系列不存在：{series_id}")
 
 
 @app.post("/api/mp/job")
@@ -1559,15 +1608,17 @@ def mp_me(order_no: str) -> JSONResponse:
         uploads = {"A": [], "B": []}
         for contact, role in ((order_no, "A"), (f"{order_no}-B", "B")):
             rows = conn.execute(
-                "SELECT oss_key, created_at FROM uploads WHERE contact=? AND content_type LIKE 'image/%'"
+                "SELECT oss_key, created_at, slot FROM uploads WHERE contact=? AND content_type LIKE 'image/%'"
                 " ORDER BY id DESC LIMIT 12", (contact,)).fetchall()
             uploads[role] = [
-                {"url": oss_signed_get_url(r[0], expire=3600), "key": r[0], "time": r[1]} for r in rows
+                {"url": oss_signed_get_url(r[0], expire=3600), "key": r[0], "time": r[1],
+                 "slot": r[2] or ""} for r in rows
             ]
         photos = []
         for r in conn.execute(
                 "SELECT kind, result_json, created_at FROM mp_jobs"
-                " WHERE order_no=? AND status='done' ORDER BY id DESC LIMIT 20",
+                " WHERE order_no=? AND status='done' AND kind != 'face_sheet'"
+                " ORDER BY id DESC LIMIT 20",
                 (order_no,)).fetchall():
             result = json.loads(r[1]) if r[1] else {}
             if result.get("url"):
@@ -1633,8 +1684,8 @@ action 只能是以下之一：
 - {{"type": "delete_assets", "target": "reset"}} 删除资产：reset=删除全部上传照片+生成图并重置流程（用户说"全部删掉重新开始"时用）；all_uploads=只删全部上传照片；all_photos=只删全部生成图
 - {{"type": "submit_feedback", "fb_type": "bug", "text": "整理后的反馈内容"}} 用户确认后提交意见反馈（fb_type: bug/feature/other）
 - {{"type": "add_base_photo", "who": "me或partner"}} 把用户刚发的图片保存为拍摄底图。用户发照片说明是谁的（"这是新娘/新郎/我老婆/他的照片"）或说"传照片/做底图/新底图/重新上传/补传"时**必须用**（严禁只回"已收到"却不保存）：who=me 指照片是用户本人，partner 指是用户的伴侣（新娘/新郎/老婆/老公/对象），按对话语境判断；拿不准照片里是谁时，先用 none 问一句"照片是您本人还是您伴侣？"
-- {{"type": "custom_moka", "description": "用户真实需求的完整描述", "mode": "couple或solo_f或solo_m"}} 定制专属模卡：**只有用户明确说要"做模板/定制模卡"才用**。description 必须写用户的真实需求（把多轮补充合并进来，范例图需求就写清"参考我发的图"+用户补充，严禁照抄示例占位文字）；mode 按画面人数推断：双人=couple、女生单人=solo_f、男生单人=solo_m，推断不出先用 none 问一句
-- {{"type": "generate_photo", "mode": "couple或solo_f或solo_m", "note": "用户的调整要求（可空）"}} 直接出片：用户说"用这张出片/帮我生成/用最新定妆照出一张"时用，系统会把用户刚发的图（或最近发的图/定制模卡）当模板 + 用最新定妆照一键同款出图。用户从来没发过图时先别用，引导 TA 发图或去挑模卡
+- {{"type": "custom_moka", "description": "用户真实需求的完整描述", "mode": "couple或solo_f或solo_m"}} 定制专属大片：**只有用户明确说要"做模板/定制专属大片"才用**。description 必须写用户的真实需求（把多轮补充合并进来，范例图需求就写清"参考我发的图"+用户补充，严禁照抄示例占位文字）；mode 按画面人数推断：双人=couple、女生单人=solo_f、男生单人=solo_m，推断不出先用 none 问一句
+- {{"type": "generate_photo", "mode": "couple或solo_f或solo_m", "note": "用户的调整要求（可空）"}} 直接出片：用户说"用这张出片/帮我生成/用最新定妆照出一张"时用，系统会把用户刚发的图（或最近发的图/专属大片）当模板 + 用最新定妆照一键同款出图。用户从来没发过图时先别用，引导 TA 发图或去挑同款大片
 - {{"type": "duo_photo", "note": "合照场景/氛围要求（可空）"}} 生成双人合照：用户发两个人的照片（两张单人照或一张现成合照），说"把照片里的人生成一张合照/帮我们俩合拍一张"时用，系统用照片里的真人直接生成两人亲密合照
 - {{"type": "edit_photo", "instruction": "去掉眼镜"}} 修改已生成的成片：用户对刚出的图提局部修改（去眼镜/换个表情/背景亮一点/去掉某个东西）时用，instruction 是具体修改点。注意：这是改"成片"，不是改定妆照——用户说改妆容/重新定妆才用 regenerate_makeup
 - {{"type": "none"}} 纯回答
@@ -1647,7 +1698,7 @@ action 只能是以下之一：
 - "删掉所有照片/清空重新开始" → delete_assets reset
 - "不像我/不满意" → 先安抚，再用 regenerate_makeup 带上用户的修正点
 - "用这张出片/帮我生成/出一张看看" → generate_photo
-- "把这两张照片里的人生成一张合照/帮我俩合拍一张" → duo_photo（真人生成合照）；用户明确说"做模板/定制模卡"才用 custom_moka，两者别混
+- "把这两张照片里的人生成一张合照/帮我俩合拍一张" → duo_photo（真人生成合照）；用户明确说"做模板/定制专属大片"才用 custom_moka，两者别混
 - "改一下刚出的图/去个眼镜/这张去掉XX" → edit_photo（改成片）；"改妆容/重新定妆" → regenerate_makeup（改定妆照），别混
 - "用这张修/做一张定妆照""修一张原始图作为定妆照" → makeup_photo（who 按对话判断，给对 makeup_id）
 - 【禁止光说不给按钮】reply 里说"点这里/点下面"时，action 必须同时给对应按钮（navigate 或 generate_photo）；AI 答应在做的操作必须有 action 落地，绝不允许只回"好的，我明白了"却什么都不做
@@ -1656,7 +1707,7 @@ action 只能是以下之一：
 【图片意图】用户发图时（消息里会注明带了几张图），谨慎判断用途：
 - 用户发图说"想要这样的/照这个做/定制同款/做成这样的模板" → custom_moka（图会作为范例一起提交）；
 - 用户发图说明是谁的照片（"这是新娘/新郎/我老婆的照片"）或说"做底图/新底图/重新上传/补传/用来生成/用这张拍" → add_base_photo 带上正确的 who，**不许只回"已收到"不保存**；
-- 【硬约束】消息里出现"底图/新底图/上传/补传/重新上传"字样时，一律 add_base_photo，**严禁 custom_moka**——"底图"是拍摄用的人脸照片，不是模卡范例图；
+- 【硬约束】消息里出现"底图/新底图/上传/补传/重新上传"字样时，一律 add_base_photo，**严禁 custom_moka**——"底图"是拍摄用的人脸照片，不是大片范例图；
 - UI 截图、效果问题图、带"你看这个/怎么回事"的图，一律视为反馈素材，走意见反馈流程；
 - 拿不准时先问一句"这张图是反馈问题的截图，还是当拍摄底图？"，别擅自处理。"""
 
@@ -1967,7 +2018,7 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
                     (body.order_no,)).fetchone()[0]
                 if diy_count >= 3:
                     action = {"type": "none"}
-                    reply = "这张单的免费定制次数（3 次）用完啦，去模卡库挑一张现有的也很出片哦～"
+                    reply = "这张单的免费定制次数（3 次）用完啦，去同款大片库挑一张现成的也很出片哦～"
                 else:
                     conn.execute(
                         "INSERT INTO mp_jobs(order_no,kind,payload_json,status,created_at,updated_at)"
@@ -1998,7 +2049,7 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
                 tpl_key = (json.loads(row[0]) or {}).get("oss_key", "") if row and row[0] else ""
             if not tpl_key:
                 action = {"type": "none"}
-                reply = "把想做成模板的照片发给我，或先去模卡库挑一张，我马上给你出片～"
+                reply = "把想做成模板的照片发给我，或先去同款大片库挑一张，我马上给你出片～"
             else:
                 anchors = {}
                 for pj, rj in conn.execute(

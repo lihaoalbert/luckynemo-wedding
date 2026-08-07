@@ -1,0 +1,44 @@
+<view class="page">
+  <view class="skip" wx:if="{{current < 2}}" bindtap="start">跳过</view>
+  <swiper class="swiper" indicator-dots="{{false}}" bindchange="onSwiper">
+    <!-- 屏 1：效果展示 -->
+    <swiper-item>
+      <view class="screen">
+        <view class="eyebrow">LuckyNemo · AI 照相馆</view>
+        <view class="h1 serif">不出门，<text class="accent">拍好婚纱照</text></view>
+        <view class="showcase">
+          <image src="https://luckynemo.ibi.ren/moka/templates/hyd01.png" mode="aspectFill" lazy-load />
+          <image src="https://luckynemo.ibi.ren/moka/templates/muh01.png" mode="aspectFill" lazy-load />
+          <image src="https://luckynemo.ibi.ren/moka/templates/han01.png" mode="aspectFill" lazy-load />
+        </view>
+        <view class="sub">上传几张生活照，换你们当主角</view>
+      </view>
+    </swiper-item>
+    <!-- 屏 2：三步流程 -->
+    <swiper-item>
+      <view class="screen">
+        <view class="h1 serif">三步就好</view>
+        <view class="steps">
+          <view class="step"><view class="num">1</view><view class="step-t"><view class="step-k">传几张照片</view><view class="step-d">正脸、侧脸、全身，角度越全越像你</view></view></view>
+          <view class="step"><view class="num">2</view><view class="step-t"><view class="step-k">挑一张喜欢的大片</view><view class="step-d">百款场景模板，一键换成你们的脸</view></view></view>
+          <view class="step"><view class="num">3</view><view class="step-t"><view class="step-k">收图</view><view class="step-d">约 1 分钟一张，直接保存发朋友圈</view></view></view>
+        </view>
+      </view>
+    </swiper-item>
+    <!-- 屏 3：隐私 + CTA -->
+    <swiper-item>
+      <view class="screen">
+        <view class="h1 serif">你的脸，只属于你</view>
+        <view class="privacy">
+          <view class="li">🔒 真人认证保护：认证过的照片只给你们自己生成</view>
+          <view class="li">🗑 交付即删：照片加密存储，交付后彻底删除</view>
+          <view class="li">🎁 内测福利：免费送 20 张生成额度</view>
+        </view>
+        <button class="btn cta" bindtap="start">免费试 1 张 →</button>
+      </view>
+    </swiper-item>
+  </swiper>
+  <view class="dots">
+    <view class="dot {{current === i ? 'on' : ''}}" wx:for="{{[0,1,2]}}" wx:for-item="i" wx:key="*this" />
+  </view>
+</view>

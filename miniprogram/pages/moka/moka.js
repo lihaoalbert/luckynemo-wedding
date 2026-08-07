@@ -28,7 +28,7 @@ Page({
     const order = app.globalData.order || {};
     const mode = order.mode || 'couple';
     this.setData({ tab: mode === 'solo' ? 'solo_f' : 'couple' });
-    wx.showLoading({ title: '打开模卡库…' });
+    wx.showLoading({ title: '打开大片库…' });
     app.req('/api/mp/catalog').then(res => {
       wx.hideLoading();
       const base = app.globalData.apiBase;
