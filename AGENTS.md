@@ -21,6 +21,7 @@
 - `miniprogram`：小程序组（miniprogram/ 前端 + server/ mp 接口）。
 - `moka`：模版组（模卡/妆造资产与生成管线）。**独立工作区 `/Users/app/LuckyNemo-Wedding-moka`（git worktree，2026-08-07 建）**，模卡优化都在那边做。
 - `video`：视频组（视频管线与视频相关 worker）。
+- `xhs`：小红书小程序组（`miniprogram-xhs/` 前端 + server/ 小红书登录与支付通道）。独立 worktree：`/Users/app/LuckyNemo-Wedding-xhs`。
 - 功能分支从 main 拉，完成后 PR 回 main；定期（至少每次开工前）把 main 合回自己的分支，避免长漂移。
 - worktree 不带 `.env`（凭据不进库）：新工作区要用 server/toolkit 时，自己从主仓拷贝对应 `.env`。
 
@@ -31,6 +32,7 @@
 | 小程序组 | `miniprogram/`、`server/app.py`（/api/mp/* 接口与 chat）、`server/mp_worker.py` 的 mp 任务 |
 | 模版组 | `assets/moka/`（模板/index.json/生成脚本）、`assets/hongzhuang/` |
 | 视频组 | `tools/luckynemo-toolkit/`、`server/mp_worker.py` 的视频任务部分 |
+| 小红书组 | `miniprogram-xhs/`（小红书小程序前端，独立框架不复用微信小程序代码）、`server/app.py` 的 xhs 登录/支付通道 |
 
 - **跨组文件**（`server/app.py`、`server/mp_worker.py`、各 `index.json`、`PROJECT_STATE.md`）：改动前在群里同步一句，合并时先沟通再合。
 - `PROJECT_STATE.md` 每组各自维护自己领域的章节，更新日志按时间追加不覆盖别人的。

@@ -111,6 +111,7 @@
 ## 更新日志
 
 - 2026-08-07 确认两项合规前置完成：算法备案、luckynemo.com 域名备案（域名尚未启用，切换时加 server block + 证书）；多平台拓展阶段 0 阻塞项清掉两个
+- 2026-08-07 新建小红书小程序分支 `xhs` + 独立 worktree `/Users/app/LuckyNemo-Wedding-xhs`（从 main 拉）；AGENTS.md 并行规范新增小红书组（主责 `miniprogram-xhs/` + server/ xhs 登录支付通道）。小红书小程序为独立框架（xhs.* API 体系），前端重写适配，后端复用 /api/mp/* 新增 xhs 通道
 - 2026-08-07 完成多平台市场拓展调研（三路并行：国内平台规则/海外平台规则/竞品案例与投流基准），产出 `research/2026-08-多平台拓展调研与策略.md`：国内 P0=视频号（iOS 虚拟支付已通 12%）、P1=小红书闭环种草+抖音直购（抖音 iOS 无虚拟支付通道）；海外主战场东南亚/东亚/海外华人（欧美无婚纱照文化），需香港主体+Stripe+Paddle，BIPA/GDPR 人脸合规是生死线；拓展节奏四阶段（合规前置→视频号+小红书冷启动→千川直购放大→出海），成功必要条件=直购闭环不买线索+素材自带传播性+49→299→999 升单率
 
 - 2026-08-06 虚拟支付 Android 沙箱真机联调通过：AXEZ 充值 4 元（4币→1张）成功，prepare→沙箱支付→confirm 到账闭环验证（mp_pay_orders VP178603085047614C paid，18s 到账，沙箱无 Midas 推送属正常，confirm 补偿通道生效）；代码已提交 main/payment a98a51e 推 origin，miniprogram/app.js 同步到上传工作树（moka 分支未提交态，仅 3 行诊断改动）；剩：VP_ENV 改 0 切现网（须正式版小程序验证）、iOS IAP 开通
