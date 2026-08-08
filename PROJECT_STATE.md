@@ -73,6 +73,8 @@
 - **v3 品控与入库（2026-08-04，全部完成）**：72 张换脸底片 4 路审片 71 通过；lig09（"Save the Date" 文字牌）账户充值后加去文字词重跑通过（文字牌换花束、墨镜保留、脸已换）。**index.json v3 终态：108 模板（36 mk + 72 新）/ 20 系列 / 6 分组，lv 56 张全下架**；本地起服务验证 catalog 返回 moka_groups 6 组 ✓。注：方舟账户曾欠费导致全部生图 403，充值后恢复
 - **v3 已上线（2026-08-04）**：main 合并 631af75（无 gh，本地 ff 合并推 origin/main）；ECS `/var/www/luckynemo/moka/` 已同步 108 模板 + index.json v3（lv 文件已删，线上 404），`/opt/luckynemo/server/` app.py/mp_worker.py 已更新，luckynemo + luckynemo-worker 重启 active；线上冒烟 catalog=108 模板/20 系列/6 分组 ✓ hyd01.png 200 ✓。待办：微信开发者工具上传小程序（moka/generating/result 三页）
 
+- **v4 内容体验规划（2026-08-07，讨论稿，未入库未提交）**：`research/2026-08-模卡内容体验规划.md` + H5 demo `research/moka-h5-demo/index.html`（发现首页/系列详情独立页/结果页朋友圈预览三屏，图片用线上模板）。核心主张：系列即九宫格、节点语言入口（领证/婚纱/旅拍/写真）、详情页价格前置+效果预期、上新日历驱动复购；9 个决策点待用户拍板后再定是否实施
+
 - **小程序人脸三视图（2026-08-07 上线，反馈 #26/#27）**：`face_sheet` 任务（me 页入口选正脸底照+侧脸原照 → 脸部三视图卡，不参考服装），template_photo/duo_photo/template_series 自动注入做侧脸身份锚定；chat 说身高（"他183我165"）→ selection.heights → 双人照还原身高差
 - **me 页改版（2026-08-07，前端待发布）**：生成的照片挪二级页 `pages/photos/`（网格 + 长按保存/删除，me 页只留入口行，防几十张图撑长页面）；全屏预览改整组 urls 传参，系统自带左右滑动（上传照片/生成照片都支持）
 
@@ -107,6 +109,9 @@
 - `server/`（后端本地副本，ECS /opt/luckynemo/server 为生产）
 
 ## 更新日志
+
+- 2026-08-07 模卡内容体验规划 v4 讨论稿（未提交入库）：产出 `research/2026-08-模卡内容体验规划.md`（现状7条体验问题、外部调研结论、v4信息架构/内容补齐/上新日历/分期路线）+ H5 demo `research/moka-h5-demo/index.html`（三屏已截图验证）；等用户讨论拍板后再定实施与入库
+- 2026-08-07 规划 v4 第一轮拍板（文档 §九决策记录）：①详情页独立页 ✅ ②mk 系列用 MiniMax 生图先补 9 格占位、上线前 Seedream 重出替换（占位须打标）③节点入口 4 个命名定稿 ④"N人拍过"=运营基数+真实计数；demo 按反馈加「只拍单张」相册式多选模式（右上角圆圈、CTA 与价格联动）
 
 - 2026-08-06 虚拟支付 Android 沙箱真机联调通过：AXEZ 充值 4 元（4币→1张）成功，prepare→沙箱支付→confirm 到账闭环验证（mp_pay_orders VP178603085047614C paid，18s 到账，沙箱无 Midas 推送属正常，confirm 补偿通道生效）；代码已提交 main/payment a98a51e 推 origin，miniprogram/app.js 同步到上传工作树（moka 分支未提交态，仅 3 行诊断改动）；剩：VP_ENV 改 0 切现网（须正式版小程序验证）、iOS IAP 开通
 - 2026-08-06 修复反馈 #24（充值选 4元/张 报"支付未完成"，Android 真机）：根因=prepare 的 paySig 少拼官方固定前缀（正确公式 `hmac_sha256(appKey, "requestVirtualPayment&"+signData)`，signature 用 session_key 原样 HMAC 是对的未动）；server/app.py 已改并部署 ECS 重启 active，prepare 冒烟正常；小程序 app.js 支付失败时改弹窗展示 errCode/errMsg（-15006=paySig 错/-15009=代币未发布/-15011=现网版不可用沙箱 env=1），**待微信开发者工具重新上传小程序**；注意沙箱联调只能用开发版/体验版，线上正式版 env=1 会报 -15011；反馈已回复 done
