@@ -113,6 +113,7 @@
 
 ## 更新日志
 
+- 2026-08-08 微信小程序组独立 worktree `/Users/app/LuckyNemo-Wedding-miniprogram` 建立（miniprogram 分支 0 领先已 ff 到 main 7495637）
 - 2026-08-08 新建抖音小程序分支 `douyin` + 独立 worktree `/Users/app/LuckyNemo-Wedding-douyin`（从 main 5786615 拉）；AGENTS.md 并行规范新增抖音组（主责 `miniprogram-douyin/` + server/ 抖音登录与支付通道）
 - 2026-08-08 清理测试空订单：删除 AXEZ 用户 5 个零数据订单（O0O6/6RJB/E93Z/L9L6/K0Q3，jobs/uploads/pays 全为 0，四表行已删）；AXEZ（73 张）与 GIV7（3 张）保留
 - 2026-08-08 订单找回真机调通：首装流程修复——落地页未看完时 chat onLoad 不再跑 ensureOrder（找回提示用的 wx.showModal 会打在落地页跳转中静默 fail 卡死流程），改为落地页关闭后 onShow 触发；找回提示弃用 showModal 改对话内 AI 消息+按钮（kind=restore/neworder）。真机验证：删小程序→链接进→落地页「免费试 1 张」→ 找回提示 → 恢复 AXEZ ✓。chat.js 改动未提交

@@ -18,7 +18,7 @@
 ### 分支模型
 
 - `main`：主干，始终保持可部署状态。**只有 main 能上生产**，禁止从功能分支直接部署 ECS。
-- `miniprogram`：小程序组（miniprogram/ 前端 + server/ mp 接口）。
+- `miniprogram`：小程序组（miniprogram/ 前端 + server/ mp 接口）。独立 worktree：`/Users/app/LuckyNemo-Wedding-miniprogram`（2026-08-08 建）。
 - `moka`：模版组（模卡/妆造资产与生成管线）。**独立工作区 `/Users/app/LuckyNemo-Wedding-moka`（git worktree，2026-08-07 建）**，模卡优化都在那边做。
 - `video`：视频组（视频管线与视频相关 worker）。
 - `xhs`：小红书小程序组（`miniprogram-xhs/` 前端 + server/ 小红书登录与支付通道）。独立 worktree：`/Users/app/LuckyNemo-Wedding-xhs`。
