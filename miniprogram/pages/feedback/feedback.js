@@ -10,7 +10,7 @@ Page({
     ],
     type: 'bug',
     text: '',
-    images: [],      // [{path, key, status}]
+    images: [],      // [{path, key, status}] 
     history: [],
     submitting: false,
   },

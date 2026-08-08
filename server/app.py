@@ -1289,7 +1289,7 @@ def mp_order_get(order_no: str) -> JSONResponse:
         except Exception:
             pass
         for r in conn.execute(
-                "SELECT kind,status,result_json,payload_json FROM mp_jobs WHERE order_no=? ORDER BY id DESC LIMIT 30",
+                "SELECT kind,status,result_json,payload_json FROM mp_jobs WHERE order_no=? ORDER BY id DESC LIMIT 200",  # 反馈 #33：30 条窗口会把老定妆照挤出锚点列表
                 (order_no,)):
             payload = json.loads(r[3]) if r[3] else {}
             jobs.append({
@@ -1810,24 +1810,24 @@ def mp_me(order_no: str) -> JSONResponse:
             ]
         photos = []
         for r in conn.execute(
-                "SELECT kind, result_json, created_at FROM mp_jobs"
+                "SELECT id, kind, result_json, created_at FROM mp_jobs"
                 " WHERE order_no=? AND status='done' AND kind != 'face_sheet'"
                 " ORDER BY id DESC LIMIT 200",  # 反馈 #31：20 条窗口会把老成片挤出相册
                 (order_no,)).fetchall():
-            result = json.loads(r[1]) if r[1] else {}
+            result = json.loads(r[2]) if r[2] else {}
             if result.get("url"):
                 photos.append({
-                    "kind": r[0], "url": result["url"], "key": result.get("oss_key", ""), "time": r[2],
+                    "job": r[0], "kind": r[1], "url": result["url"], "key": result.get("oss_key", ""), "time": r[3],
                     "label": {"makeup_photo": "定妆照", "free_photo": "婚纱照",
                               "solo_photo": "个人写真", "paid_photo": "付费成片",
-                              "face_sheet": "人脸三视图"}.get(r[0], r[0]),
+                              "face_sheet": "人脸三视图"}.get(r[1], r[1]),
                 })
             # 系列整组（template_series）结果在 result.urls 数组里，逐张入列（反馈 #25）
             for item in result.get("urls") or []:
                 if isinstance(item, dict) and item.get("url"):
                     photos.append({
-                        "kind": r[0], "url": item["url"], "key": item.get("oss_key", ""),
-                        "time": r[2], "label": "系列组图",
+                        "job": r[0], "kind": r[1], "url": item["url"], "key": item.get("oss_key", ""),
+                        "time": r[3], "label": "系列组图",
                     })
         return JSONResponse({
             "ok": True,

@@ -49,6 +49,17 @@
   background: transparent; line-height: 1.5;
 }
 .link-row:last-child { border-bottom: none; }
+.link-row.danger { font-size: 24rpx; color: #b8aea6; }
+.privacy-note { padding: 12rpx 0 0; font-size: 20rpx; color: #c8bcb4; text-align: center; }
+/* 邀请有礼 banner */
+.invite-banner {
+  margin-top: 24rpx; padding: 28rpx; border-radius: 24rpx;
+  background: linear-gradient(135deg, #2a211c, #4a352c);
+  border: none; text-align: left; line-height: 1.5; width: 100%;
+}
+.invite-banner::after { border: none; }
+.invite-title { font-size: 32rpx; font-weight: 700; color: #f0dfc8; }
+.invite-sub { font-size: 24rpx; color: #c9b8ac; margin-top: 8rpx; }
 .share-link { border: none; text-align: left; width: 100%; }
 .share-link::after { border: none; }
 .arrow { color: var(--ink-soft); }

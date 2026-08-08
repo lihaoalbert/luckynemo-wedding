@@ -1,9 +1,20 @@
-// 生成的照片（二级页）：网格展示 + 全屏左右滑动 + 保存/删除
+// 相册（生成的照片二级页）：类型筛选 + 系列整组收叠 + 全屏滑动 + 保存/海报/删除
 const app = getApp();
+
+// 筛选维度：全部 / 定妆照 / 同款大片（单张）/ 系列组图
+const CHIPS = [
+  { id: 'all', label: '全部' },
+  { id: 'makeup', label: '定妆照' },
+  { id: 'moka', label: '同款大片' },
+  { id: 'series', label: '系列组图' },
+];
 
 Page({
   data: {
-    photos: [],
+    chips: CHIPS,
+    chip: 'all',
+    photos: [],   // 原始平铺列表
+    cells: [],    // 当前筛选下的展示格（系列组图按 job 收叠成一格）
     loading: true,
   },
 
@@ -15,20 +26,66 @@ Page({
     }
     app.req('/api/mp/me', 'GET', { order_no: order.order_no }).then(res => {
       this.setData({ photos: res.photos, loading: false });
+      this.rebuild();
     }).catch(() => this.setData({ loading: false }));
+  },
+
+  chipTap(e) {
+    this.setData({ chip: e.currentTarget.dataset.id });
+    this.rebuild();
+  },
+
+  // 按筛选条件把 photos 装配成格子：template_series 按 job 收叠成组封面
+  rebuild() {
+    const chip = this.data.chip;
+    const cells = [];
+    const groups = {};
+    for (const p of this.data.photos) {
+      const isSeries = p.kind === 'template_series';
+      if (chip === 'makeup' && p.kind !== 'makeup_photo') continue;
+      if (chip === 'series' && !isSeries) continue;
+      if (chip === 'moka' && (isSeries || p.kind === 'makeup_photo')) continue;
+      if (isSeries && p.job) {
+        const g = groups[p.job] || (groups[p.job] = {
+          isGroup: true, job: p.job, label: '系列组图',
+          cover: p.url, urls: [], keys: [], time: p.time,
+        });
+        g.urls.push(p.url);
+        g.keys.push(p.key);
+        if (!cells.includes(g)) cells.push(g);
+      } else {
+        cells.push({ ...p, isGroup: false, urls: [p.url], keys: [p.key] });
+      }
+    }
+    for (const k in groups) groups[k].count = groups[k].urls.length;
+    // wx:key 只接受属性名，统一算好 cid
+    for (const c of cells) c.cid = c.isGroup ? 'g' + c.job : (c.key || c.url);
+    this.setData({ cells });
   },
 
   // 全屏预览：整组 urls + current，系统自带左右滑动
   previewImg(e) {
+    const item = this.data.cells[e.currentTarget.dataset.idx];
+    if (!item) return;
     wx.previewImage({
-      urls: this.data.photos.map(p => p.url),
-      current: e.currentTarget.dataset.url,
+      urls: item.isGroup ? item.urls : this.data.cells.reduce((acc, c) => acc.concat(c.urls), []),
+      current: item.isGroup ? item.urls[0] : e.currentTarget.dataset.url,
     });
   },
 
   showOps(e) {
-    const idx = e.currentTarget.dataset.idx;
-    const item = this.data.photos[idx];
+    const item = this.data.cells[e.currentTarget.dataset.idx];
+    if (!item) return;
+    if (item.isGroup) {
+      wx.showActionSheet({
+        itemList: [`整组 ${item.urls.length} 张保存到相册`, '删除整组'],
+        success: (r) => {
+          if (r.tapIndex === 0) this.saveAll(item.urls);
+          else if (r.tapIndex === 1) this.delGroup(item.keys);
+        },
+      });
+      return;
+    }
     wx.showActionSheet({
       itemList: ['保存到相册', '生成分享海报', '删除这张图'],
       success: (r) => {
@@ -126,6 +183,29 @@ Page({
     });
   },
 
+  // 整组保存：逐张下载存相册
+  saveAll(urls) {
+    wx.showLoading({ title: `保存中 0/${urls.length}` });
+    const step = (i) => {
+      if (i >= urls.length) {
+        wx.hideLoading();
+        wx.showToast({ title: '整组已存到相册' });
+        return;
+      }
+      wx.downloadFile({
+        url: urls[i],
+        success: (r) => new Promise(res => wx.saveImageToPhotosAlbum({
+          filePath: r.tempFilePath, success: res, fail: res,
+        })).then(() => {
+          wx.showLoading({ title: `保存中 ${i + 1}/${urls.length}` });
+          step(i + 1);
+        }),
+        fail: () => { wx.hideLoading(); wx.showToast({ title: '保存失败，检查相册权限', icon: 'none' }); },
+      });
+    };
+    step(0);
+  },
+
   delPhoto(key) {
     wx.showModal({
       title: '删除这张生成图？',
@@ -138,6 +218,26 @@ Page({
           order_no: app.globalData.order.order_no, target: 'photo', oss_key: key,
         }).then(() => {
           wx.showToast({ title: '已删除' });
+          this.onShow();
+        }).catch(err => wx.showToast({ title: err.message, icon: 'none' }));
+      },
+    });
+  },
+
+  // 整组删除：逐张调删除接口
+  delGroup(keys) {
+    wx.showModal({
+      title: `删除整组 ${keys.length} 张？`,
+      content: '会从云端彻底删除，不可恢复。',
+      confirmText: '删除整组',
+      confirmColor: '#c0736a',
+      success: (r) => {
+        if (!r.confirm) return;
+        const order_no = app.globalData.order.order_no;
+        Promise.all(keys.map(key => app.req('/api/mp/delete', 'POST', {
+          order_no, target: 'photo', oss_key: key,
+        }))).then(() => {
+          wx.showToast({ title: '已删除整组' });
           this.onShow();
         }).catch(err => wx.showToast({ title: err.message, icon: 'none' }));
       },

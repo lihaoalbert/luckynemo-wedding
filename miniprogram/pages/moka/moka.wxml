@@ -4,13 +4,14 @@
     <view class="home-sub">选一个系列，一次出齐九张，直接发九宫格</view>
   </view>
 
-  <!-- 搜索：客户端过滤（系列名 / tags / 分组名） -->
+  <!-- 搜索入口暂不开放（2026-08-08 用户要求隐藏；js 逻辑保留，恢复时去掉注释即可）
   <view class="searchbar" wx:if="{{groups.length}}">
     <text class="search-ic">🔍</text>
     <input class="search-input" placeholder="搜「海边」「中式」「夜景」…" placeholder-class="search-ph"
            value="{{searchText}}" bindinput="onSearch" confirm-type="search" />
     <text class="search-clear" wx:if="{{searchText}}" bindtap="clearSearch">✕</text>
   </view>
+  -->
 
   <!-- 搜索结果 -->
   <block wx:if="{{searchText && groups.length}}">
@@ -69,7 +70,7 @@
       </view>
     </view>
 
-    <!-- 本周热门 -->
+    <!-- 本周热门已下线（2026-08-08 用户决定：干扰大于帮助）；hotList 逻辑保留，恢复时去掉注释
     <view class="sec" wx:if="{{hotList.length}}">
       <view class="sec-head"><view class="sec-title serif">本周热门</view><view class="sec-more">大家都在拍</view></view>
       <scroll-view scroll-x class="hot-track" enhanced show-scrollbar="{{false}}">
@@ -83,6 +84,7 @@
         </view>
       </scroll-view>
     </view>
+    -->
 
     <!-- 全部分组 -->
     <view class="sec">

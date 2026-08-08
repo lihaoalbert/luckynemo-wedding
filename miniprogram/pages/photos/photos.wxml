@@ -1,15 +1,24 @@
 <view class="page">
-  <view class="empty" wx:if="{{!photos.length && !loading}}">
-    <view class="empty-txt">还没有生成的照片，去创作页出一张吧～</view>
+  <!-- 类型筛选 -->
+  <scroll-view scroll-x class="chips" wx:if="{{photos.length}}">
+    <view class="chip {{chip === c.id ? 'on' : ''}}" wx:for="{{chips}}" wx:for-item="c" wx:key="id"
+          data-id="{{c.id}}" bindtap="chipTap">{{c.label}}</view>
+  </scroll-view>
+
+  <view class="empty" wx:if="{{!cells.length && !loading}}">
+    <view class="empty-txt">这里还没有照片，去创作页出一张吧～</view>
   </view>
 
-  <view class="grid" wx:if="{{photos.length}}">
-    <view class="cell" wx:for="{{photos}}" wx:key="key" data-url="{{item.url}}" bindtap="previewImg" bindlongpress="showOps" data-idx="{{index}}">
-      <image src="{{item.url}}" mode="aspectFill" lazy-load />
+  <view class="grid" wx:if="{{cells.length}}">
+    <view class="cell" wx:for="{{cells}}" wx:key="cid"
+          data-idx="{{index}}" data-url="{{item.isGroup ? item.cover : item.url}}"
+          bindtap="previewImg" bindlongpress="showOps">
+      <image src="{{item.isGroup ? item.cover : item.url}}" mode="aspectFill" lazy-load />
       <view class="cell-label">{{item.label}}</view>
+      <view class="cell-count" wx:if="{{item.isGroup}}">{{item.urls.length}} 张</view>
     </view>
   </view>
-  <view class="tip" wx:if="{{photos.length}}">点开图可左右滑动 · 长按可保存/做分享海报/删除</view>
+  <view class="tip" wx:if="{{cells.length}}">点开图可左右滑动 · 长按可保存/做分享海报/删除</view>
 
   <!-- 离屏 canvas：生成分享海报用 -->
   <canvas canvas-id="poster" style="position:fixed;left:-3000rpx;top:0;width:600px;height:900px;"></canvas>

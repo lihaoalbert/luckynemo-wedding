@@ -113,6 +113,10 @@
 
 ## 更新日志
 
+- 2026-08-08 同款大片页两个板块调整（用户决定）：搜索入口隐藏（暂不开放，wxml 注释保留逻辑）、「本周热门」板块下线（干扰大于帮助，wxml 注释保留 hotList 逻辑）
+- 2026-08-08 修复开发者工具白屏：静态分析器（ignoreDevUnusedFiles）把已注册页面 js 误判为无依赖文件（uploads.js/feedback.js 接连被 ignored 导致 app 启动白屏）；处理=project.config.json 加 ignoreDevUnusedFiles/ignoreUploadUnusedFiles=false + 新页面改名 `pages/uploads/`→`pages/myuploads/` 绕开陈旧索引 + feedback.js IDE 内保存强制重索引；另修 landing.wxml 自闭合 `<view/>` 隐患。**教训：前端改动必须先在开发者工具验证再累计**（本次 v4 批次 4 批未验证集中爆雷）
+- 2026-08-08 me 页改版（按用户 8 点意见）：①个人信息卡默认折叠（摘要行+点击展开）；②额度卡改「还可生成 N 张」合计显示（金币系即买即兑无钱包余额，不显示金币）；③新增「邀请有礼」banner（open-type=share）；④资产区三入口：相册(原生成的照片)/我的收藏(上移)/我上传的照片(新二级页 `pages/myuploads/`，含隐私小字)；⑤photos 页改「相册」：类型筛选 chips（全部/定妆照/同款大片/系列组图）+ template_series 按 job 收叠成组封面（后端 /api/mp/me photos 项补 `job` 字段，已部署验证）；⑥底部：意见反馈/联系客服(open-type=contact)/隐私承诺/开启新订单(弱化+文案说清不删历史)；⑦人脸三视图点选流程随上传照片迁入 uploads 页（?fs=A|B 直入选片模式）。后端已部署 ECS active；**前端待微信开发者工具上传**
+- 2026-08-08 修复反馈 #33（男生定妆照不见了）：与 #31 同类窗口 bug——`/api/mp/order/:order_no` jobs LIMIT 30，该订单 61 条任务把创建较早的男方定妆照（rank 31/57）挤出锚点列表（moka/makeup/moka_series 页都走这个接口）；改 LIMIT 200 部署 ECS 重启 active，线上验证 61 任务、定妆照 8 条 A/B 双方都在 ✓；反馈已回复 done，未处理清零
 - 2026-08-08 修复反馈 #32（出图不能选男方/女方定妆照 + 一键九宫格无确认）：`pages/moka_series/` 详情页新增「出镜人」区块（按系列性别列女生/男生定妆照横滑列表，默认第一张，点选更换，缺定妆照显示回退提示）；`generate()` 加扣费确认弹窗（N 张 / N×4 币，确认后才生成）。仅前端改动（js/wxml/wxss 三文件，node --check 过），**需微信开发者工具上传才生效**；反馈已回复 done，未处理清零
 - 2026-08-08 修复反馈 #31（「我的」相册永远只显示 28 张）：根因 `/api/mp/me` 只读最近 20 条 done 任务（app.py LIMIT 20），该订单 53 任务/61 张成片里老照片掉出窗口；改 LIMIT 200 并部署 ECS 重启 active，线上验证返回 61 张 ✓；反馈已回复 done，未处理清零
 - 2026-08-07 确认两项合规前置完成：算法备案、luckynemo.com 域名备案（域名尚未启用，切换时加 server block + 证书）；多平台拓展阶段 0 阻塞项清掉两个

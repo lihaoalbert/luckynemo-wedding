@@ -1,16 +1,16 @@
-// 我的：个人信息 / 额度 / 上传的照片 / 生成的照片 / 充值入口
+// 我的：额度 / 邀请有礼 / 资产区（相册·收藏·上传照片）/ 人脸三视图 / 个人信息（折叠）/ 帮助
 const app = getApp();
 
 Page({
   data: {
     order: {},
     quota: {},
+    quotaTotal: 0,
     uploads: { A: [], B: [] },
+    uploadsCount: 0,
     photos: [],
     loading: true,
-    fsMode: '',   // 人脸三视图选片模式：'' | 'A' | 'B'
-    fsBase: '',   // 正脸底照 key
-    fsSides: [],  // 侧脸照 keys（最多 2 张）
+    infoOpen: false,  // 个人信息卡默认折叠
   },
 
   onShow() {
@@ -20,103 +20,38 @@ Page({
       return;
     }
     app.req('/api/mp/me', 'GET', { order_no: order.order_no }).then(res => {
+      const quota = res.quota || {};
+      const uploads = res.uploads || { A: [], B: [] };
       this.setData({
-        order: res.order, quota: res.quota,
-        uploads: res.uploads, photos: res.photos, loading: false,
+        order: res.order, quota,
+        quotaTotal: (quota.free_left || 0) + (quota.paid_left || 0),
+        uploads,
+        uploadsCount: uploads.A.length + uploads.B.length,
+        photos: res.photos, loading: false,
       });
     }).catch(() => this.setData({ loading: false }));
   },
 
-  onImgTap(e) {
-    if (this.data.fsMode) {
-      this.fsPick(e);
-      return;
-    }
-    this.previewImg(e);
-  },
-
-  previewImg(e) {
-    // 全屏预览支持左右滑动：传当前相册整组 urls + 当前图
-    const role = e.currentTarget.dataset.role;
-    const album = role && this.data.uploads[role] ? this.data.uploads[role] : this.data.photos;
-    wx.previewImage({
-      urls: album.map(p => p.url),
-      current: e.currentTarget.dataset.url,
-    });
+  toggleInfo() {
+    this.setData({ infoOpen: !this.data.infoOpen });
   },
 
   goPhotos() {
     wx.navigateTo({ url: '/pages/photos/photos' });
   },
 
-  // ---- 人脸三视图选片（反馈 #26：侧脸不像） ----
+  goUploads() {
+    wx.navigateTo({ url: '/pages/myuploads/myuploads' });
+  },
+
+  goFav() {
+    wx.navigateTo({ url: '/pages/moka_fav/moka_fav' });
+  },
+
+  // 人脸三视图：跳到上传照片页进入点选模式（反馈 #26：侧脸不像）
   fsStart(e) {
     const role = e.currentTarget.dataset.role;
-    this.setData({ fsMode: role, fsBase: '', fsSides: [] });
-    this._fsMark();
-    wx.showToast({ title: '先点 1 张正脸底照', icon: 'none' });
-  },
-
-  fsPick(e) {
-    const role = e.currentTarget.dataset.role;
-    const key = e.currentTarget.dataset.key;
-    if (role !== this.data.fsMode) {
-      wx.showToast({ title: '生成谁的就选谁的照片', icon: 'none' });
-      return;
-    }
-    let { fsBase, fsSides } = this.data;
-    if (fsBase === key) {
-      fsBase = '';
-    } else if (fsSides.includes(key)) {
-      fsSides = fsSides.filter(k => k !== key);
-    } else if (!fsBase) {
-      fsBase = key;
-    } else if (fsSides.length < 2) {
-      fsSides = fsSides.concat(key);
-    } else {
-      wx.showToast({ title: '侧脸最多选 2 张', icon: 'none' });
-      return;
-    }
-    this.setData({ fsBase, fsSides });
-    this._fsMark();
-  },
-
-  _fsMark() {
-    // 给已选照片打角标（底照/侧1/侧2），其余清空
-    const mark = (list) => list.map(it => {
-      let m = '';
-      if (it.key === this.data.fsBase) m = '底照';
-      else {
-        const i = this.data.fsSides.indexOf(it.key);
-        if (i >= 0) m = `侧${i + 1}`;
-      }
-      return { ...it, fsMark: m };
-    });
-    this.setData({
-      'uploads.A': mark(this.data.uploads.A),
-      'uploads.B': mark(this.data.uploads.B),
-    });
-  },
-
-  fsCancel() {
-    this.setData({ fsMode: '', fsBase: '', fsSides: [] });
-    this._fsMark();
-  },
-
-  fsConfirm() {
-    const { fsMode, fsBase, fsSides } = this.data;
-    if (!fsBase || !fsSides.length) return;
-    app.req('/api/mp/job', 'POST', {
-      order_no: this.data.order.order_no, kind: 'face_sheet',
-      payload: { role: fsMode, base_key: fsBase, side_keys: fsSides },
-    }).then(() => {
-      wx.showModal({
-        title: '已开始生成',
-        content: '人脸三视图约 1 分钟出图，好了会出现在下方「生成的照片」里（下拉刷新或稍后再进来看）。之后生成的照片侧脸会更像本人。',
-        showCancel: false,
-      });
-      this.fsCancel();
-    }).catch(err => wx.showToast({ title: err.message || '提交失败', icon: 'none' }));
+    wx.navigateTo({ url: '/pages/myuploads/myuploads?fs=' + role });
   },
 
   recharge() {
@@ -149,35 +84,11 @@ Page({
     wx.navigateTo({ url: '/pages/feedback/feedback' });
   },
 
-  goFav() {
-    wx.navigateTo({ url: '/pages/moka_fav/moka_fav' });
-  },
-
-  // 长按删除上传的照片（OSS + 记录都删）
-  delUpload(e) {
-    const key = e.currentTarget.dataset.key;
-    wx.showModal({
-      title: '删除这张照片？',
-      content: '会从云端彻底删除，不可恢复。',
-      confirmText: '删除',
-      confirmColor: '#c0736a',
-      success: (r) => {
-        if (!r.confirm) return;
-        app.req('/api/mp/delete', 'POST', {
-          order_no: this.data.order.order_no, target: 'upload', oss_key: key,
-        }).then(() => {
-          wx.showToast({ title: '已删除' });
-          this.onShow();
-        }).catch(err => wx.showToast({ title: err.message, icon: 'none' }));
-      },
-    });
-  },
-
   restart() {
     wx.showModal({
-      title: '重新开始？',
-      content: '会清空当前进度并开启新订单（历史订单保留在服务器）。',
-      confirmText: '重新开始',
+      title: '开启新订单？',
+      content: '会清空当前进度并开启新订单。当前订单的成片和照片仍保留在服务器，但新订单里看不到。',
+      confirmText: '开启新订单',
       confirmColor: '#c0736a',
       success: (r) => {
         if (!r.confirm) return;

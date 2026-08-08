@@ -9,83 +9,62 @@
   </view>
 
   <block wx:if="{{order.order_no}}">
-    <!-- 个人信息 -->
-    <view class="card">
-      <view class="card-title serif">个人信息</view>
-      <view class="row"><text class="k">拍摄模式</text><text class="v">{{order.mode === 'couple' ? '婚纱照（双人）' : order.mode === 'solo' ? '个人写真' : '未选择'}}</text></view>
-      <view class="row">
-        <text class="k">真人认证</text>
-        <text class="v">
-          {{order.mode === 'couple' ? '新娘' : '本人'}}{{order.members.A && order.members.A.auth_ok ? ' ✓' : ' 未认证'}}
-          <block wx:if="{{order.mode === 'couple'}}"> · 新郎{{order.members.B && order.members.B.auth_ok ? ' ✓' : ' 未认证'}}</block>
-        </text>
-      </view>
-      <view class="order-no" bindlongpress="copyOrderNo">订单号 {{order.order_no}}（长按复制）</view>
-    </view>
-
     <!-- 额度 -->
     <view class="card">
       <view class="card-title serif">剩余额度</view>
       <view class="quota-row">
-        <view class="quota-num">{{quota.free_left}}<text class="quota-unit">张免费</text></view>
-        <view class="quota-num" wx:if="{{quota.paid_left > 0}}">+{{quota.paid_left}}<text class="quota-unit">张已购</text></view>
+        <view class="quota-num">{{quotaTotal}}<text class="quota-unit">张可生成</text></view>
       </view>
-      <view class="quota-sub">内测期间每人 {{quota.free_total}} 张免费额度</view>
+      <view class="quota-sub">含免费 {{quota.free_left}} 张<block wx:if="{{quota.paid_left > 0}}"> · 已购 {{quota.paid_left}} 张</block></view>
       <button class="btn mini" bindtap="recharge">充值 / 续购 →</button>
     </view>
 
-    <!-- 我上传的照片 -->
-    <view class="card" wx:if="{{uploads.A.length || uploads.B.length}}">
-      <view class="card-title serif">我上传的照片</view>
-      <view class="sec" wx:if="{{uploads.A.length}}">
-        <view class="sec-k">我的（{{uploads.A.length}}）<text class="sec-tip">{{fsMode ? '点选照片' : '长按可删除'}}</text></view>
-        <view class="imgs">
-          <view class="img-wrap" wx:for="{{uploads.A}}" wx:key="key">
-            <image src="{{item.url}}" mode="aspectFill"
-                   data-url="{{item.url}}" data-key="{{item.key}}" data-role="A" bindtap="onImgTap" bindlongpress="delUpload" lazy-load />
-            <view class="fs-mark" wx:if="{{item.fsMark}}">{{item.fsMark}}</view>
-          </view>
-        </view>
-      </view>
-      <view class="sec" wx:if="{{uploads.B.length}}">
-        <view class="sec-k">伴侣的（{{uploads.B.length}}）<text class="sec-tip">{{fsMode ? '点选照片' : '长按可删除'}}</text></view>
-        <view class="imgs">
-          <view class="img-wrap" wx:for="{{uploads.B}}" wx:key="key">
-            <image src="{{item.url}}" mode="aspectFill"
-                   data-url="{{item.url}}" data-key="{{item.key}}" data-role="B" bindtap="onImgTap" bindlongpress="delUpload" lazy-load />
-            <view class="fs-mark" wx:if="{{item.fsMark}}">{{item.fsMark}}</view>
-          </view>
-        </view>
-      </view>
+    <!-- 邀请有礼（裂变：好友首次出片，邀请人 +1 张免费额度） -->
+    <button class="invite-banner" open-type="share">
+      <view class="invite-title serif">邀请有礼</view>
+      <view class="invite-sub">邀好友首次出片，你得 1 张免费额度 →</view>
+    </button>
+
+    <!-- 资产区 -->
+    <view class="card">
+      <view class="link-row" bindtap="goPhotos">相册（{{photos.length}} 张）<text class="arrow">→</text></view>
+      <view class="link-row" bindtap="goFav">我的收藏<text class="arrow">→</text></view>
+      <view class="link-row" bindtap="goUploads">我上传的照片（{{uploadsCount}} 张）<text class="arrow">→</text></view>
+      <view class="privacy-note">照片仅用于为你生成作品，交付即删</view>
     </view>
 
     <!-- 人脸三视图（反馈 #26：治侧脸不像） -->
     <view class="card" wx:if="{{uploads.A.length || uploads.B.length}}">
       <view class="card-title serif">人脸三视图</view>
       <view class="quota-sub">用正脸底照 + 侧脸原照生成五官三视图，之后生成的照片里侧脸更像本人</view>
-      <block wx:if="{{!fsMode}}">
-        <button class="btn mini" data-role="A" bindtap="fsStart">为我生成 →</button>
-        <button class="btn mini" wx:if="{{uploads.B.length}}" data-role="B" bindtap="fsStart">为 TA 生成 →</button>
-      </block>
-      <block wx:else>
-        <view class="quota-sub">在上方照片里点选：先点 1 张正脸作底照，再点 1~2 张侧脸照（已选：底照 {{fsBase ? 1 : 0}} 张 / 侧脸 {{fsSides.length}} 张）</view>
-        <button class="btn mini" bindtap="fsConfirm" disabled="{{!fsBase || !fsSides.length}}">开始生成（约 1 分钟）</button>
-        <button class="btn mini ghost" bindtap="fsCancel">取消</button>
-      </block>
+      <button class="btn mini" data-role="A" bindtap="fsStart">为我生成 →</button>
+      <button class="btn mini" wx:if="{{uploads.B.length}}" data-role="B" bindtap="fsStart">为 TA 生成 →</button>
     </view>
 
-    <!-- 生成的照片（二级页，防列表过长） -->
-    <view class="card" wx:if="{{photos.length}}">
-      <view class="link-row" bindtap="goPhotos">生成的照片（{{photos.length}} 张，含定妆照/系列组图）<text class="arrow">→</text></view>
-    </view>
-
-    <!-- 其他 -->
+    <!-- 个人信息（默认折叠） -->
     <view class="card">
-      <view class="link-row" bindtap="goFav">我收藏的大片<text class="arrow">→</text></view>
+      <view class="link-row" bindtap="toggleInfo">
+        <text>个人信息 · {{order.mode === 'couple' ? '婚纱照（双人）' : order.mode === 'solo' ? '个人写真' : '未选择'}}</text>
+        <text class="arrow">{{infoOpen ? '▲' : '▼'}}</text>
+      </view>
+      <block wx:if="{{infoOpen}}">
+        <view class="row">
+          <text class="k">真人认证</text>
+          <text class="v">
+            {{order.mode === 'couple' ? '新娘' : '本人'}}{{order.members.A && order.members.A.auth_ok ? ' ✓' : ' 未认证'}}
+            <block wx:if="{{order.mode === 'couple'}}"> · 新郎{{order.members.B && order.members.B.auth_ok ? ' ✓' : ' 未认证'}}</block>
+          </text>
+        </view>
+        <view class="order-no" bindlongpress="copyOrderNo">订单号 {{order.order_no}}（长按复制）</view>
+      </block>
+    </view>
+
+    <!-- 帮助与其他 -->
+    <view class="card">
       <view class="link-row" bindtap="goFeedback">意见反馈（bug / 功能期望）<text class="arrow">→</text></view>
+      <button class="link-row share-link" open-type="contact">联系客服<text class="arrow">→</text></button>
       <view class="link-row" bindtap="privacy">隐私承诺（交付即删）<text class="arrow">→</text></view>
-      <button class="link-row share-link" open-type="share">推荐给朋友<text class="arrow">→</text></button>
-      <view class="link-row" bindtap="restart">重新开始新订单<text class="arrow">→</text></view>
+      <view class="link-row danger" bindtap="restart">开启新订单<text class="arrow">→</text></view>
     </view>
   </block>
 </view>

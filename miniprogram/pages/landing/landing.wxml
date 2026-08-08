@@ -39,6 +39,6 @@
     </swiper-item>
   </swiper>
   <view class="dots">
-    <view class="dot {{current === i ? 'on' : ''}}" wx:for="{{[0,1,2]}}" wx:for-item="i" wx:key="*this" />
+    <view class="dot {{current === i ? 'on' : ''}}" wx:for="{{[0,1,2]}}" wx:for-item="i" wx:key="*this"></view>
   </view>
 </view>

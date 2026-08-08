@@ -1,0 +1,39 @@
+<view class="page">
+  <view class="empty" wx:if="{{!uploads.A.length && !uploads.B.length && !loading}}">
+    <view class="empty-txt">还没有上传照片，去创作页上传吧～</view>
+  </view>
+
+  <block wx:if="{{uploads.A.length || uploads.B.length}}">
+    <!-- 三视图选片模式操作条 -->
+    <view class="fs-bar" wx:if="{{fsMode}}">
+      <view class="fs-tip">点选{{fsMode === 'A' ? '我的' : '伴侣的'}}照片：先点 1 张正脸作底照，再点 1~2 张侧脸照（已选：底照 {{fsBase ? 1 : 0}} 张 / 侧脸 {{fsSides.length}} 张）</view>
+      <view class="fs-ops">
+        <button class="btn mini" bindtap="fsConfirm" disabled="{{!fsBase || !fsSides.length}}">开始生成（约 1 分钟）</button>
+        <button class="btn mini ghost" bindtap="fsCancel">取消</button>
+      </view>
+    </view>
+
+    <view class="sec" wx:if="{{uploads.A.length}}">
+      <view class="sec-k">我的（{{uploads.A.length}}）<text class="sec-tip">{{fsMode ? '点选照片' : '长按可删除'}}</text></view>
+      <view class="imgs">
+        <view class="img-wrap" wx:for="{{uploads.A}}" wx:key="key">
+          <image src="{{item.url}}" mode="aspectFill"
+                 data-url="{{item.url}}" data-key="{{item.key}}" data-role="A" bindtap="onImgTap" bindlongpress="delUpload" lazy-load />
+          <view class="fs-mark" wx:if="{{item.fsMark}}">{{item.fsMark}}</view>
+        </view>
+      </view>
+    </view>
+    <view class="sec" wx:if="{{uploads.B.length}}">
+      <view class="sec-k">伴侣的（{{uploads.B.length}}）<text class="sec-tip">{{fsMode ? '点选照片' : '长按可删除'}}</text></view>
+      <view class="imgs">
+        <view class="img-wrap" wx:for="{{uploads.B}}" wx:key="key">
+          <image src="{{item.url}}" mode="aspectFill"
+                 data-url="{{item.url}}" data-key="{{item.key}}" data-role="B" bindtap="onImgTap" bindlongpress="delUpload" lazy-load />
+          <view class="fs-mark" wx:if="{{item.fsMark}}">{{item.fsMark}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="privacy-note">照片仅用于为你生成作品，交付即删</view>
+  </block>
+</view>

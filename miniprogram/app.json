@@ -10,6 +10,7 @@
     "pages/webview/webview",
     "pages/me/me",
     "pages/photos/photos",
+    "pages/myuploads/myuploads",
     "pages/landing/landing",
     "pages/feedback/feedback",
     "pages/moka/moka",
