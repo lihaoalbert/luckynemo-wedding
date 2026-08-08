@@ -44,7 +44,8 @@ Page({
 
   onLoad() {
     // 首次使用先看落地页（效果展示+三步+隐私），只看一次
-    if (!wx.getStorageSync('landing_seen')) {
+    const landingSeen = !!wx.getStorageSync('landing_seen');
+    if (!landingSeen) {
       wx.navigateTo({ url: '/pages/landing/landing' });
     }
     // 老用户跳过欢迎语（首次用户才看引导三句话）
@@ -52,6 +53,18 @@ Page({
     if (!(saved && saved.order_no)) {
       this.setData({ messages: WELCOME.map(t => ({ role: 'ai', text: t })) });
     }
+    if (landingSeen) {
+      this._ensured = true;
+      this.ensureOrder();
+    }
+    // 未看落地页时：落地页关闭会回来触发 onShow，在那里 ensureOrder
+    // （否则找回弹窗会打在落地页跳转过程中，showModal 静默失败把流程卡死）
+  },
+
+  onShow() {
+    if (this._ensured) return;
+    if (!wx.getStorageSync('landing_seen')) return;  // 落地页还盖着
+    this._ensured = true;
     this.ensureOrder();
   },
 
@@ -95,16 +108,11 @@ Page({
           const list = res.orders || [];
           const last = list.find(o => o.photo_count > 0) || list.find(o => o.mode);
           if (!last) return this._createOrder();
-          wx.showModal({
-            title: '发现你之前的订单',
-            content: `${String(last.created_at).slice(0, 10)} 的订单 · ${last.photo_count} 张成片`,
-            confirmText: '恢复继续',
-            cancelText: '开始新订单',
-            success: (r) => {
-              if (r.confirm) this._restoreOrder(last);
-              else this._createOrder();
-            },
-          });
+          // 找回提示用对话内按钮（wx.showModal 在部分真机场景静默失败，会把流程卡死）
+          const date = String(last.created_at).slice(0, 10);
+          this.push('ai', `发现你之前的订单：${date} 创建 · ${last.photo_count} 张成片。要恢复它，还是重新开始？`);
+          this.push('ai', '恢复之前的订单，全部成片都还在', { text: '恢复继续 →', kind: 'restore', order: last });
+          this.push('ai', '不要之前的了，从空白订单重新开始', { text: '开始新订单 →', kind: 'neworder' });
         })
         .catch(() => this._createOrder());
     });
@@ -267,6 +275,14 @@ Page({
     }
     if (action.kind === 'checkauth') {
       this.checkAuth();
+      return;
+    }
+    if (action.kind === 'restore') {
+      this._restoreOrder(action.order);
+      return;
+    }
+    if (action.kind === 'neworder') {
+      this._createOrder();
       return;
     }
     if (action.kind === 'diy_use') {

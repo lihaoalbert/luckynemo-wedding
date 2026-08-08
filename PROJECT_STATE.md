@@ -113,6 +113,7 @@
 
 ## 更新日志
 
+- 2026-08-08 订单找回真机调通：首装流程修复——落地页未看完时 chat onLoad 不再跑 ensureOrder（找回提示用的 wx.showModal 会打在落地页跳转中静默 fail 卡死流程），改为落地页关闭后 onShow 触发；找回提示弃用 showModal 改对话内 AI 消息+按钮（kind=restore/neworder）。真机验证：删小程序→链接进→落地页「免费试 1 张」→ 找回提示 → 恢复 AXEZ ✓。chat.js 改动未提交
 - 2026-08-08 真人认证跨订单继承上线：新增 `_mp_find_auth`（按 open_token 在历史订单的成员表里找最近一条 auth_ok=1，本人订单 role=A/被邀请订单 role=B）；`mp_order_create` 建单自动继承到 A、`mp_join` 新加入者自动继承到 B 并重算订单 auth_ok（双方都有历史认证时双人单直接免认证）。继承含 asset_group_id；**隐患：若服务商侧人脸资产已清理，继承的 auth_ok 生图会失败，需观察**（目前未配删除策略，暂无此情况）。已部署 ECS 并用 AXEZ 身份 E2E 验证（新订单自动带出 A 认证 ✓，测试单已清理）。注：生图技术上不需要认证，`/api/mp/job` 的 403 是我们自己的肖像权闸门
 - 2026-08-08 新增订单找回（删小程序/换手机场景）：身份=微信 openid 稳定不变，丢失的只是本地缓存的订单号指针。后端新增 `GET /api/mp/orders?open_token=`（mp_orders.open_token ∪ mp_devices 双通道匹配，老订单无 devices 行也覆盖，按时间倒序带 photo_count）；chat.js ensureOrder 无本地订单且无分享参数时先查历史，有成片的订单优先弹「恢复继续 / 开始新订单」（恢复拉 /api/mp/order/:no 写回本地缓存续跑）。**注：老用户若有点过 ?ref= 推荐卡，已产生的空新订单会被过滤不影响找回**。后端已部署 ECS 并用 AXEZ openid 冒烟（返回 4 单含 AXEZ 73 张 ✓）；前端随下次上传生效
 - 2026-08-08 同款大片页两个板块调整（用户决定）：搜索入口隐藏（暂不开放，wxml 注释保留逻辑）、「本周热门」板块下线（干扰大于帮助，wxml 注释保留 hotList 逻辑）
