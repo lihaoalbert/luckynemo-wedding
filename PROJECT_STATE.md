@@ -1,6 +1,6 @@
 # 徐大恩（LuckyNemo）项目状态存档
 
-> 最后更新：2026-08-06
+> 最后更新：2026-08-07
 > 恢复方式：把这个文件给 Kimi 看，或直接说"继续 LuckyNemo 项目"
 > 记录机制：见根目录 `AGENTS.md`——会话中状态有变化就当更新本文件，文末追加更新日志
 
@@ -26,7 +26,7 @@
 服务器：阿里云 ECS 8.133.241.103（与 ibi.ren 同机），SSH `ssh -i /Users/app/intfocus-albert.pem root@8.133.241.103`
 - 站点文件 `/var/www/luckynemo/`；后端 `/opt/luckynemo/server/`；nginx 配置 `/etc/nginx/conf.d/luckynemo.ibi.ren.conf`
 - **防火墙**：iptables 只放行 22/80/443（已持久化到 `/etc/sysconfig/iptables`，2026-07-24 修复）。2026-07-24 重启后曾因规则未持久化导致 80/443 全拒（"connection refused" 但 SSH 正常就是此症状）
-- 正式域名 luckynemo.com **备案未完成，未启用**；备案下来后加 server block + 证书即可切换
+- 正式域名 luckynemo.com **备案已完成（2026-08-07 确认），尚未启用**；启用时加 server block + 证书即可切换
 
 ## 二、能力管线（tools/luckynemo-toolkit/，全部真实调通）
 
@@ -90,17 +90,19 @@
 4. /api/ 加限流/验证码（正式投放前）
 5. ArcFace 相似度阈值用真实单校准（insightface 可选装）
 6. MiniMax 音乐商用授权确认；lark-cli master key 曾短暂外露，介意可 config init 轮换
-7. luckynemo.com 备案推进 + 商标 41/45 类注册（市场调研遗留）
+7. luckynemo.com 切换启用（备案已完成，加 server block + 证书）+ 商标 41/45 类注册（市场调研遗留）
 8. 用户测试数据（查大师 LN20260721-U6M、大白&小李问卷）保留观察，别误删
+9. 多平台拓展阶段 0 前置项（见 `research/2026-08-多平台拓展调研与策略.md`）：交付图片补显式 AI 标识角标、退款/人脸授权/客服自查、"分享得加赠"改"邀请有礼"（微信裂变红线）。**算法备案已完成、luckynemo.com 域名备案已完成（2026-08-07 确认）**
 
 ## 六、关键文档
 
 - `research/2026-07-市场调研报告.md`（市场结论与定价）
+- `research/2026-08-多平台拓展调研与策略.md`（国内外平台规则/节奏/成功条件，2026-08-07）
 - `research/2026-07-生产工具链设计方案.md`（§10 为接口最新状态，以它为准）
 - `tools/luckynemo-toolkit/README.md`（管线用法）
 - `server/`（后端本地副本，ECS /opt/luckynemo/server 为生产）
 
-## 更新日志
+- 2026-08-07 确认两项合规前置完成：算法备案、luckynemo.com 域名备案（域名尚未启用，切换时加 server block + 证书）；多平台拓展阶段 0 阻塞项清掉两个- 2026-08-07 完成多平台市场拓展调研（三路并行：国内平台规则/海外平台规则/竞品案例与投流基准），产出 `research/2026-08-多平台拓展调研与策略.md`：国内 P0=视频号（iOS 虚拟支付已通 12%）、P1=小红书闭环种草+抖音直购（抖音 iOS 无虚拟支付通道）；海外主战场东南亚/东亚/海外华人（欧美无婚纱照文化），需香港主体+Stripe+Paddle，BIPA/GDPR 人脸合规是生死线；拓展节奏四阶段（合规前置→视频号+小红书冷启动→千川直购放大→出海），成功必要条件=直购闭环不买线索+素材自带传播性+49→299→999 升单率
 
 - 2026-08-06 虚拟支付 Android 沙箱真机联调通过：AXEZ 充值 4 元（4币→1张）成功，prepare→沙箱支付→confirm 到账闭环验证（mp_pay_orders VP178603085047614C paid，18s 到账，沙箱无 Midas 推送属正常，confirm 补偿通道生效）；代码已提交 main/payment a98a51e 推 origin，miniprogram/app.js 同步到上传工作树（moka 分支未提交态，仅 3 行诊断改动）；剩：VP_ENV 改 0 切现网（须正式版小程序验证）、iOS IAP 开通
 - 2026-08-06 修复反馈 #24（充值选 4元/张 报"支付未完成"，Android 真机）：根因=prepare 的 paySig 少拼官方固定前缀（正确公式 `hmac_sha256(appKey, "requestVirtualPayment&"+signData)`，signature 用 session_key 原样 HMAC 是对的未动）；server/app.py 已改并部署 ECS 重启 active，prepare 冒烟正常；小程序 app.js 支付失败时改弹窗展示 errCode/errMsg（-15006=paySig 错/-15009=代币未发布/-15011=现网版不可用沙箱 env=1），**待微信开发者工具重新上传小程序**；注意沙箱联调只能用开发版/体验版，线上正式版 env=1 会报 -15011；反馈已回复 done
