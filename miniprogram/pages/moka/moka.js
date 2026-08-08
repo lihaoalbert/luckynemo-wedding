@@ -1,5 +1,7 @@
-// 模卡页：系列化一键同款（选系列 → 整组九宫格 / 单张同款），微调可换服装/换妆容
+// 同款大片 · 发现首页：搜索 / 主推轮播 / 人生节点 / 本周热门 / 全部分组
+// 点系列卡 → 详情独立页（pages/moka_series）；老版平铺为无分组数据时的回退
 const app = getApp();
+const { buildTemplates, buildSeriesList } = require('../../utils/moka.js');
 
 Page({
   data: {
@@ -9,19 +11,27 @@ Page({
       { key: 'solo_f', label: '女生写真' },
       { key: 'solo_m', label: '男生写真' },
     ],
-    groups: [],        // v3 一级分组（含系列卡片）；为空时回退老版平铺
+    groups: [],        // 一级分组（含系列卡片）；为空时回退老版平铺
     activeGroup: '',
+    seriesAll: [],     // 系列全集（轮播/热门/搜索/节点过滤共用）
+    heroList: [],      // 主推轮播（status!=normal 优先，不足 3 个按热度补齐）
+    heroIdx: 0,
+    moments: [],       // 人生节点入口（catalog.moments）
+    activeMoment: '',
+    activeMomentTitle: '',
+    hotList: [],       // 本周热门（hot 降序前 6）
+    gridList: [],      // 当前网格（分组或节点过滤结果）
+    searchText: '',
+    searchResults: [],
     templates: [],
-    picked: null,      // 选中的单张模板（弹层确认）
-    pickedSeries: null, // 选中的系列（九宫格弹层）
-    anchors: [],       // 我的定妆照（微调-换妆容用）
-    anchorsF: [],      // 女生定妆照
-    anchorsM: [],      // 男生定妆照
+    picked: null,      // 老版回退：选中的单张模板（弹层确认）
+    anchors: [],       // 我的定妆照（老版回退弹层用）
+    anchorsF: [],
+    anchorsM: [],
     swapAnchorF: '',
     swapAnchorM: '',
     swapSetId: '',
     sets: [],
-    generating: false,
   },
 
   onLoad() {
@@ -32,18 +42,27 @@ Page({
     app.req('/api/mp/catalog').then(res => {
       wx.hideLoading();
       const base = app.globalData.apiBase;
-      const templates = (res.moka || []).map(t => ({ ...t, img: base + t.img }));
-      const sets = this.parseSets(res.sets_js, base + res.img_base.wardrobe);
-      const groups = this.buildGroups(res, templates);
+      const templates = buildTemplates(res, base);
+      const seriesAll = buildSeriesList(res, templates);
+      const groups = this.buildGroups(res, seriesAll);
+      const heroList = this.buildHero(seriesAll);
+      const hotList = seriesAll
+        .filter(s => s.hasHot)
+        .sort((a, b) => b.hotVal - a.hotVal)
+        .slice(0, 6);
       this.setData({
-        templates, sets, groups,
+        templates, seriesAll, groups, heroList, hotList,
+        moments: Array.isArray(res.moments) ? res.moments : [],
+        sets: this.parseSets(res.sets_js, base + res.img_base.wardrobe),
         activeGroup: groups.length ? groups[0].id : '',
       });
+      this.refreshGrid();
     }).catch(e => {
       wx.hideLoading();
       wx.showToast({ title: e.message, icon: 'none' });
     });
-    // 我的定妆照（微调-换妆容；按性别分组，A 不一定是女生）
+    // 我的定妆照（老版回退弹层的换妆容用；按性别分组，A 不一定是女生）
+    if (!order.order_no) return;
     app.req('/api/mp/order/' + order.order_no).then(res => {
       const anchors = (res.jobs || [])
         .filter(j => j.kind === 'makeup_photo' && j.status === 'done' && j.result && j.result.url)
@@ -56,27 +75,40 @@ Page({
     }).catch(() => {});
   },
 
-  // 一级分组 → 系列卡片（封面=首发变体，variants 带完整模板对象）
-  buildGroups(res, templates) {
-    const tmap = {};
-    templates.forEach(t => { tmap[t.id] = t; });
-    const seriesAll = res.moka_series || [];
-    const modeLabel = { couple: '情侣', solo_f: '女单', solo_m: '男单' };
+  // 分组 → 系列卡片（系列对象与 seriesAll 共享引用）
+  buildGroups(res, seriesAll) {
     return (res.moka_groups || []).map(g => ({
       ...g,
       seriesList: (g.series || [])
         .map(sid => seriesAll.find(s => s.id === sid))
-        .filter(Boolean)
-        .map(s => {
-          const variants = (s.variants || []).map(v => tmap[v]).filter(Boolean);
-          return {
-            ...s, variants, count: variants.length,
-            cover: variants.length ? variants[0].img : '',
-            modeText: modeLabel[s.mode] || '',
-          };
-        })
-        .filter(s => s.count),
+        .filter(Boolean),
     })).filter(g => g.seriesList.length);
+  },
+
+  // 主推轮播：status!=normal 的系列优先，不足 3 个按热度补齐
+  buildHero(seriesAll) {
+    const featured = seriesAll.filter(s => s.status && s.status !== 'normal');
+    const list = featured.slice();
+    if (list.length < 3) {
+      const rest = seriesAll
+        .filter(s => list.indexOf(s) < 0)
+        .sort((a, b) => b.hotVal - a.hotVal);
+      list.push(...rest.slice(0, 3 - list.length));
+    }
+    return list.slice(0, 5);
+  },
+
+  // 当前网格：节点过滤优先，否则当前分组
+  refreshGrid() {
+    const { activeMoment, activeGroup, seriesAll, groups } = this.data;
+    let gridList;
+    if (activeMoment) {
+      gridList = seriesAll.filter(s => s.moments.includes(activeMoment));
+    } else {
+      const g = groups.find(x => x.id === activeGroup);
+      gridList = g ? g.seriesList : [];
+    }
+    this.setData({ gridList });
   },
 
   parseSets(js, imgBase) {
@@ -89,9 +121,52 @@ Page({
     }));
   },
 
-  switchTab(e) { this.setData({ tab: e.currentTarget.dataset.key, picked: null }); },
+  // ---- 搜索：系列名 / tags / 分组名 包含匹配，清空恢复原视图 ----
+  onSearch(e) {
+    const text = (e.detail.value || '').trim();
+    const searchResults = text ? this.data.seriesAll.filter(s =>
+      s.title.includes(text) ||
+      s.groupTitle.includes(text) ||
+      s.tags.some(t => t.includes(text))
+    ) : [];
+    this.setData({ searchText: text, searchResults });
+  },
 
-  switchGroup(e) { this.setData({ activeGroup: e.currentTarget.dataset.id, pickedSeries: null }); },
+  clearSearch() { this.setData({ searchText: '', searchResults: [] }); },
+
+  // ---- 主推轮播指示点 ----
+  onHeroScroll(e) {
+    const n = this.data.heroList.length;
+    if (n < 2) return;
+    const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const max = e.detail.scrollWidth - win.windowWidth + 20; // 右侧留白补偿
+    let idx = max > 0 ? Math.round(e.detail.scrollLeft / max * (n - 1)) : 0;
+    idx = Math.max(0, Math.min(n - 1, idx));
+    if (idx !== this.data.heroIdx) this.setData({ heroIdx: idx });
+  },
+
+  // ---- 分组 / 人生节点 ----
+  pickGroup(e) {
+    this.setData({ activeGroup: e.currentTarget.dataset.id, activeMoment: '', activeMomentTitle: '' });
+    this.refreshGrid();
+  },
+
+  pickMoment(e) {
+    const id = e.currentTarget.dataset.id;
+    const title = e.currentTarget.dataset.title;
+    const off = this.data.activeMoment === id;
+    this.setData({ activeMoment: off ? '' : id, activeMomentTitle: off ? '' : title });
+    this.refreshGrid();
+    if (!off) wx.showToast({ title: `已按「${title}」筛选`, icon: 'none' });
+  },
+
+  // 任何系列卡 → 详情独立页
+  openSeries(e) {
+    wx.navigateTo({ url: '/pages/moka_series/moka_series?id=' + e.currentTarget.dataset.id });
+  },
+
+  // ================= 老版平铺回退（无分组数据时）=================
+  switchTab(e) { this.setData({ tab: e.currentTarget.dataset.key, picked: null }); },
 
   // 定妆照按性别分组并给默认选中（不依赖 role，A 不一定是女生）
   _anchorDefaults() {
@@ -109,29 +184,10 @@ Page({
     const t = this.data.templates.find(x => x.id === e.currentTarget.dataset.id);
     // components 对象转列表供模板渲染
     t.componentsList = Object.keys(t.components || {}).map(k => ({ k, v: t.components[k] }));
-    this.setData({ picked: t, swapSetId: '', pickedSeries: null, ...this._anchorDefaults() });
+    this.setData({ picked: t, swapSetId: '', ...this._anchorDefaults() });
   },
 
   closePick() { this.setData({ picked: null }); },
-
-  // 系列九宫格弹层
-  pickSeries(e) {
-    const gid = this.data.activeGroup;
-    const g = this.data.groups.find(x => x.id === gid);
-    const s = g && g.seriesList.find(x => x.id === e.currentTarget.dataset.id);
-    if (!s) return;
-    this.setData({ pickedSeries: s, picked: null, swapSetId: '', ...this._anchorDefaults() });
-  },
-
-  closeSeries() { this.setData({ pickedSeries: null }); },
-
-  // 系列弹层里点单张 → 走单张同款确认弹层
-  pickVariant(e) {
-    const t = this.data.templates.find(x => x.id === e.currentTarget.dataset.id);
-    if (!t) return;
-    t.componentsList = Object.keys(t.components || {}).map(k => ({ k, v: t.components[k] }));
-    this.setData({ picked: t, pickedSeries: null, swapSetId: '' });
-  },
 
   noop() {},
 
@@ -147,16 +203,7 @@ Page({
 
   previewImg(e) { wx.previewImage({ urls: [e.currentTarget.dataset.url] }); },
 
-  previewVariant(e) {
-    const s = this.data.pickedSeries;
-    if (!s) return;
-    wx.previewImage({
-      urls: s.variants.map(v => v.img),
-      current: e.currentTarget.dataset.url,
-    });
-  },
-
-  // 锚点按模板/系列性别走：女单→女生定妆照，男单→男生定妆照，情侣→两个都要
+  // 锚点按模板性别走：女单→女生定妆照，男单→男生定妆照，情侣→两个都要
   _anchorsFor(mode) {
     const couple = mode === 'couple';
     const soloM = mode === 'solo_m';
@@ -189,24 +236,6 @@ Page({
       return;
     }
     go();
-  },
-
-  // 整组生成：一个系列的全部变体一次出齐（九宫格）
-  confirmSeries() {
-    const s = this.data.pickedSeries;
-    if (!s) return;
-    const a = this._anchorsFor(s.mode);
-    const payload = {
-      series_id: s.id,
-      mode: a.couple ? 'couple' : 'solo',
-      anchor_key: a.anchor_key,
-      anchor_key_b: a.anchor_key_b,
-    };
-    this._checkAnchors(s.mode, payload, () => {
-      app.globalData.pendingJob = { kind: 'template_series', payload };
-      this.setData({ pickedSeries: null });
-      wx.navigateTo({ url: '/pages/generating/generating' });
-    });
   },
 
   confirm() {

@@ -1,0 +1,23 @@
+<view class="page">
+  <view class="loading" wx:if="{{loading}}">加载中…</view>
+
+  <block wx:elif="{{list.length}}">
+    <view class="sgrid">
+      <view class="scard" wx:for="{{list}}" wx:key="id" data-id="{{item.id}}" bindtap="openSeries">
+        <view class="imgw">
+          <image src="{{item.coverImg}}" mode="aspectFill" lazy-load />
+          <view class="badge gold nine-tag">◫ {{item.count}}张</view>
+        </view>
+        <view class="body">
+          <view class="n serif">{{item.title}}</view>
+          <view class="d">{{item.modeText}} · {{item.count === 9 ? '一键九宫格' : item.count + '张精选'}}{{item.hotText ? ' · ' + item.hotText + '人拍过' : ''}}</view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <view class="empty" wx:else>
+    <view class="empty-txt">还没有收藏，去同款大片逛逛</view>
+    <button class="btn ghost empty-btn" bindtap="goMoka">去逛逛 →</button>
+  </view>
+</view>
