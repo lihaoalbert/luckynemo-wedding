@@ -81,6 +81,7 @@
 
     <!-- 其他 -->
     <view class="card">
+      <view class="link-row" bindtap="goFav">我收藏的大片<text class="arrow">→</text></view>
       <view class="link-row" bindtap="goFeedback">意见反馈（bug / 功能期望）<text class="arrow">→</text></view>
       <view class="link-row" bindtap="privacy">隐私承诺（交付即删）<text class="arrow">→</text></view>
       <button class="link-row share-link" open-type="share">推荐给朋友<text class="arrow">→</text></button>

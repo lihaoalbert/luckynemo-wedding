@@ -1,6 +1,6 @@
 {
   "name": "模卡库",
-  "version": "3.0",
+  "version": "4.0",
   "note": "一键同款模板，v3 分组架构：一级分组（group，6 大类引导）→ 二级系列（series，每系列 9 变体=朋友圈九宫格，场景/服装/色调锁定）→ 变体（template）。新系列 ID=系列码+序号（如 hyd01-09）；mk 老系列 3 变体待扩充。lv 系列 2026-08-04 下架。",
   "groups": [
     {
@@ -74,9 +74,26 @@
       "variants": [
         "mk001",
         "mk101",
-        "mk201"
+        "mk201",
+        "mk301",
+        "mk401",
+        "mk501",
+        "mk601",
+        "mk701",
+        "mk801"
       ],
-      "group": "ceremony"
+      "group": "ceremony",
+      "moments": [
+        "lz",
+        "hs"
+      ],
+      "tags": [
+        "仪式感",
+        "室内",
+        "主纱"
+      ],
+      "hot_base": 640,
+      "status": "normal"
     },
     {
       "id": "jiangnan",
@@ -85,9 +102,25 @@
       "variants": [
         "mk002",
         "mk102",
-        "mk202"
+        "mk202",
+        "mk302",
+        "mk402",
+        "mk502",
+        "mk602",
+        "mk702",
+        "mk802"
       ],
-      "group": "ceremony"
+      "group": "ceremony",
+      "moments": [
+        "hs"
+      ],
+      "tags": [
+        "中式",
+        "旗袍",
+        "雨巷"
+      ],
+      "hot_base": 430,
+      "status": "normal"
     },
     {
       "id": "seaside",
@@ -96,9 +129,25 @@
       "variants": [
         "mk003",
         "mk103",
-        "mk203"
+        "mk203",
+        "mk303",
+        "mk403",
+        "mk503",
+        "mk603",
+        "mk703",
+        "mk803"
       ],
-      "group": "sea"
+      "group": "sea",
+      "moments": [
+        "lp"
+      ],
+      "tags": [
+        "海边",
+        "黄昏",
+        "逆光"
+      ],
+      "hot_base": 510,
+      "status": "normal"
     },
     {
       "id": "chinese",
@@ -107,9 +156,26 @@
       "variants": [
         "mk004",
         "mk104",
-        "mk204"
+        "mk204",
+        "mk304",
+        "mk404",
+        "mk504",
+        "mk604",
+        "mk704",
+        "mk804"
       ],
-      "group": "ceremony"
+      "group": "ceremony",
+      "moments": [
+        "lz",
+        "hs"
+      ],
+      "tags": [
+        "中式",
+        "秀禾",
+        "仪式感"
+      ],
+      "hot_base": 590,
+      "status": "normal"
     },
     {
       "id": "flowerfield",
@@ -118,9 +184,25 @@
       "variants": [
         "mk005",
         "mk105",
-        "mk205"
+        "mk205",
+        "mk305",
+        "mk405",
+        "mk505",
+        "mk605",
+        "mk705",
+        "mk805"
       ],
-      "group": "flower"
+      "group": "flower",
+      "moments": [
+        "xz"
+      ],
+      "tags": [
+        "女单",
+        "户外",
+        "花系"
+      ],
+      "hot_base": 380,
+      "status": "normal"
     },
     {
       "id": "citynight",
@@ -129,9 +211,25 @@
       "variants": [
         "mk006",
         "mk106",
-        "mk206"
+        "mk206",
+        "mk306",
+        "mk406",
+        "mk506",
+        "mk606",
+        "mk706",
+        "mk806"
       ],
-      "group": "city"
+      "group": "city",
+      "moments": [
+        "xz"
+      ],
+      "tags": [
+        "女单",
+        "夜景",
+        "城市"
+      ],
+      "hot_base": 450,
+      "status": "normal"
     },
     {
       "id": "forest",
@@ -140,9 +238,25 @@
       "variants": [
         "mk007",
         "mk107",
-        "mk207"
+        "mk207",
+        "mk307",
+        "mk407",
+        "mk507",
+        "mk607",
+        "mk707",
+        "mk807"
       ],
-      "group": "nature"
+      "group": "nature",
+      "moments": [
+        "xz"
+      ],
+      "tags": [
+        "女单",
+        "森林",
+        "晨光"
+      ],
+      "hot_base": 290,
+      "status": "normal"
     },
     {
       "id": "hongkong_f",
@@ -151,9 +265,25 @@
       "variants": [
         "mk008",
         "mk108",
-        "mk208"
+        "mk208",
+        "mk308",
+        "mk408",
+        "mk508",
+        "mk608",
+        "mk708",
+        "mk808"
       ],
-      "group": "city"
+      "group": "city",
+      "moments": [
+        "xz"
+      ],
+      "tags": [
+        "女单",
+        "港风",
+        "夜景"
+      ],
+      "hot_base": 520,
+      "status": "normal"
     },
     {
       "id": "street",
@@ -162,9 +292,25 @@
       "variants": [
         "mk009",
         "mk109",
-        "mk209"
+        "mk209",
+        "mk309",
+        "mk409",
+        "mk509",
+        "mk609",
+        "mk709",
+        "mk809"
       ],
-      "group": "city"
+      "group": "city",
+      "moments": [
+        "xz"
+      ],
+      "tags": [
+        "男单",
+        "街拍",
+        "城市"
+      ],
+      "hot_base": 210,
+      "status": "normal"
     },
     {
       "id": "studio",
@@ -173,9 +319,25 @@
       "variants": [
         "mk010",
         "mk110",
-        "mk210"
+        "mk210",
+        "mk310",
+        "mk410",
+        "mk510",
+        "mk610",
+        "mk710",
+        "mk810"
       ],
-      "group": "ceremony"
+      "group": "ceremony",
+      "moments": [
+        "xz"
+      ],
+      "tags": [
+        "男单",
+        "棚拍",
+        "正装"
+      ],
+      "hot_base": 180,
+      "status": "normal"
     },
     {
       "id": "hongkong_m",
@@ -184,9 +346,25 @@
       "variants": [
         "mk011",
         "mk111",
-        "mk211"
+        "mk211",
+        "mk311",
+        "mk411",
+        "mk511",
+        "mk611",
+        "mk711",
+        "mk811"
       ],
-      "group": "city"
+      "group": "city",
+      "moments": [
+        "xz"
+      ],
+      "tags": [
+        "男单",
+        "港风",
+        "夜景"
+      ],
+      "hot_base": 160,
+      "status": "normal"
     },
     {
       "id": "outdoor",
@@ -195,9 +373,25 @@
       "variants": [
         "mk012",
         "mk112",
-        "mk212"
+        "mk212",
+        "mk312",
+        "mk412",
+        "mk512",
+        "mk612",
+        "mk712",
+        "mk812"
       ],
-      "group": "nature"
+      "group": "nature",
+      "moments": [
+        "xz"
+      ],
+      "tags": [
+        "男单",
+        "户外",
+        "山野"
+      ],
+      "hot_base": 140,
+      "status": "normal"
     },
     {
       "id": "hyd",
@@ -214,7 +408,18 @@
         "hyd07",
         "hyd08",
         "hyd09"
-      ]
+      ],
+      "moments": [
+        "hs"
+      ],
+      "tags": [
+        "户外",
+        "白天",
+        "花系",
+        "济州岛风"
+      ],
+      "hot_base": 2300,
+      "status": "normal"
     },
     {
       "id": "sak",
@@ -231,7 +436,17 @@
         "sak07",
         "sak08",
         "sak09"
-      ]
+      ],
+      "moments": [
+        "lp"
+      ],
+      "tags": [
+        "春季限定",
+        "户外",
+        "花系"
+      ],
+      "hot_base": 1800,
+      "status": "normal"
     },
     {
       "id": "muh",
@@ -248,7 +463,18 @@
         "muh07",
         "muh08",
         "muh09"
-      ]
+      ],
+      "moments": [
+        "hs",
+        "lp"
+      ],
+      "tags": [
+        "秋季",
+        "户外",
+        "粉雾"
+      ],
+      "hot_base": 1500,
+      "status": "normal"
     },
     {
       "id": "han",
@@ -265,7 +491,17 @@
         "han07",
         "han08",
         "han09"
-      ]
+      ],
+      "moments": [
+        "lp"
+      ],
+      "tags": [
+        "异域",
+        "仪式感",
+        "旅拍"
+      ],
+      "hot_base": 860,
+      "status": "normal"
     },
     {
       "id": "hor",
@@ -282,7 +518,17 @@
         "hor07",
         "hor08",
         "hor09"
-      ]
+      ],
+      "moments": [
+        "lp"
+      ],
+      "tags": [
+        "户外",
+        "电影感",
+        "创意"
+      ],
+      "hot_base": 720,
+      "status": "normal"
     },
     {
       "id": "min",
@@ -299,7 +545,18 @@
         "min07",
         "min08",
         "min09"
-      ]
+      ],
+      "moments": [
+        "lz",
+        "hs"
+      ],
+      "tags": [
+        "室内",
+        "极简",
+        "高级感"
+      ],
+      "hot_base": 1400,
+      "status": "normal"
     },
     {
       "id": "spk",
@@ -316,7 +573,17 @@
         "spk07",
         "spk08",
         "spk09"
-      ]
+      ],
+      "moments": [
+        "lp"
+      ],
+      "tags": [
+        "夜景",
+        "海边",
+        "氛围感"
+      ],
+      "hot_base": 980,
+      "status": "normal"
     },
     {
       "id": "lig",
@@ -333,7 +600,18 @@
         "lig07",
         "lig08",
         "lig09"
-      ]
+      ],
+      "moments": [
+        "hs",
+        "lp"
+      ],
+      "tags": [
+        "海边",
+        "大场景",
+        "蓝调"
+      ],
+      "hot_base": 1100,
+      "status": "normal"
     }
   ],
   "templates": [
@@ -1776,6 +2054,1112 @@
         "服装": "主纱+西装",
         "动作": "海岸远眺"
       }
+    },
+    {
+      "id": "mk301",
+      "series": "church",
+      "mode": "couple",
+      "title": "教堂婚礼 · 占位4",
+      "file": "templates/mk301.png",
+      "desc": "哥特教堂红毯，彩窗光斑落在缎面主纱上",
+      "components": {
+        "服装": "象牙白缎面A字主纱+黑色塔士多",
+        "场景": "哥特式教堂",
+        "妆容": "白纱主纱妆",
+        "动作": "深情对视"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk302",
+      "series": "jiangnan",
+      "mode": "couple",
+      "title": "江南雨巷 · 占位4",
+      "file": "templates/mk302.png",
+      "desc": "青石板雨巷，共撑一把伞的依偎",
+      "components": {
+        "服装": "浅色连衣裙+深色休闲西装",
+        "场景": "江南古镇雨巷",
+        "妆容": "自然清透",
+        "动作": "共伞依偎"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk303",
+      "series": "seaside",
+      "mode": "couple",
+      "title": "海边落日 · 占位4",
+      "file": "templates/mk303.png",
+      "desc": "金色逆光里被海风吹起的裙摆",
+      "components": {
+        "服装": "白色轻纱+挽袖白衬衫",
+        "场景": "海边沙滩落日",
+        "妆容": "自然清透",
+        "动作": "牵手漫步"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk304",
+      "series": "chinese",
+      "mode": "couple",
+      "title": "中式婚礼 · 占位4",
+      "file": "templates/mk304.png",
+      "desc": "红烛高照，挑起盖头的那一秒",
+      "components": {
+        "服装": "正红秀禾服+暗红长袍马褂",
+        "场景": "中式婚房",
+        "妆容": "新中式秀禾妆",
+        "动作": "挑盖头"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk305",
+      "series": "flowerfield",
+      "mode": "solo_f",
+      "title": "花海春日 · 占位4",
+      "file": "templates/mk305.png",
+      "desc": "油菜花田里的一次回头",
+      "components": {
+        "服装": "白色连衣裙",
+        "场景": "油菜花田",
+        "妆容": "蜜桃少女妆",
+        "动作": "侧身回眸"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk306",
+      "series": "citynight",
+      "mode": "solo_f",
+      "title": "城市夜景 · 占位4",
+      "file": "templates/mk306.png",
+      "desc": "天台上，身后是万家灯火",
+      "components": {
+        "服装": "黑色吊带裙",
+        "场景": "城市夜景天台",
+        "妆容": "千金大小姐妆",
+        "动作": "凭栏远眺"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk307",
+      "series": "forest",
+      "mode": "solo_f",
+      "title": "森林晨雾 · 占位4",
+      "file": "templates/mk307.png",
+      "desc": "晨雾森林里的第一束光",
+      "components": {
+        "服装": "浅色长裙",
+        "场景": "晨雾森林",
+        "妆容": "氧气素颜妆",
+        "动作": "林间回头"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk308",
+      "series": "hongkong_f",
+      "mode": "solo_f",
+      "title": "复古港风 · 占位4",
+      "file": "templates/mk308.png",
+      "desc": "霓虹夜色里的明艳红裙",
+      "components": {
+        "服装": "酒红缎面吊带裙",
+        "场景": "港风街头夜景",
+        "妆容": "复古港风妆",
+        "动作": "街头回眸"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk309",
+      "series": "street",
+      "mode": "solo_m",
+      "title": "都市街拍 · 占位4",
+      "file": "templates/mk309.png",
+      "desc": "斑马线午后，浅米西装的松弛感",
+      "components": {
+        "服装": "浅米色休闲西装",
+        "场景": "都市老街",
+        "妆容": "男士清透裸妆",
+        "动作": "插兜行走"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk310",
+      "series": "studio",
+      "mode": "solo_m",
+      "title": "棚拍正装 · 占位4",
+      "file": "templates/mk310.png",
+      "desc": "戏剧侧光下的三件套",
+      "components": {
+        "服装": "深灰三件套西装",
+        "场景": "灰调摄影棚",
+        "妆容": "男士立体骨相妆",
+        "动作": "整理袖扣"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk311",
+      "series": "hongkong_m",
+      "mode": "solo_m",
+      "title": "港风花衬衫 · 占位4",
+      "file": "templates/mk311.png",
+      "desc": "霓虹大排档的复古花衬衫",
+      "components": {
+        "服装": "复古花衬衫+黑西装",
+        "场景": "港风大排档夜景",
+        "妆容": "复古港风妆",
+        "动作": "倚灯微笑"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk312",
+      "series": "outdoor",
+      "mode": "solo_m",
+      "title": "山野户外 · 占位4",
+      "file": "templates/mk312.png",
+      "desc": "站在高处，看群山辽阔",
+      "components": {
+        "服装": "卡其户外夹克",
+        "场景": "秋日山野草甸",
+        "妆容": "男士清透裸妆",
+        "动作": "远眺群山"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk401",
+      "series": "church",
+      "mode": "couple",
+      "title": "教堂婚礼 · 占位5",
+      "file": "templates/mk401.png",
+      "desc": "哥特教堂红毯，彩窗光斑落在缎面主纱上",
+      "components": {
+        "服装": "象牙白缎面A字主纱+黑色塔士多",
+        "场景": "哥特式教堂",
+        "妆容": "白纱主纱妆",
+        "动作": "深情对视"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk402",
+      "series": "jiangnan",
+      "mode": "couple",
+      "title": "江南雨巷 · 占位5",
+      "file": "templates/mk402.png",
+      "desc": "青石板雨巷，共撑一把伞的依偎",
+      "components": {
+        "服装": "浅色连衣裙+深色休闲西装",
+        "场景": "江南古镇雨巷",
+        "妆容": "自然清透",
+        "动作": "共伞依偎"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk403",
+      "series": "seaside",
+      "mode": "couple",
+      "title": "海边落日 · 占位5",
+      "file": "templates/mk403.png",
+      "desc": "金色逆光里被海风吹起的裙摆",
+      "components": {
+        "服装": "白色轻纱+挽袖白衬衫",
+        "场景": "海边沙滩落日",
+        "妆容": "自然清透",
+        "动作": "牵手漫步"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk404",
+      "series": "chinese",
+      "mode": "couple",
+      "title": "中式婚礼 · 占位5",
+      "file": "templates/mk404.png",
+      "desc": "红烛高照，挑起盖头的那一秒",
+      "components": {
+        "服装": "正红秀禾服+暗红长袍马褂",
+        "场景": "中式婚房",
+        "妆容": "新中式秀禾妆",
+        "动作": "挑盖头"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk405",
+      "series": "flowerfield",
+      "mode": "solo_f",
+      "title": "花海春日 · 占位5",
+      "file": "templates/mk405.png",
+      "desc": "油菜花田里的一次回头",
+      "components": {
+        "服装": "白色连衣裙",
+        "场景": "油菜花田",
+        "妆容": "蜜桃少女妆",
+        "动作": "侧身回眸"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk406",
+      "series": "citynight",
+      "mode": "solo_f",
+      "title": "城市夜景 · 占位5",
+      "file": "templates/mk406.png",
+      "desc": "天台上，身后是万家灯火",
+      "components": {
+        "服装": "黑色吊带裙",
+        "场景": "城市夜景天台",
+        "妆容": "千金大小姐妆",
+        "动作": "凭栏远眺"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk407",
+      "series": "forest",
+      "mode": "solo_f",
+      "title": "森林晨雾 · 占位5",
+      "file": "templates/mk407.png",
+      "desc": "晨雾森林里的第一束光",
+      "components": {
+        "服装": "浅色长裙",
+        "场景": "晨雾森林",
+        "妆容": "氧气素颜妆",
+        "动作": "林间回头"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk408",
+      "series": "hongkong_f",
+      "mode": "solo_f",
+      "title": "复古港风 · 占位5",
+      "file": "templates/mk408.png",
+      "desc": "霓虹夜色里的明艳红裙",
+      "components": {
+        "服装": "酒红缎面吊带裙",
+        "场景": "港风街头夜景",
+        "妆容": "复古港风妆",
+        "动作": "街头回眸"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk409",
+      "series": "street",
+      "mode": "solo_m",
+      "title": "都市街拍 · 占位5",
+      "file": "templates/mk409.png",
+      "desc": "斑马线午后，浅米西装的松弛感",
+      "components": {
+        "服装": "浅米色休闲西装",
+        "场景": "都市老街",
+        "妆容": "男士清透裸妆",
+        "动作": "插兜行走"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk410",
+      "series": "studio",
+      "mode": "solo_m",
+      "title": "棚拍正装 · 占位5",
+      "file": "templates/mk410.png",
+      "desc": "戏剧侧光下的三件套",
+      "components": {
+        "服装": "深灰三件套西装",
+        "场景": "灰调摄影棚",
+        "妆容": "男士立体骨相妆",
+        "动作": "整理袖扣"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk411",
+      "series": "hongkong_m",
+      "mode": "solo_m",
+      "title": "港风花衬衫 · 占位5",
+      "file": "templates/mk411.png",
+      "desc": "霓虹大排档的复古花衬衫",
+      "components": {
+        "服装": "复古花衬衫+黑西装",
+        "场景": "港风大排档夜景",
+        "妆容": "复古港风妆",
+        "动作": "倚灯微笑"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk412",
+      "series": "outdoor",
+      "mode": "solo_m",
+      "title": "山野户外 · 占位5",
+      "file": "templates/mk412.png",
+      "desc": "站在高处，看群山辽阔",
+      "components": {
+        "服装": "卡其户外夹克",
+        "场景": "秋日山野草甸",
+        "妆容": "男士清透裸妆",
+        "动作": "远眺群山"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk501",
+      "series": "church",
+      "mode": "couple",
+      "title": "教堂婚礼 · 占位6",
+      "file": "templates/mk501.png",
+      "desc": "哥特教堂红毯，彩窗光斑落在缎面主纱上",
+      "components": {
+        "服装": "象牙白缎面A字主纱+黑色塔士多",
+        "场景": "哥特式教堂",
+        "妆容": "白纱主纱妆",
+        "动作": "深情对视"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk502",
+      "series": "jiangnan",
+      "mode": "couple",
+      "title": "江南雨巷 · 占位6",
+      "file": "templates/mk502.png",
+      "desc": "青石板雨巷，共撑一把伞的依偎",
+      "components": {
+        "服装": "浅色连衣裙+深色休闲西装",
+        "场景": "江南古镇雨巷",
+        "妆容": "自然清透",
+        "动作": "共伞依偎"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk503",
+      "series": "seaside",
+      "mode": "couple",
+      "title": "海边落日 · 占位6",
+      "file": "templates/mk503.png",
+      "desc": "金色逆光里被海风吹起的裙摆",
+      "components": {
+        "服装": "白色轻纱+挽袖白衬衫",
+        "场景": "海边沙滩落日",
+        "妆容": "自然清透",
+        "动作": "牵手漫步"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk504",
+      "series": "chinese",
+      "mode": "couple",
+      "title": "中式婚礼 · 占位6",
+      "file": "templates/mk504.png",
+      "desc": "红烛高照，挑起盖头的那一秒",
+      "components": {
+        "服装": "正红秀禾服+暗红长袍马褂",
+        "场景": "中式婚房",
+        "妆容": "新中式秀禾妆",
+        "动作": "挑盖头"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk505",
+      "series": "flowerfield",
+      "mode": "solo_f",
+      "title": "花海春日 · 占位6",
+      "file": "templates/mk505.png",
+      "desc": "油菜花田里的一次回头",
+      "components": {
+        "服装": "白色连衣裙",
+        "场景": "油菜花田",
+        "妆容": "蜜桃少女妆",
+        "动作": "侧身回眸"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk506",
+      "series": "citynight",
+      "mode": "solo_f",
+      "title": "城市夜景 · 占位6",
+      "file": "templates/mk506.png",
+      "desc": "天台上，身后是万家灯火",
+      "components": {
+        "服装": "黑色吊带裙",
+        "场景": "城市夜景天台",
+        "妆容": "千金大小姐妆",
+        "动作": "凭栏远眺"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk507",
+      "series": "forest",
+      "mode": "solo_f",
+      "title": "森林晨雾 · 占位6",
+      "file": "templates/mk507.png",
+      "desc": "晨雾森林里的第一束光",
+      "components": {
+        "服装": "浅色长裙",
+        "场景": "晨雾森林",
+        "妆容": "氧气素颜妆",
+        "动作": "林间回头"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk508",
+      "series": "hongkong_f",
+      "mode": "solo_f",
+      "title": "复古港风 · 占位6",
+      "file": "templates/mk508.png",
+      "desc": "霓虹夜色里的明艳红裙",
+      "components": {
+        "服装": "酒红缎面吊带裙",
+        "场景": "港风街头夜景",
+        "妆容": "复古港风妆",
+        "动作": "街头回眸"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk509",
+      "series": "street",
+      "mode": "solo_m",
+      "title": "都市街拍 · 占位6",
+      "file": "templates/mk509.png",
+      "desc": "斑马线午后，浅米西装的松弛感",
+      "components": {
+        "服装": "浅米色休闲西装",
+        "场景": "都市老街",
+        "妆容": "男士清透裸妆",
+        "动作": "插兜行走"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk510",
+      "series": "studio",
+      "mode": "solo_m",
+      "title": "棚拍正装 · 占位6",
+      "file": "templates/mk510.png",
+      "desc": "戏剧侧光下的三件套",
+      "components": {
+        "服装": "深灰三件套西装",
+        "场景": "灰调摄影棚",
+        "妆容": "男士立体骨相妆",
+        "动作": "整理袖扣"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk511",
+      "series": "hongkong_m",
+      "mode": "solo_m",
+      "title": "港风花衬衫 · 占位6",
+      "file": "templates/mk511.png",
+      "desc": "霓虹大排档的复古花衬衫",
+      "components": {
+        "服装": "复古花衬衫+黑西装",
+        "场景": "港风大排档夜景",
+        "妆容": "复古港风妆",
+        "动作": "倚灯微笑"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk512",
+      "series": "outdoor",
+      "mode": "solo_m",
+      "title": "山野户外 · 占位6",
+      "file": "templates/mk512.png",
+      "desc": "站在高处，看群山辽阔",
+      "components": {
+        "服装": "卡其户外夹克",
+        "场景": "秋日山野草甸",
+        "妆容": "男士清透裸妆",
+        "动作": "远眺群山"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk601",
+      "series": "church",
+      "mode": "couple",
+      "title": "教堂婚礼 · 占位7",
+      "file": "templates/mk601.png",
+      "desc": "哥特教堂红毯，彩窗光斑落在缎面主纱上",
+      "components": {
+        "服装": "象牙白缎面A字主纱+黑色塔士多",
+        "场景": "哥特式教堂",
+        "妆容": "白纱主纱妆",
+        "动作": "深情对视"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk602",
+      "series": "jiangnan",
+      "mode": "couple",
+      "title": "江南雨巷 · 占位7",
+      "file": "templates/mk602.png",
+      "desc": "青石板雨巷，共撑一把伞的依偎",
+      "components": {
+        "服装": "浅色连衣裙+深色休闲西装",
+        "场景": "江南古镇雨巷",
+        "妆容": "自然清透",
+        "动作": "共伞依偎"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk603",
+      "series": "seaside",
+      "mode": "couple",
+      "title": "海边落日 · 占位7",
+      "file": "templates/mk603.png",
+      "desc": "金色逆光里被海风吹起的裙摆",
+      "components": {
+        "服装": "白色轻纱+挽袖白衬衫",
+        "场景": "海边沙滩落日",
+        "妆容": "自然清透",
+        "动作": "牵手漫步"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk604",
+      "series": "chinese",
+      "mode": "couple",
+      "title": "中式婚礼 · 占位7",
+      "file": "templates/mk604.png",
+      "desc": "红烛高照，挑起盖头的那一秒",
+      "components": {
+        "服装": "正红秀禾服+暗红长袍马褂",
+        "场景": "中式婚房",
+        "妆容": "新中式秀禾妆",
+        "动作": "挑盖头"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk605",
+      "series": "flowerfield",
+      "mode": "solo_f",
+      "title": "花海春日 · 占位7",
+      "file": "templates/mk605.png",
+      "desc": "油菜花田里的一次回头",
+      "components": {
+        "服装": "白色连衣裙",
+        "场景": "油菜花田",
+        "妆容": "蜜桃少女妆",
+        "动作": "侧身回眸"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk606",
+      "series": "citynight",
+      "mode": "solo_f",
+      "title": "城市夜景 · 占位7",
+      "file": "templates/mk606.png",
+      "desc": "天台上，身后是万家灯火",
+      "components": {
+        "服装": "黑色吊带裙",
+        "场景": "城市夜景天台",
+        "妆容": "千金大小姐妆",
+        "动作": "凭栏远眺"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk607",
+      "series": "forest",
+      "mode": "solo_f",
+      "title": "森林晨雾 · 占位7",
+      "file": "templates/mk607.png",
+      "desc": "晨雾森林里的第一束光",
+      "components": {
+        "服装": "浅色长裙",
+        "场景": "晨雾森林",
+        "妆容": "氧气素颜妆",
+        "动作": "林间回头"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk608",
+      "series": "hongkong_f",
+      "mode": "solo_f",
+      "title": "复古港风 · 占位7",
+      "file": "templates/mk608.png",
+      "desc": "霓虹夜色里的明艳红裙",
+      "components": {
+        "服装": "酒红缎面吊带裙",
+        "场景": "港风街头夜景",
+        "妆容": "复古港风妆",
+        "动作": "街头回眸"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk609",
+      "series": "street",
+      "mode": "solo_m",
+      "title": "都市街拍 · 占位7",
+      "file": "templates/mk609.png",
+      "desc": "斑马线午后，浅米西装的松弛感",
+      "components": {
+        "服装": "浅米色休闲西装",
+        "场景": "都市老街",
+        "妆容": "男士清透裸妆",
+        "动作": "插兜行走"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk610",
+      "series": "studio",
+      "mode": "solo_m",
+      "title": "棚拍正装 · 占位7",
+      "file": "templates/mk610.png",
+      "desc": "戏剧侧光下的三件套",
+      "components": {
+        "服装": "深灰三件套西装",
+        "场景": "灰调摄影棚",
+        "妆容": "男士立体骨相妆",
+        "动作": "整理袖扣"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk611",
+      "series": "hongkong_m",
+      "mode": "solo_m",
+      "title": "港风花衬衫 · 占位7",
+      "file": "templates/mk611.png",
+      "desc": "霓虹大排档的复古花衬衫",
+      "components": {
+        "服装": "复古花衬衫+黑西装",
+        "场景": "港风大排档夜景",
+        "妆容": "复古港风妆",
+        "动作": "倚灯微笑"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk612",
+      "series": "outdoor",
+      "mode": "solo_m",
+      "title": "山野户外 · 占位7",
+      "file": "templates/mk612.png",
+      "desc": "站在高处，看群山辽阔",
+      "components": {
+        "服装": "卡其户外夹克",
+        "场景": "秋日山野草甸",
+        "妆容": "男士清透裸妆",
+        "动作": "远眺群山"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk701",
+      "series": "church",
+      "mode": "couple",
+      "title": "教堂婚礼 · 占位8",
+      "file": "templates/mk701.png",
+      "desc": "哥特教堂红毯，彩窗光斑落在缎面主纱上",
+      "components": {
+        "服装": "象牙白缎面A字主纱+黑色塔士多",
+        "场景": "哥特式教堂",
+        "妆容": "白纱主纱妆",
+        "动作": "深情对视"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk702",
+      "series": "jiangnan",
+      "mode": "couple",
+      "title": "江南雨巷 · 占位8",
+      "file": "templates/mk702.png",
+      "desc": "青石板雨巷，共撑一把伞的依偎",
+      "components": {
+        "服装": "浅色连衣裙+深色休闲西装",
+        "场景": "江南古镇雨巷",
+        "妆容": "自然清透",
+        "动作": "共伞依偎"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk703",
+      "series": "seaside",
+      "mode": "couple",
+      "title": "海边落日 · 占位8",
+      "file": "templates/mk703.png",
+      "desc": "金色逆光里被海风吹起的裙摆",
+      "components": {
+        "服装": "白色轻纱+挽袖白衬衫",
+        "场景": "海边沙滩落日",
+        "妆容": "自然清透",
+        "动作": "牵手漫步"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk704",
+      "series": "chinese",
+      "mode": "couple",
+      "title": "中式婚礼 · 占位8",
+      "file": "templates/mk704.png",
+      "desc": "红烛高照，挑起盖头的那一秒",
+      "components": {
+        "服装": "正红秀禾服+暗红长袍马褂",
+        "场景": "中式婚房",
+        "妆容": "新中式秀禾妆",
+        "动作": "挑盖头"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk705",
+      "series": "flowerfield",
+      "mode": "solo_f",
+      "title": "花海春日 · 占位8",
+      "file": "templates/mk705.png",
+      "desc": "油菜花田里的一次回头",
+      "components": {
+        "服装": "白色连衣裙",
+        "场景": "油菜花田",
+        "妆容": "蜜桃少女妆",
+        "动作": "侧身回眸"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk706",
+      "series": "citynight",
+      "mode": "solo_f",
+      "title": "城市夜景 · 占位8",
+      "file": "templates/mk706.png",
+      "desc": "天台上，身后是万家灯火",
+      "components": {
+        "服装": "黑色吊带裙",
+        "场景": "城市夜景天台",
+        "妆容": "千金大小姐妆",
+        "动作": "凭栏远眺"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk707",
+      "series": "forest",
+      "mode": "solo_f",
+      "title": "森林晨雾 · 占位8",
+      "file": "templates/mk707.png",
+      "desc": "晨雾森林里的第一束光",
+      "components": {
+        "服装": "浅色长裙",
+        "场景": "晨雾森林",
+        "妆容": "氧气素颜妆",
+        "动作": "林间回头"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk708",
+      "series": "hongkong_f",
+      "mode": "solo_f",
+      "title": "复古港风 · 占位8",
+      "file": "templates/mk708.png",
+      "desc": "霓虹夜色里的明艳红裙",
+      "components": {
+        "服装": "酒红缎面吊带裙",
+        "场景": "港风街头夜景",
+        "妆容": "复古港风妆",
+        "动作": "街头回眸"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk709",
+      "series": "street",
+      "mode": "solo_m",
+      "title": "都市街拍 · 占位8",
+      "file": "templates/mk709.png",
+      "desc": "斑马线午后，浅米西装的松弛感",
+      "components": {
+        "服装": "浅米色休闲西装",
+        "场景": "都市老街",
+        "妆容": "男士清透裸妆",
+        "动作": "插兜行走"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk710",
+      "series": "studio",
+      "mode": "solo_m",
+      "title": "棚拍正装 · 占位8",
+      "file": "templates/mk710.png",
+      "desc": "戏剧侧光下的三件套",
+      "components": {
+        "服装": "深灰三件套西装",
+        "场景": "灰调摄影棚",
+        "妆容": "男士立体骨相妆",
+        "动作": "整理袖扣"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk711",
+      "series": "hongkong_m",
+      "mode": "solo_m",
+      "title": "港风花衬衫 · 占位8",
+      "file": "templates/mk711.png",
+      "desc": "霓虹大排档的复古花衬衫",
+      "components": {
+        "服装": "复古花衬衫+黑西装",
+        "场景": "港风大排档夜景",
+        "妆容": "复古港风妆",
+        "动作": "倚灯微笑"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk712",
+      "series": "outdoor",
+      "mode": "solo_m",
+      "title": "山野户外 · 占位8",
+      "file": "templates/mk712.png",
+      "desc": "站在高处，看群山辽阔",
+      "components": {
+        "服装": "卡其户外夹克",
+        "场景": "秋日山野草甸",
+        "妆容": "男士清透裸妆",
+        "动作": "远眺群山"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk801",
+      "series": "church",
+      "mode": "couple",
+      "title": "教堂婚礼 · 占位9",
+      "file": "templates/mk801.png",
+      "desc": "哥特教堂红毯，彩窗光斑落在缎面主纱上",
+      "components": {
+        "服装": "象牙白缎面A字主纱+黑色塔士多",
+        "场景": "哥特式教堂",
+        "妆容": "白纱主纱妆",
+        "动作": "深情对视"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk802",
+      "series": "jiangnan",
+      "mode": "couple",
+      "title": "江南雨巷 · 占位9",
+      "file": "templates/mk802.png",
+      "desc": "青石板雨巷，共撑一把伞的依偎",
+      "components": {
+        "服装": "浅色连衣裙+深色休闲西装",
+        "场景": "江南古镇雨巷",
+        "妆容": "自然清透",
+        "动作": "共伞依偎"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk803",
+      "series": "seaside",
+      "mode": "couple",
+      "title": "海边落日 · 占位9",
+      "file": "templates/mk803.png",
+      "desc": "金色逆光里被海风吹起的裙摆",
+      "components": {
+        "服装": "白色轻纱+挽袖白衬衫",
+        "场景": "海边沙滩落日",
+        "妆容": "自然清透",
+        "动作": "牵手漫步"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk804",
+      "series": "chinese",
+      "mode": "couple",
+      "title": "中式婚礼 · 占位9",
+      "file": "templates/mk804.png",
+      "desc": "红烛高照，挑起盖头的那一秒",
+      "components": {
+        "服装": "正红秀禾服+暗红长袍马褂",
+        "场景": "中式婚房",
+        "妆容": "新中式秀禾妆",
+        "动作": "挑盖头"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk805",
+      "series": "flowerfield",
+      "mode": "solo_f",
+      "title": "花海春日 · 占位9",
+      "file": "templates/mk805.png",
+      "desc": "油菜花田里的一次回头",
+      "components": {
+        "服装": "白色连衣裙",
+        "场景": "油菜花田",
+        "妆容": "蜜桃少女妆",
+        "动作": "侧身回眸"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk806",
+      "series": "citynight",
+      "mode": "solo_f",
+      "title": "城市夜景 · 占位9",
+      "file": "templates/mk806.png",
+      "desc": "天台上，身后是万家灯火",
+      "components": {
+        "服装": "黑色吊带裙",
+        "场景": "城市夜景天台",
+        "妆容": "千金大小姐妆",
+        "动作": "凭栏远眺"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk807",
+      "series": "forest",
+      "mode": "solo_f",
+      "title": "森林晨雾 · 占位9",
+      "file": "templates/mk807.png",
+      "desc": "晨雾森林里的第一束光",
+      "components": {
+        "服装": "浅色长裙",
+        "场景": "晨雾森林",
+        "妆容": "氧气素颜妆",
+        "动作": "林间回头"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk808",
+      "series": "hongkong_f",
+      "mode": "solo_f",
+      "title": "复古港风 · 占位9",
+      "file": "templates/mk808.png",
+      "desc": "霓虹夜色里的明艳红裙",
+      "components": {
+        "服装": "酒红缎面吊带裙",
+        "场景": "港风街头夜景",
+        "妆容": "复古港风妆",
+        "动作": "街头回眸"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk809",
+      "series": "street",
+      "mode": "solo_m",
+      "title": "都市街拍 · 占位9",
+      "file": "templates/mk809.png",
+      "desc": "斑马线午后，浅米西装的松弛感",
+      "components": {
+        "服装": "浅米色休闲西装",
+        "场景": "都市老街",
+        "妆容": "男士清透裸妆",
+        "动作": "插兜行走"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk810",
+      "series": "studio",
+      "mode": "solo_m",
+      "title": "棚拍正装 · 占位9",
+      "file": "templates/mk810.png",
+      "desc": "戏剧侧光下的三件套",
+      "components": {
+        "服装": "深灰三件套西装",
+        "场景": "灰调摄影棚",
+        "妆容": "男士立体骨相妆",
+        "动作": "整理袖扣"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk811",
+      "series": "hongkong_m",
+      "mode": "solo_m",
+      "title": "港风花衬衫 · 占位9",
+      "file": "templates/mk811.png",
+      "desc": "霓虹大排档的复古花衬衫",
+      "components": {
+        "服装": "复古花衬衫+黑西装",
+        "场景": "港风大排档夜景",
+        "妆容": "复古港风妆",
+        "动作": "倚灯微笑"
+      },
+      "placeholder": true
+    },
+    {
+      "id": "mk812",
+      "series": "outdoor",
+      "mode": "solo_m",
+      "title": "山野户外 · 占位9",
+      "file": "templates/mk812.png",
+      "desc": "站在高处，看群山辽阔",
+      "components": {
+        "服装": "卡其户外夹克",
+        "场景": "秋日山野草甸",
+        "妆容": "男士清透裸妆",
+        "动作": "远眺群山"
+      },
+      "placeholder": true
+    }
+  ],
+  "moments": [
+    {
+      "id": "lz",
+      "icon": "💍",
+      "title": "领证官宣",
+      "sub": "白裙头纱"
+    },
+    {
+      "id": "hs",
+      "icon": "👰",
+      "title": "婚纱大片",
+      "sub": "主纱仪式感"
+    },
+    {
+      "id": "lp",
+      "icon": "✈️",
+      "title": "旅拍游记",
+      "sub": "边玩边拍"
+    },
+    {
+      "id": "xz",
+      "icon": "🌸",
+      "title": "个人写真",
+      "sub": "女单/男单"
     }
   ]
 }

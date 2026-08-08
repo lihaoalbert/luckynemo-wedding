@@ -210,6 +210,12 @@ def _migrate() -> None:
         "product TEXT NOT NULL, coins INTEGER NOT NULL, grant_count INTEGER NOT NULL,"
         "status TEXT NOT NULL DEFAULT 'created', created_at TEXT NOT NULL, paid_at TEXT DEFAULT '')"
     )
+    # 同款大片收藏（按微信 openid 归属）
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS mp_favs("
+        "openid TEXT NOT NULL, series_id TEXT NOT NULL, created_at TEXT NOT NULL,"
+        "PRIMARY KEY(openid, series_id))"
+    )
     conn.commit()
     # 存量订单迁移：已认证通过的订单视为成员 A 已认证
     for row in conn.execute(
@@ -1412,9 +1418,11 @@ def mp_catalog() -> dict:
             for h in hz.get("hairstyles", [])
         ]
         # 模卡库（一键同款模板，v2 系列化：系列=主题场景锁定，变体=不同瞬间/构图）
+        # v4：系列带 moments/tags/hot_base/cover/status，hot=运营基数+真实生成计数
         moka = []
         moka_series = []
         moka_groups = []
+        moments = []
         moka_path = site / "moka" / "index.json"
         if moka_path.is_file():
             moka_data = json.loads(moka_path.read_text(encoding="utf-8"))
@@ -1422,19 +1430,61 @@ def mp_catalog() -> dict:
                 {"id": t["id"], "mode": t["mode"], "title": t["title"],
                  "desc": t.get("desc", ""), "img": "/moka/" + t["file"],
                  "series": t.get("series", ""),
-                 "components": t.get("components", {})}
+                 "components": t.get("components", {}),
+                 **({"placeholder": True} if t.get("placeholder") else {})}
                 for t in moka_data.get("templates", [])
             ]
-            moka_series = moka_data.get("series", [])
+            hot_real = _moka_hot_counts()
+            moka_series = []
+            for s in moka_data.get("series", []):
+                sid = s.get("id", "")
+                base = int(s.get("hot_base", 0) or 0)
+                moka_series.append({
+                    **s,
+                    "hot": base + hot_real.get(sid, 0),
+                })
             moka_groups = moka_data.get("groups", [])
+            moments = moka_data.get("moments", [])
         return {"ok": True, "sets_js": sets_js, "scenes_js": scenes_js,
                 "makeup": makeup, "hairstyles": hairstyles, "moka": moka,
                 "moka_series": moka_series, "moka_groups": moka_groups,
+                "moments": moments,
                 "poses": MP_POSES, "poses_solo": MP_POSES_SOLO,
                 "img_base": {"wardrobe": "/wardrobe/img/", "scenes": "/scenes/img/",
                              "makeup": "/hongzhuang/"}}
     except FileNotFoundError as exc:
         raise HTTPException(status_code=500, detail=f"目录数据缺失：{exc}")
+
+
+def _moka_hot_counts() -> dict:
+    """各系列真实生成次数（template_series 每单计 1 + template_photo 每张计 1），
+    叠加在 series.hot_base 运营基数上（决策：热门人数=运营基数+真实计数）。"""
+    site = Path(_env("SITE_DIR", "/var/www/luckynemo"))
+    moka_path = site / "moka" / "index.json"
+    if not moka_path.is_file():
+        return {}
+    moka_data = json.loads(moka_path.read_text(encoding="utf-8"))
+    tpl_series = {t["id"]: t.get("series", "") for t in moka_data.get("templates", [])}
+    counts: dict = {}
+    conn = _db()
+    try:
+        rows = conn.execute(
+            "SELECT kind, payload_json FROM mp_jobs"
+            " WHERE status='done' AND kind IN ('template_series','template_photo')").fetchall()
+    finally:
+        conn.close()
+    for kind, pj in rows:
+        try:
+            p = json.loads(pj or "{}")
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if kind == "template_series":
+            sid = p.get("series_id", "")
+        else:
+            sid = tpl_series.get(p.get("template_id", ""), "")
+        if sid:
+            counts[sid] = counts.get(sid, 0) + 1
+    return counts
 
 
 def _enrich_job_payload(body: "MpJobIn", order: dict) -> dict:
@@ -1453,7 +1503,7 @@ def _enrich_job_payload(body: "MpJobIn", order: dict) -> dict:
 
 
 def _moka_series_size(payload: dict) -> int:
-    """系列整组生成的扣费张数 = 系列变体数（从模卡库 index.json 读）。"""
+    """系列整组生成的扣费张数 = 变体数；payload 带 variant_ids（选片子集）时按子集张数。"""
     series_id = payload.get("series_id", "")
     site = Path(_env("SITE_DIR", "/var/www/luckynemo"))
     moka_path = site / "moka" / "index.json"
@@ -1461,10 +1511,64 @@ def _moka_series_size(payload: dict) -> int:
         moka_data = json.loads(moka_path.read_text(encoding="utf-8"))
         for s in moka_data.get("series", []):
             if s.get("id") == series_id:
-                n = len(s.get("variants", []))
+                variants = s.get("variants", [])
+                want = payload.get("variant_ids") or []
+                if want:
+                    want = [v for v in want if v in variants]
+                    if not want:
+                        break
+                    return len(want)
+                n = len(variants)
                 if n:
                     return n
     raise HTTPException(status_code=400, detail=f"大片系列不存在：{series_id}")
+
+
+# ---------------- 同款大片收藏（v4，按 openid 归属） ----------------
+
+class MpFavIn(BaseModel):
+    open_token: str = Field(min_length=6, max_length=120)
+    series_id: str = Field(min_length=1, max_length=40)
+    fav: bool = True
+
+
+@app.post("/api/mp/fav")
+def mp_fav_set(body: MpFavIn) -> JSONResponse:
+    """收藏/取消收藏一个系列。openid 取自 open_token（wx- 前缀），与虚拟支付同一约定。"""
+    openid = _vp_openid(body.open_token)
+    if not openid:
+        raise HTTPException(status_code=401, detail="登录态无效")
+    conn = _db()
+    try:
+        if body.fav:
+            conn.execute(
+                "INSERT INTO mp_favs(openid,series_id,created_at) VALUES(?,?,?) "
+                "ON CONFLICT(openid,series_id) DO NOTHING",
+                (openid, body.series_id, _now()))
+        else:
+            conn.execute(
+                "DELETE FROM mp_favs WHERE openid=? AND series_id=?",
+                (openid, body.series_id))
+        conn.commit()
+    finally:
+        conn.close()
+    return JSONResponse({"ok": True})
+
+
+@app.get("/api/mp/favs")
+def mp_fav_list(open_token: str = "") -> JSONResponse:
+    """我的收藏系列 id 列表。"""
+    openid = _vp_openid(open_token)
+    if not openid:
+        raise HTTPException(status_code=401, detail="登录态无效")
+    conn = _db()
+    try:
+        rows = conn.execute(
+            "SELECT series_id FROM mp_favs WHERE openid=? ORDER BY created_at DESC",
+            (openid,)).fetchall()
+    finally:
+        conn.close()
+    return JSONResponse({"ok": True, "favs": [r[0] for r in rows]})
 
 
 @app.post("/api/mp/job")

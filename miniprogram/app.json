@@ -12,7 +12,9 @@
     "pages/photos/photos",
     "pages/landing/landing",
     "pages/feedback/feedback",
-    "pages/moka/moka"
+    "pages/moka/moka",
+    "pages/moka_series/moka_series",
+    "pages/moka_fav/moka_fav"
   ],
   "tabBar": {
     "color": "#8a7f78",

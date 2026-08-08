@@ -13,6 +13,38 @@
       <button class="btn ghost" bindtap="saveAll">全部存到相册</button>
       <button class="btn ghost">分享给朋友</button>
     </view>
+
+    <!-- 朋友圈 mock -->
+    <view class="mm card">
+      <view class="mm-title serif">发到朋友圈长这样</view>
+      <view class="mm-main">
+        <view class="mm-avatar serif">恩</view>
+        <view class="mm-info">
+          <view class="mm-name">徐大恩</view>
+          <view class="mm-text">{{seriesTitle ? seriesTitle + '，' : ''}}一次出齐，刚刚好 🌸</view>
+          <view class="mm-grid">
+            <image wx:for="{{mmPhotos}}" wx:key="*this" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="previewOne" />
+          </view>
+          <view class="mm-foot">3分钟前 · LuckyNemo</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 模板 vs 成片 -->
+    <view class="ba card" wx:if="{{templateCover}}">
+      <view class="mm-title serif">模板 vs 你的成片</view>
+      <view class="ba-row">
+        <view class="ba-cell">
+          <view class="lab">模板</view>
+          <image src="{{templateCover}}" mode="aspectFill" />
+        </view>
+        <view class="ba-cell">
+          <view class="lab">你的脸</view>
+          <image src="{{photos[0]}}" mode="aspectFill" />
+        </view>
+      </view>
+      <view class="mm-foot" style="margin-top: 12rpx;">场景 / 服装 / 构图还原模板，只换人</view>
+    </view>
   </block>
 
   <block wx:else>

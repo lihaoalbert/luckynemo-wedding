@@ -1,0 +1,66 @@
+<view class="page">
+  <view class="loading" wx:if="{{loading}}">加载中…</view>
+
+  <view class="loading" wx:elif="{{notFound}}">
+    <view>系列不存在或已下架</view>
+    <button class="btn ghost back-btn" bindtap="goBack">返回</button>
+  </view>
+
+  <block wx:elif="{{series}}">
+    <!-- 顶部大图 + 收藏 -->
+    <view class="hero">
+      <image src="{{series.coverImg}}" mode="aspectFill" />
+      <view class="shade"></view>
+      <view class="fav {{fav ? 'on' : ''}}" bindtap="toggleFav">{{fav ? '❤️' : '♡'}}</view>
+    </view>
+
+    <view class="body">
+      <view class="d-title serif">{{series.title}}</view>
+      <view class="d-tags">
+        <view class="d-tag" wx:if="{{series.modeText}}">{{series.modeText}}</view>
+        <view class="d-tag" wx:for="{{series.tags}}" wx:key="*this">{{item}}</view>
+      </view>
+      <view class="d-desc" wx:if="{{series.desc}}">{{series.desc}}——场景、服装、妆容、姿势全部搭配好，你只需要「换人」。</view>
+
+      <view class="d-stats">
+        <view class="d-stat"><b>{{series.count}}</b><span>同风格成片</span></view>
+        <view class="d-stat"><b>{{series.modeText || '—'}}</b><span>出镜人数</span></view>
+        <view class="d-stat"><b>≈4分钟</b><span>整组生成</span></view>
+        <view class="d-stat" wx:if="{{series.hasHot}}"><b>{{series.hotText}}</b><span>人拍过</span></view>
+      </view>
+
+      <!-- 九宫格预览 -->
+      <view class="sec">
+        <view class="sec-head">
+          <view class="sec-title serif">这个系列有什么</view>
+          <view class="sec-more">{{selMode ? '点圆圈选片' : '点开看大图'}}</view>
+        </view>
+        <view class="nine {{selMode ? 'selmode' : ''}}">
+          <view class="cell {{item.sel ? 'sel' : ''}}" wx:for="{{cells}}" wx:key="id"
+                data-id="{{item.id}}" data-url="{{item.img}}" bindtap="cellTap">
+            <image src="{{item.img}}" mode="aspectFill" lazy-load />
+            <view class="ph-badge" wx:if="{{item.placeholder}}">预览</view>
+            <view class="num">{{index + 1}}/{{series.count}}</view>
+            <view class="pick">{{item.sel ? '✓' : ''}}</view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 成分表 -->
+      <view class="sec" wx:if="{{comps.length}}">
+        <view class="sec-head"><view class="sec-title serif">都搭配好了</view></view>
+        <view class="comp-row" wx:for="{{comps}}" wx:key="k">
+          <text class="k">{{item.k}}</text><text class="v">{{item.v}}</text>
+        </view>
+      </view>
+      <view class="foot-space"></view>
+    </view>
+
+    <!-- 底部 CTA -->
+    <view class="cta-bar">
+      <view class="cta-price"><b>{{priceText}}</b><span>{{priceSub}}</span></view>
+      <button class="btn ghost cta-ghost" bindtap="toggleSelMode">{{selMode ? '取消选张' : '只拍单张'}}</button>
+      <button class="btn cta-go" bindtap="generate" disabled="{{selMode && !selCount}}">{{goText}}</button>
+    </view>
+  </block>
+</view>

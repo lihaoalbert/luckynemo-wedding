@@ -1,0 +1,19 @@
+.page { min-height: 100vh; padding: 32rpx 32rpx 60rpx; }
+.loading { padding: 200rpx 0; text-align: center; color: var(--ink-soft); font-size: 26rpx; }
+.badge {
+  display: inline-flex; align-items: center;
+  font-size: 20rpx; padding: 6rpx 16rpx; border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.45); color: #fff;
+}
+.badge.gold { background: var(--gold); }
+.sgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; }
+.scard { background: var(--surface); border-radius: 28rpx; overflow: hidden; border: 1rpx solid var(--hairline); }
+.scard .imgw { position: relative; width: 100%; aspect-ratio: 3/3.4; overflow: hidden; }
+.scard .imgw image { width: 100%; height: 100%; display: block; background: var(--blush); }
+.scard .nine-tag { position: absolute; right: 14rpx; top: 14rpx; }
+.scard .body { padding: 16rpx 20rpx 20rpx; }
+.scard .n { font-size: 28rpx; font-weight: 700; }
+.scard .d { font-size: 20rpx; color: #a89a90; margin-top: 4rpx; }
+.empty { padding: 160rpx 0; text-align: center; }
+.empty-txt { color: var(--ink-soft); font-size: 26rpx; }
+.empty-btn { margin: 40rpx auto 0; width: 300rpx; }

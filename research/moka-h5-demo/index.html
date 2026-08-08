@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>同款大片 · 内容体验 Demo（讨论稿）</title>
+<style>
+  :root{
+    --bg:#f6f3ee; --card:#ffffff; --ink:#1d1a16; --ink2:#6f6a61; --ink3:#a39c90;
+    --gold:#a8793f; --gold-soft:#f0e6d6; --line:#e8e2d8; --red:#b4453a;
+    --serif:"Songti SC","STSong","Noto Serif SC",serif;
+    --sans:-apple-system,"PingFang SC","Helvetica Neue",sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{background:#26221d;font-family:var(--sans);display:flex;justify-content:center;min-height:100vh;padding:24px 0}
+  /* 手机壳 */
+  .phone{width:390px;height:844px;background:var(--bg);border-radius:44px;overflow:hidden;position:relative;
+    box-shadow:0 30px 80px rgba(0,0,0,.5),0 0 0 10px #111,0 0 0 12px #3a352e}
+  .statusbar{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;font-size:13px;font-weight:600;color:var(--ink);flex:none}
+  .statusbar .dots{letter-spacing:2px;font-size:11px;color:var(--ink2)}
+  /* 屏幕管理 */
+  .screen{position:absolute;inset:0;background:var(--bg);display:none;flex-direction:column}
+  .screen.on{display:flex}
+  .scroll{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  .scroll::-webkit-scrollbar{display:none}
+
+  /* ===== 通用 ===== */
+  .serif{font-family:var(--serif)}
+  .badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:3px 8px;border-radius:99px;background:rgba(0,0,0,.45);color:#fff;backdrop-filter:blur(6px)}
+  .badge.gold{background:var(--gold)}
+  .chip{font-size:12px;color:var(--ink2);background:#fff;border:1px solid var(--line);border-radius:99px;padding:5px 12px;flex:none}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .btn{display:flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:14px;font-size:15px;font-weight:600;padding:14px;cursor:pointer;font-family:var(--sans)}
+  .btn.primary{background:var(--ink);color:#fff}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .fadein{animation:fadein .35s ease both}
+  @keyframes fadein{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+  /* ===== S1 发现首页 ===== */
+  .home-head{padding:6px 18px 0}
+  .home-title{font-size:24px;font-family:var(--serif);font-weight:700;letter-spacing:1px}
+  .home-sub{font-size:12px;color:var(--ink3);margin-top:3px}
+  .searchbar{margin:12px 18px 0;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:13px;color:var(--ink3);display:flex;align-items:center;gap:8px}
+  /* hero 轮播 */
+  .hero{margin:14px 0 0;position:relative}
+  .hero-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;padding:0 18px;scrollbar-width:none}
+  .hero-track::-webkit-scrollbar{display:none}
+  .hero-card{flex:none;width:318px;height:200px;border-radius:18px;overflow:hidden;position:relative;scroll-snap-align:center;cursor:pointer}
+  .hero-card img{width:100%;height:100%;object-fit:cover;display:block}
+  .hero-card .shade{position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(0,0,0,.62))}
+  .hero-card .meta{position:absolute;left:14px;right:14px;bottom:12px;color:#fff}
+  .hero-card .meta .t{font-size:18px;font-family:var(--serif);font-weight:700}
+  .hero-card .meta .s{font-size:11px;opacity:.85;margin-top:2px}
+  .hero-card .badges{position:absolute;top:10px;left:10px;display:flex;gap:6px}
+  .hero-dots{display:flex;gap:5px;justify-content:center;margin-top:10px}
+  .hero-dots i{width:5px;height:5px;border-radius:99px;background:#d8d1c4;transition:.25s}
+  .hero-dots i.on{width:16px;background:var(--gold)}
+  /* 人生节点 */
+  .sec{padding:20px 18px 0}
+  .sec-head{display:flex;align-items:baseline;justify-content:space-between}
+  .sec-title{font-size:17px;font-family:var(--serif);font-weight:700}
+  .sec-more{font-size:11px;color:var(--ink3)}
+  .moments{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+  .moment{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 6px 10px;text-align:center;cursor:pointer;transition:.15s}
+  .moment:active{transform:scale(.96)}
+  .moment .ic{font-size:20px}
+  .moment .n{font-size:11px;margin-top:5px;color:var(--ink);font-weight:600}
+  .moment .c{font-size:9px;color:var(--ink3);margin-top:1px}
+  /* 热门横滑 */
+  .hot-track{display:flex;gap:12px;overflow-x:auto;margin-top:12px;padding-bottom:4px;scrollbar-width:none}
+  .hot-track::-webkit-scrollbar{display:none}
+  .hot-card{flex:none;width:132px;cursor:pointer}
+  .hot-card .imgw{width:132px;height:164px;border-radius:12px;overflow:hidden;position:relative}
+  .hot-card img{width:100%;height:100%;object-fit:cover;display:block}
+  .hot-card .rank{position:absolute;top:6px;left:6px}
+  .hot-card .n{font-size:12px;font-weight:600;margin-top:6px}
+  .hot-card .s{font-size:10px;color:var(--ink3);margin-top:1px}
+  /* 分组 tab + 系列卡 */
+  .gtabs{display:flex;gap:8px;overflow-x:auto;margin-top:12px;scrollbar-width:none;padding-bottom:2px}
+  .gtabs::-webkit-scrollbar{display:none}
+  .sgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  .scard{background:#fff;border-radius:16px;overflow:hidden;border:1px solid var(--line);cursor:pointer;transition:.15s}
+  .scard:active{transform:scale(.97)}
+  .scard .imgw{position:relative;aspect-ratio:3/3.4;overflow:hidden}
+  .scard img{width:100%;height:100%;object-fit:cover;display:block}
+  .scard .nine-tag{position:absolute;right:8px;top:8px}
+  .scard .body{padding:10px 12px 12px}
+  .scard .n{font-size:14px;font-weight:700;font-family:var(--serif)}
+  .scard .d{font-size:10px;color:var(--ink3);margin-top:3px;display:flex;align-items:center;gap:4px}
+  .foot-space{height:90px}
+  /* 底部导航 */
+  .tabbar{position:absolute;left:0;right:0;bottom:0;height:78px;background:rgba(255,255,255,.92);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;padding:8px 30px 22px}
+  .tabbar .tb{flex:1;text-align:center;color:var(--ink3);font-size:10px;cursor:pointer}
+  .tabbar .tb .ic{font-size:20px;display:block;margin-bottom:2px}
+  .tabbar .tb.on{color:var(--ink);font-weight:700}
+
+  /* ===== S2 系列详情 ===== */
+  .nav-back{position:absolute;top:52px;left:14px;z-index:5;width:34px;height:34px;border-radius:99px;background:rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+  .nav-fav{position:absolute;top:52px;right:14px;z-index:5;width:34px;height:34px;border-radius:99px;background:rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+  .detail-hero{width:100%;aspect-ratio:3/3.6;overflow:hidden;position:relative}
+  .detail-hero img{width:100%;height:100%;object-fit:cover;display:block}
+  .detail-hero .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.25),transparent 30%,transparent 70%,rgba(246,243,238,1))}
+  .detail-body{padding:0 18px;margin-top:-34px;position:relative}
+  .d-title{font-size:24px;font-family:var(--serif);font-weight:700}
+  .d-tags{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .d-tag{font-size:10px;color:var(--gold);background:var(--gold-soft);border-radius:6px;padding:3px 8px}
+  .d-desc{font-size:13px;color:var(--ink2);line-height:1.7;margin-top:10px}
+  .d-stats{display:flex;gap:0;margin-top:14px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 0}
+  .d-stat{flex:1;text-align:center}
+  .d-stat+.d-stat{border-left:1px solid var(--line)}
+  .d-stat b{font-size:15px;font-family:var(--serif)}
+  .d-stat span{display:block;font-size:10px;color:var(--ink3);margin-top:2px}
+  /* 九宫格 */
+  .nine-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}
+  .nine-grid .cell{aspect-ratio:1;border-radius:10px;overflow:hidden;cursor:pointer;position:relative}
+  .nine-grid img{width:100%;height:100%;object-fit:cover;display:block}
+  .nine-grid .cell .num{position:absolute;right:5px;bottom:4px;font-size:9px;color:#fff;background:rgba(0,0,0,.4);border-radius:99px;padding:1px 6px}
+  .nine-grid .cell .pick{position:absolute;right:5px;top:5px;width:20px;height:20px;border-radius:99px;border:2px solid #fff;background:rgba(0,0,0,.18);display:none;align-items:center;justify-content:center;color:#fff;font-size:11px;line-height:1;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+  .nine-grid.selmode .cell .pick{display:flex}
+  .nine-grid.selmode .cell .num{display:none}
+  .nine-grid .cell.sel .pick{background:var(--gold);border-color:var(--gold)}
+  .nine-grid .cell.sel::after{content:'';position:absolute;inset:0;border:2px solid var(--gold);border-radius:10px;pointer-events:none}
+  .btn[disabled]{opacity:.45}
+  /* 成分表 */
+  .comp-row{display:flex;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line);font-size:12px}
+  .comp-row .k{flex:none;width:44px;color:var(--ink3)}
+  .comp-row .v{color:var(--ink)}
+  /* 价格条 */
+  .cta-bar{position:absolute;left:0;right:0;bottom:0;background:rgba(255,255,255,.95);backdrop-filter:blur(14px);border-top:1px solid var(--line);padding:12px 16px 26px;display:flex;gap:10px;align-items:center}
+  .cta-price{flex:none}
+  .cta-price b{font-size:18px;font-family:var(--serif);color:var(--red)}
+  .cta-price span{display:block;font-size:9px;color:var(--ink3)}
+  .cta-bar .btn{flex:1}
+  /* 大图预览 */
+  .viewer{position:absolute;inset:0;background:#000;z-index:20;display:none;flex-direction:column}
+  .viewer.on{display:flex}
+  .viewer .v-scroll{flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
+  .viewer .v-scroll::-webkit-scrollbar{display:none}
+  .viewer .v-page{flex:none;width:100%;display:flex;align-items:center;justify-content:center;scroll-snap-align:center}
+  .viewer .v-page img{width:100%;max-height:100%;object-fit:contain}
+  .viewer .v-close{position:absolute;top:56px;right:16px;color:#fff;font-size:13px;background:rgba(255,255,255,.18);border-radius:99px;padding:6px 14px;cursor:pointer;z-index:2}
+  .viewer .v-idx{position:absolute;bottom:60px;left:0;right:0;text-align:center;color:#fff;font-size:12px;opacity:.8}
+
+  /* ===== S3 生成中 / 结果 ===== */
+  .gen-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 30px}
+  .gen-ring{width:88px;height:88px;border-radius:99px;border:3px solid var(--line);border-top-color:var(--gold);animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .gen-t{font-size:17px;font-family:var(--serif);font-weight:700;margin-top:22px}
+  .gen-s{font-size:12px;color:var(--ink3);margin-top:6px;text-align:center;line-height:1.7}
+  .gen-prog{margin-top:18px;display:grid;grid-template-columns:repeat(9,1fr);gap:5px;width:100%}
+  .gen-prog i{aspect-ratio:1;border-radius:6px;background:#fff;border:1px solid var(--line);overflow:hidden}
+  .gen-prog i.done{border:none}
+  .gen-prog i img{width:100%;height:100%;object-fit:cover;display:block}
+  /* 结果九宫格 */
+  .result-head{padding:8px 18px 0}
+  .result-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:12px 18px 0}
+  .result-grid .cell{aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer}
+  .result-grid img{width:100%;height:100%;object-fit:cover;display:block}
+  /* 朋友圈 mock */
+  .moments-mock{margin:16px 18px 0;background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px}
+  .mm-head{display:flex;gap:10px;align-items:center}
+  .mm-avatar{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#d9b98c,#a8793f);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-family:var(--serif)}
+  .mm-name{font-size:13px;font-weight:700;color:#576b95}
+  .mm-text{font-size:11px;color:var(--ink2);margin-top:2px}
+  .mm-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-top:10px}
+  .mm-grid img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+  .mm-foot{font-size:10px;color:var(--ink3);margin-top:8px}
+  .ba{margin:16px 18px 0;background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px}
+  .ba-row{display:flex;gap:8px;margin-top:10px}
+  .ba-row .ba-cell{flex:1;border-radius:10px;overflow:hidden;position:relative}
+  .ba-row img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block}
+  .ba-row .lab{position:absolute;left:6px;top:6px;font-size:9px;color:#fff;background:rgba(0,0,0,.5);border-radius:99px;padding:2px 8px}
+
+  /* 顶部讨论稿水印 */
+  .draft-flag{position:absolute;top:52px;right:14px;z-index:9;font-size:9px;color:#fff;background:rgba(180,69,58,.85);border-radius:99px;padding:3px 9px;letter-spacing:1px;pointer-events:none}
+  .screen[data-s="s2"] .draft-flag,.screen[data-s="s3"] .draft-flag{display:none}
+</style>
+</head>
+<body>
+<div class="phone" id="phone">
+
+  <!-- ============ S1 发现首页 ============ -->
+  <div class="screen on" data-s="s1">
+    <div class="statusbar"><span>9:41</span><span class="dots">●●●●● 5G ▮</span></div>
+    <div class="draft-flag">讨论稿 · 未入库</div>
+    <div class="scroll" id="homeScroll">
+      <div class="home-head">
+        <div class="home-title serif">同款大片</div>
+        <div class="home-sub">选一个系列，一次出齐九张，直接发九宫格</div>
+      </div>
+      <div class="searchbar">🔍 搜「海边」「中式」「夜景」…</div>
+
+      <!-- 主推轮播 -->
+      <div class="hero">
+        <div class="hero-track" id="heroTrack"></div>
+        <div class="hero-dots" id="heroDots"></div>
+      </div>
+
+      <!-- 人生节点 -->
+      <div class="sec">
+        <div class="sec-head"><div class="sec-title serif">我的人生节点</div><div class="sec-more">按场景选 &rsaquo;</div></div>
+        <div class="moments" id="moments"></div>
+      </div>
+
+      <!-- 本周热门 -->
+      <div class="sec">
+        <div class="sec-head"><div class="sec-title serif">本周热门</div><div class="sec-more">大家都在拍</div></div>
+        <div class="hot-track" id="hotTrack"></div>
+      </div>
+
+      <!-- 全部分组 -->
+      <div class="sec">
+        <div class="sec-head"><div class="sec-title serif">全部系列</div><div class="sec-more" id="groupCount"></div></div>
+        <div class="gtabs" id="gtabs"></div>
+        <div class="sgrid" id="sgrid"></div>
+      </div>
+      <div class="foot-space"></div>
+    </div>
+
+    <div class="tabbar">
+      <div class="tb on"><span class="ic">✦</span>发现</div>
+      <div class="tb"><span class="ic">♡</span>收藏</div>
+      <div class="tb"><span class="ic">◫</span>我的大片</div>
+      <div class="tb"><span class="ic">☺</span>我的</div>
+    </div>
+  </div>
+
+  <!-- ============ S2 系列详情 ============ -->
+  <div class="screen" data-s="s2">
+    <div class="nav-back" onclick="go('s1')">‹</div>
+    <div class="nav-fav" id="favBtn" onclick="toggleFav()">♡</div>
+    <div class="scroll">
+      <div class="detail-hero"><img id="dHeroImg" src=""><div class="shade"></div></div>
+      <div class="detail-body">
+        <div class="d-title serif" id="dTitle"></div>
+        <div class="d-tags" id="dTags"></div>
+        <div class="d-desc" id="dDesc"></div>
+        <div class="d-stats">
+          <div class="d-stat"><b id="dCount">9</b><span>同风格成片</span></div>
+          <div class="d-stat"><b id="dMode">情侣</b><span>出镜人数</span></div>
+          <div class="d-stat"><b>≈4分钟</b><span>整组生成</span></div>
+          <div class="d-stat"><b id="dHot">2.3k</b><span>人拍过</span></div>
+        </div>
+
+        <div class="sec" style="padding:20px 0 0">
+          <div class="sec-head"><div class="sec-title serif">这个系列有什么</div><div class="sec-more">点开看大图</div></div>
+          <div class="nine-grid" id="dNine"></div>
+        </div>
+
+        <div class="sec" style="padding:20px 0 0">
+          <div class="sec-head"><div class="sec-title serif">都搭配好了</div></div>
+          <div id="dComps"></div>
+        </div>
+        <div class="foot-space"></div>
+      </div>
+    </div>
+    <div class="cta-bar">
+      <div class="cta-price"><b id="dPrice">36币</b><span id="dPriceSub">9张整组 · 单张4币</span></div>
+      <button class="btn ghost" style="flex:.7" id="btnSingle" onclick="toggleSelMode()">只拍单张</button>
+      <button class="btn primary" id="btnGo" onclick="startGen()">一键九宫格 →</button>
+    </div>
+  </div>
+
+  <!-- ============ S3 生成 / 结果 ============ -->
+  <div class="screen" data-s="s3">
+    <div class="statusbar"><span>9:41</span><span class="dots">●●●●● 5G ▮</span></div>
+    <!-- 生成中 -->
+    <div class="gen-wrap" id="genWrap">
+      <div class="gen-ring"></div>
+      <div class="gen-t serif">正在为你出片 <span id="genX">0</span>/9</div>
+      <div class="gen-s">保持系列的场景、服装、色调不变，只把人换成你们<br>可以先去聊天，好了会通知你</div>
+      <div class="gen-prog" id="genProg"></div>
+    </div>
+    <!-- 结果 -->
+    <div class="scroll" id="resultWrap" style="display:none">
+      <div class="result-head fadein">
+        <div class="home-title serif" style="font-size:20px">出片啦 🎉</div>
+        <div class="home-sub" id="rSub"></div>
+      </div>
+      <div class="result-grid fadein" id="rGrid"></div>
+
+      <div class="moments-mock fadein">
+        <div class="sec-title serif" style="font-size:14px">发到朋友圈长这样</div>
+        <div style="display:flex;gap:10px;margin-top:10px">
+          <div class="mm-avatar">恩</div>
+          <div style="flex:1">
+            <div class="mm-name">徐大恩</div>
+            <div class="mm-text">春天和我们，都刚刚好 🌸</div>
+            <div class="mm-grid" id="mmGrid"></div>
+            <div class="mm-foot">3分钟前 · 济州岛</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ba fadein">
+        <div class="sec-title serif" style="font-size:14px">模板 vs 你的成片</div>
+        <div class="ba-row">
+          <div class="ba-cell"><span class="lab">模板</span><img id="baA" src=""></div>
+          <div class="ba-cell"><span class="lab">你的脸</span><img id="baB" src=""></div>
+        </div>
+        <div class="mm-foot" style="margin-top:8px">场景 / 服装 / 构图 100% 还原模板，只换人</div>
+      </div>
+      <div class="foot-space"></div>
+    </div>
+    <div class="cta-bar" id="resultCta" style="display:none">
+      <button class="btn ghost" style="flex:.8" onclick="go('s1')">再拍一组</button>
+      <button class="btn primary" onclick="toast('9 张已保存到相册（模拟）')">一键保存全部 ↓</button>
+    </div>
+  </div>
+
+  <!-- 大图预览 -->
+  <div class="viewer" id="viewer">
+    <div class="v-close" onclick="closeViewer()">关闭 ✕</div>
+    <div class="v-scroll" id="vScroll"></div>
+    <div class="v-idx" id="vIdx"></div>
+  </div>
+
+</div>
+<script>
+/* ===== 数据：来自 assets/moka/index.json v3（线上图） ===== */
+const IMG = 'https://luckynemo.ibi.ren/moka/templates/';
+const GROUPS = [
+  {id:'flower',   title:'花海浪漫',   series:['hyd','sak','muh','flowerfield']},
+  {id:'nature',   title:'森林与原野', series:['forest','outdoor']},
+  {id:'sea',      title:'海',         series:['lig','spk','seaside']},
+  {id:'city',     title:'城市与人文', series:['han','citynight','hongkong_f','hongkong_m','street']},
+  {id:'ceremony', title:'仪式与经典', series:['min','church','chinese','jiangnan','studio']},
+  {id:'creative', title:'个性创意',   series:['hor']},
+];
+const SERIES = {
+  hyd:   {t:'蓝绣球花墙', mode:'情侣', n:9, vs:r9('hyd'), d:'无尽夏蓝绣球花墙与森林湖畔，济州岛最出片的花墙', hot:'2.3k', tags:['户外','白天','花系','济州岛风']},
+  sak:   {t:'樱花隧道',   mode:'情侣', n:9, vs:r9('sak'), d:'樱花隧道纵深构图，春天限定的粉白长廊', hot:'1.8k', tags:['春季限定','户外','花系']},
+  muh:   {t:'粉黛乱子草', mode:'情侣', n:9, vs:r9('muh'), d:'粉雾草海把人包围，温柔到失焦的粉', hot:'1.5k', tags:['秋季','户外','粉雾']},
+  lig:   {t:'悬崖灯塔',   mode:'情侣', n:9, vs:r9('lig'), d:'涉地可支灯塔与黑礁石海岸，一张大场景镇住九宫格', hot:'1.1k', tags:['海边','大场景','蓝调']},
+  spk:   {t:'暮色仙女棒', mode:'情侣', n:9, vs:r9('spk'), d:'暮色海边的仙女棒光绘，九宫格的浪漫收尾', hot:'980', tags:['夜景','海边','氛围感']},
+  han:   {t:'韩服古祠',   mode:'情侣', n:9, vs:r9('han'), d:'韩服与韩式古祠，一秒穿越的东方仪式感', hot:'860', tags:['异域','仪式感','旅拍']},
+  min:   {t:'白色极简',   mode:'情侣', n:9, vs:r9('min'), d:'韩式白色拱门与极简光影，高级感不需要堆料', hot:'1.4k', tags:['室内','极简','高级感']},
+  hor:   {t:'以梦为马',   mode:'情侣', n:9, vs:r9('hor'), d:'马场骏马与林间公路，婚纱照里的电影海报', hot:'720', tags:['户外','电影感','创意']},
+  church:  {t:'教堂婚礼', mode:'情侣', n:3, vs:['mk001','mk101','mk201'], d:'哥特教堂红毯，彩窗光斑落在缎面主纱上', hot:'640', tags:['仪式感','室内','主纱']},
+  chinese: {t:'中式婚礼', mode:'情侣', n:3, vs:['mk004','mk104','mk204'], d:'红烛高照，挑起盖头的那一秒', hot:'590', tags:['中式','秀禾','仪式感']},
+  jiangnan:{t:'江南雨巷', mode:'情侣', n:3, vs:['mk002','mk102','mk202'], d:'青石板雨巷，共撑一把伞的依偎', hot:'430', tags:['中式','旗袍','雨巷']},
+  seaside: {t:'海边落日', mode:'情侣', n:3, vs:['mk003','mk103','mk203'], d:'金色逆光里被海风吹起的裙摆', hot:'510', tags:['海边','黄昏','逆光']},
+  flowerfield:{t:'花海春日', mode:'女单', n:3, vs:['mk005','mk105','mk205'], d:'油菜花田里的一次回头', hot:'380', tags:['女单','户外','花系']},
+  citynight: {t:'城市夜景', mode:'女单', n:3, vs:['mk006','mk106','mk206'], d:'天台上，身后是万家灯火', hot:'450', tags:['女单','夜景','城市']},
+  forest:  {t:'森林晨雾', mode:'女单', n:3, vs:['mk007','mk107','mk207'], d:'晨雾森林里的第一束光', hot:'290', tags:['女单','森林','晨光']},
+  hongkong_f:{t:'复古港风', mode:'女单', n:3, vs:['mk008','mk108','mk208'], d:'霓虹夜色里的明艳红裙', hot:'520', tags:['女单','港风','夜景']},
+  street:  {t:'都市街拍', mode:'男单', n:3, vs:['mk009','mk109','mk209'], d:'斑马线午后，浅米西装的松弛感', hot:'210', tags:['男单','街拍','城市']},
+  studio:  {t:'棚拍正装', mode:'男单', n:3, vs:['mk010','mk110','mk210'], d:'戏剧侧光下的三件套', hot:'180', tags:['男单','棚拍','正装']},
+  hongkong_m:{t:'港风花衬衫', mode:'男单', n:3, vs:['mk011','mk111','mk211'], d:'霓虹大排档的复古花衬衫', hot:'160', tags:['男单','港风','夜景']},
+  outdoor: {t:'山野户外', mode:'男单', n:3, vs:['mk012','mk112','mk212'], d:'站在高处，看群山辽阔', hot:'140', tags:['男单','户外','山野']},
+};
+function r9(p){return Array.from({length:9},(_,i)=>p+'0'+(i+1))}
+const MOMENTS = [
+  {ic:'💍', n:'领证官宣', c:'白裙头纱', ids:['min','church','chinese']},
+  {ic:'👰', n:'婚纱大片', c:'主纱仪式感', ids:['church','hyd','lig','min']},
+  {ic:'✈️', n:'旅拍游记', c:'边玩边拍', ids:['sak','spk','han','hor','seaside']},
+  {ic:'🌸', n:'个人写真', c:'女单/男单', ids:['flowerfield','forest','citynight','hongkong_f','street','studio','outdoor']},
+];
+const HOT = ['hyd','spk','min','sak','lig','han'];
+
+/* ===== 屏幕切换 ===== */
+function go(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on', s.dataset.s===id));
+  document.getElementById('phone').querySelector('.screen.on .scroll')?.scrollTo(0,0);
+}
+function toast(msg){
+  const t=document.createElement('div');
+  t.style.cssText='position:absolute;left:50%;bottom:120px;transform:translateX(-50%);background:rgba(0,0,0,.75);color:#fff;font-size:12px;padding:9px 18px;border-radius:99px;z-index:50;white-space:nowrap';
+  t.textContent=msg; document.getElementById('phone').appendChild(t);
+  setTimeout(()=>t.remove(),1800);
+}
+
+/* ===== S1 首页渲染 ===== */
+const heroTrack=document.getElementById('heroTrack'), heroDots=document.getElementById('heroDots');
+['sak','hyd','spk'].forEach((id,i)=>{
+  const s=SERIES[id];
+  heroTrack.insertAdjacentHTML('beforeend',
+    `<div class="hero-card" onclick="openSeries('${id}')">
+      <img src="${IMG}${s.vs[0]}.png" loading="lazy">
+      <div class="shade"></div>
+      <div class="badges"><span class="badge gold">${i===0?'🌸 春季限定':'✦ 本周主推'}</span><span class="badge">9张·一键九宫格</span></div>
+      <div class="meta"><div class="t serif">${s.t}</div><div class="s">${s.d}</div></div>
+    </div>`);
+  heroDots.insertAdjacentHTML('beforeend', `<i class="${i===0?'on':''}"></i>`);
+});
+heroTrack.addEventListener('scroll',()=>{
+  const i=Math.round(heroTrack.scrollLeft/330);
+  heroDots.querySelectorAll('i').forEach((d,j)=>d.classList.toggle('on',j===i));
+});
+
+const moments=document.getElementById('moments');
+MOMENTS.forEach(m=>{
+  moments.insertAdjacentHTML('beforeend',
+    `<div class="moment" onclick="filterMoment('${m.ids.join(',')}','${m.n}')">
+      <div class="ic">${m.ic}</div><div class="n">${m.n}</div><div class="c">${m.c}</div>
+    </div>`);
+});
+
+const hotTrack=document.getElementById('hotTrack');
+HOT.forEach((id,i)=>{
+  const s=SERIES[id];
+  hotTrack.insertAdjacentHTML('beforeend',
+    `<div class="hot-card" onclick="openSeries('${id}')">
+      <div class="imgw"><img src="${IMG}${s.vs[0]}.png" loading="lazy"><span class="badge rank">TOP ${i+1}</span></div>
+      <div class="n">${s.t}</div><div class="s">${s.hot} 人拍过 · ${s.mode}</div>
+    </div>`);
+});
+
+let curGroup='flower', curMoment=null;
+const gtabs=document.getElementById('gtabs'), sgrid=document.getElementById('sgrid');
+document.getElementById('groupCount').textContent = Object.keys(SERIES).length+' 个系列';
+function renderTabs(){
+  gtabs.innerHTML = GROUPS.map(g=>`<div class="chip ${g.id===curGroup&&!curMoment?'on':''}" onclick="pickGroup('${g.id}')">${g.title}</div>`).join('');
+}
+function renderGrid(){
+  let ids;
+  if(curMoment){ ids=curMoment.ids; }
+  else { ids=GROUPS.find(g=>g.id===curGroup).series; }
+  sgrid.innerHTML = ids.map(id=>{
+    const s=SERIES[id];
+    return `<div class="scard" onclick="openSeries('${id}')">
+      <div class="imgw"><img src="${IMG}${s.vs[0]}.png" loading="lazy"><span class="badge nine-tag gold">◫ ${s.n}张</span></div>
+      <div class="body"><div class="n serif">${s.t}</div><div class="d">${s.mode} · ${s.n===9?'一键九宫格':'3张精选'} · ${s.hot}人拍过</div></div>
+    </div>`;
+  }).join('');
+}
+function pickGroup(id){curGroup=id;curMoment=null;renderTabs();renderGrid();}
+function filterMoment(ids,name){
+  curMoment={ids:ids.split(','),name}; renderTabs(); renderGrid();
+  document.getElementById('sgrid').scrollIntoView({behavior:'smooth'});
+  toast('已按「'+name+'」筛选');
+}
+renderTabs(); renderGrid();
+
+/* ===== S2 系列详情 ===== */
+let curSeries=null, favOn=false;
+function openSeries(id){
+  const s=SERIES[id]; curSeries={id,...s}; favOn=false;
+  document.getElementById('favBtn').textContent='♡';
+  document.getElementById('dHeroImg').src=IMG+s.vs[0]+'.png';
+  document.getElementById('dTitle').textContent=s.t;
+  document.getElementById('dTags').innerHTML=`<span class="d-tag">${s.mode}</span>`+s.tags.map(t=>`<span class="d-tag">${t}</span>`).join('');
+  document.getElementById('dDesc').textContent=s.d+'——场景、服装、妆容、姿势全部搭配好，你只需要「换人」。';
+  document.getElementById('dCount').textContent=s.n;
+  document.getElementById('dMode').textContent=s.mode;
+  document.getElementById('dHot').textContent=s.hot;
+  document.getElementById('dPrice').textContent = (s.n*4)+'币';
+  document.getElementById('dPriceSub').textContent = s.n===9?'9张整组 · 单张4币':s.n+'张精选 · 单张4币';
+  selMode=false; selSet.clear();
+  renderNine(); updateCta();
+  document.getElementById('dComps').innerHTML=
+    [['场景',s.d.split('，')[0]],['服装','系列内锁定（可在生成前微调换装）'],['妆容','跟随你的定妆照'],['姿势','9 个不同瞬间/构图']]
+    .map(c=>`<div class="comp-row"><span class="k">${c[0]}</span><span class="v">${c[1]}</span></div>`).join('');
+  go('s2');
+}
+function toggleFav(){
+  favOn=!favOn;
+  document.getElementById('favBtn').textContent=favOn?'❤️':'♡';
+  if(favOn)toast('已收藏，在「收藏」里随时找到');
+}
+/* 单张选择模式（相册式右上角圆圈，可多选） */
+let selMode=false, selSet=new Set();
+function renderNine(){
+  const s=curSeries;
+  const g=document.getElementById('dNine');
+  g.className='nine-grid'+(selMode?' selmode':'');
+  g.innerHTML=s.vs.map((v,i)=>
+    `<div class="cell ${selSet.has(i)?'sel':''}" onclick="cellTap(${i})"><img src="${IMG}${v}.png" loading="lazy"><span class="num">${i+1}/${s.n}</span><span class="pick">${selSet.has(i)?'✓':''}</span></div>`).join('');
+}
+function cellTap(i){
+  if(!selMode){openViewer(i);return;}
+  selSet.has(i)?selSet.delete(i):selSet.add(i);
+  renderNine(); updateCta();
+}
+function toggleSelMode(){
+  selMode=!selMode; if(!selMode)selSet.clear();
+  renderNine(); updateCta();
+  if(selMode)toast('点右上角圆圈选片，可多张');
+}
+function updateCta(){
+  const b=document.getElementById('btnSingle'), g=document.getElementById('btnGo');
+  if(selMode){
+    const n=selSet.size;
+    b.textContent='取消选张';
+    g.textContent=n?`生成选中 ${n} 张 →`:'先选照片';
+    g.toggleAttribute('disabled',!n);
+    document.getElementById('dPrice').textContent=(n*4)+'币';
+    document.getElementById('dPriceSub').textContent=`已选 ${n} 张 · 每张4币`;
+  }else{
+    b.textContent='只拍单张';
+    g.textContent=curSeries.n===9?'一键九宫格 →':`整组 ${curSeries.n} 张 →`;
+    g.removeAttribute('disabled');
+    document.getElementById('dPrice').textContent=(curSeries.n*4)+'币';
+    document.getElementById('dPriceSub').textContent=curSeries.n===9?'9张整组 · 单张4币':curSeries.n+'张精选 · 单张4币';
+  }
+}
+/* 大图预览 */
+function openViewer(i){
+  const vs=curSeries.vs;
+  document.getElementById('vScroll').innerHTML=vs.map(v=>`<div class="v-page"><img src="${IMG}${v}.png"></div>`).join('');
+  const vw=document.getElementById('viewer'); vw.classList.add('on');
+  const sc=document.getElementById('vScroll');
+  requestAnimationFrame(()=>{sc.scrollLeft=i*sc.clientWidth;});
+  sc.onscroll=()=>{document.getElementById('vIdx').textContent=(Math.round(sc.scrollLeft/sc.clientWidth)+1)+' / '+vs.length;};
+  document.getElementById('vIdx').textContent=(i+1)+' / '+vs.length;
+}
+function closeViewer(){document.getElementById('viewer').classList.remove('on');}
+
+/* ===== S3 生成模拟 ===== */
+let genTimers=[], curList=[];
+function startGen(){
+  curList = selMode ? [...selSet].sort((a,b)=>a-b).map(i=>curSeries.vs[i]) : curSeries.vs.slice();
+  if(!curList.length)return;
+  selMode=false; selSet.clear();
+  go('s3');
+  genTimers.forEach(clearTimeout); genTimers=[];
+  document.getElementById('genWrap').style.display='flex';
+  document.getElementById('resultWrap').style.display='none';
+  document.getElementById('resultCta').style.display='none';
+  const N=curList.length;
+  document.querySelector('#genWrap .gen-t').innerHTML=`正在为你出片 <span id="genX">0</span>/${N}`;
+  const prog=document.getElementById('genProg');
+  prog.style.gridTemplateColumns=`repeat(${Math.min(N,9)},1fr)`;
+  prog.innerHTML=Array.from({length:N},()=>'<i></i>').join('');
+  const cells=prog.querySelectorAll('i');
+  for(let k=1;k<=N;k++){
+    genTimers.push(setTimeout(()=>{
+      document.getElementById('genX').textContent=k;
+      cells[k-1].classList.add('done');
+      cells[k-1].innerHTML=`<img src="${IMG}${curList[k-1]}.png">`;
+      if(k===N)genTimers.push(setTimeout(showResult,700));
+    },k*900));
+  }
+}
+function showResult(){
+  document.getElementById('genWrap').style.display='none';
+  const rw=document.getElementById('resultWrap'); rw.style.display='block';
+  document.getElementById('resultCta').style.display='flex';
+  const vs=curList, N=vs.length;
+  document.getElementById('rSub').textContent=curSeries.t+` · ${N} 张全部完成`;
+  document.getElementById('rGrid').innerHTML=vs.map(v=>`<div class="cell"><img src="${IMG}${v}.png"></div>`).join('');
+  document.getElementById('mmGrid').innerHTML=vs.map(v=>`<img src="${IMG}${v}.png">`).join('');
+  document.getElementById('baA').src=IMG+vs[0]+'.png';
+  document.getElementById('baB').src=IMG+(vs[1]||vs[0])+'.png';
+  rw.scrollTo(0,0);
+}
+
+/* hash 直达：#s1 / #s2-hyd / #s3-hyd（演示与截图用） */
+(function(){
+  const h=location.hash.slice(1);
+  if(!h)return;
+  const [s,arg,extra]=h.split('-');
+  if(s==='s2'&&SERIES[arg]){openSeries(arg);if(extra==='sel'){toggleSelMode();cellTap(1);cellTap(3);cellTap(5);}}
+  if(s==='s3'&&SERIES[arg]){openSeries(arg);startGen();}
+})();
+</script>
+</body>
+</html>

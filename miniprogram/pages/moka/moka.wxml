@@ -1,35 +1,118 @@
 <view class="page">
-  <view class="hero">
-    <view class="eyebrow">同款大片 · 一键换脸</view>
-    <view class="h1 serif">选一个系列，一次出齐九张</view>
-    <view class="sub">每个系列含搭配好的场景、服装、妆容、姿势——整组生成，直接发九宫格</view>
+  <view class="home-head">
+    <view class="home-title serif">同款大片</view>
+    <view class="home-sub">选一个系列，一次出齐九张，直接发九宫格</view>
   </view>
 
-  <!-- v3：一级分组 + 系列卡片 -->
-  <block wx:if="{{groups.length}}">
-    <scroll-view scroll-x class="tabs-scroll">
-      <view class="tabs">
-        <view class="tab {{activeGroup === g.id ? 'active' : ''}}" wx:for="{{groups}}" wx:for-item="g" wx:key="id" data-id="{{g.id}}" bindtap="switchGroup">{{g.title}}</view>
-      </view>
-    </scroll-view>
+  <!-- 搜索：客户端过滤（系列名 / tags / 分组名） -->
+  <view class="searchbar" wx:if="{{groups.length}}">
+    <text class="search-ic">🔍</text>
+    <input class="search-input" placeholder="搜「海边」「中式」「夜景」…" placeholder-class="search-ph"
+           value="{{searchText}}" bindinput="onSearch" confirm-type="search" />
+    <text class="search-clear" wx:if="{{searchText}}" bindtap="clearSearch">✕</text>
+  </view>
 
-    <block wx:for="{{groups}}" wx:for-item="g" wx:key="id" wx:if="{{activeGroup === g.id}}">
-      <view class="group-sub" wx:if="{{g.subtitle}}">{{g.subtitle}}</view>
-      <view class="grid">
-        <view class="card" wx:for="{{g.seriesList}}" wx:for-item="s" wx:key="id" data-id="{{s.id}}" bindtap="pickSeries">
-          <image src="{{s.cover}}" mode="aspectFill" lazy-load />
+  <!-- 搜索结果 -->
+  <block wx:if="{{searchText && groups.length}}">
+    <view class="sec">
+      <view class="sec-head">
+        <view class="sec-title serif">「{{searchText}}」</view>
+        <view class="sec-more">{{searchResults.length}} 个系列</view>
+      </view>
+      <view class="sgrid" wx:if="{{searchResults.length}}">
+        <view class="scard" wx:for="{{searchResults}}" wx:key="id" data-id="{{item.id}}" bindtap="openSeries">
+          <view class="imgw">
+            <image src="{{item.coverImg}}" mode="aspectFill" lazy-load />
+            <view class="badge gold nine-tag">◫ {{item.count}}张</view>
+          </view>
           <view class="body">
-            <view class="name serif">{{s.title}}</view>
-            <view class="desc">{{s.count}} 张 · {{s.modeText}} · 一键九宫格</view>
+            <view class="n serif">{{item.title}}</view>
+            <view class="d">{{item.modeText}} · {{item.count === 9 ? '一键九宫格' : item.count + '张精选'}}{{item.hotText ? ' · ' + item.hotText + '人拍过' : ''}}</view>
           </view>
         </view>
       </view>
-    </block>
+      <view class="grid-empty" wx:else>没有匹配的系列，换个关键词试试</view>
+    </view>
+  </block>
+
+  <!-- 发现首页 -->
+  <block wx:elif="{{groups.length}}">
+    <!-- 主推轮播 -->
+    <scroll-view scroll-x class="hero-track" enhanced show-scrollbar="{{false}}" bindscroll="onHeroScroll" wx:if="{{heroList.length}}">
+      <view class="hero-card" wx:for="{{heroList}}" wx:key="id" data-id="{{item.id}}" bindtap="openSeries">
+        <image src="{{item.coverImg}}" mode="aspectFill" lazy-load />
+        <view class="shade"></view>
+        <view class="badges">
+          <view class="badge gold" wx:if="{{item.badgeText}}">{{item.badgeText}}</view>
+          <view class="badge">{{item.count === 9 ? '9张·一键九宫格' : item.count + '张·整组'}}</view>
+        </view>
+        <view class="meta">
+          <view class="t serif">{{item.title}}</view>
+          <view class="s">{{item.desc}}</view>
+        </view>
+      </view>
+    </scroll-view>
+    <view class="hero-dots" wx:if="{{heroList.length > 1}}">
+      <view class="dot {{heroIdx === index ? 'on' : ''}}" wx:for="{{heroList}}" wx:key="id"></view>
+    </view>
+
+    <!-- 人生节点 -->
+    <view class="sec" wx:if="{{moments.length}}">
+      <view class="sec-head"><view class="sec-title serif">我的人生节点</view><view class="sec-more">按场景选 ›</view></view>
+      <view class="moments">
+        <view class="moment {{activeMoment === item.id ? 'on' : ''}}" wx:for="{{moments}}" wx:key="id"
+              data-id="{{item.id}}" data-title="{{item.title}}" bindtap="pickMoment">
+          <view class="ic">{{item.icon}}</view>
+          <view class="n">{{item.title}}</view>
+          <view class="c">{{item.sub}}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 本周热门 -->
+    <view class="sec" wx:if="{{hotList.length}}">
+      <view class="sec-head"><view class="sec-title serif">本周热门</view><view class="sec-more">大家都在拍</view></view>
+      <scroll-view scroll-x class="hot-track" enhanced show-scrollbar="{{false}}">
+        <view class="hot-card" wx:for="{{hotList}}" wx:key="id" data-id="{{item.id}}" bindtap="openSeries">
+          <view class="imgw">
+            <image src="{{item.coverImg}}" mode="aspectFill" lazy-load />
+            <view class="badge rank">TOP {{index + 1}}</view>
+          </view>
+          <view class="n">{{item.title}}</view>
+          <view class="s">{{item.hotText}} 人拍过{{item.modeText ? ' · ' + item.modeText : ''}}</view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 全部分组 -->
+    <view class="sec">
+      <view class="sec-head">
+        <view class="sec-title serif">{{activeMoment ? activeMomentTitle : '全部系列'}}</view>
+        <view class="sec-more">{{seriesAll.length}} 个系列</view>
+      </view>
+      <scroll-view scroll-x class="gtabs" enhanced show-scrollbar="{{false}}">
+        <view class="chip {{activeGroup === item.id && !activeMoment ? 'on' : ''}}" wx:for="{{groups}}" wx:key="id"
+              data-id="{{item.id}}" bindtap="pickGroup">{{item.title}}</view>
+      </scroll-view>
+      <view class="sgrid" wx:if="{{gridList.length}}">
+        <view class="scard" wx:for="{{gridList}}" wx:key="id" data-id="{{item.id}}" bindtap="openSeries">
+          <view class="imgw">
+            <image src="{{item.coverImg}}" mode="aspectFill" lazy-load />
+            <view class="badge gold nine-tag">◫ {{item.count}}张</view>
+          </view>
+          <view class="body">
+            <view class="n serif">{{item.title}}</view>
+            <view class="d">{{item.modeText}} · {{item.count === 9 ? '一键九宫格' : item.count + '张精选'}}{{item.hotText ? ' · ' + item.hotText + '人拍过' : ''}}</view>
+          </view>
+        </view>
+      </view>
+      <view class="grid-empty" wx:else>这个节点下暂时没有系列</view>
+    </view>
   </block>
 
   <!-- 老版回退：按人群平铺单张 -->
   <block wx:else>
-    <view class="tabs">
+    <view class="old-tabs">
       <view class="tab {{tab === t.key ? 'active' : ''}}" wx:for="{{tabs}}" wx:for-item="t" wx:key="key" data-key="{{t.key}}" bindtap="switchTab">{{t.label}}</view>
     </view>
     <view class="grid">
@@ -43,44 +126,7 @@
     </view>
   </block>
 
-  <!-- 系列弹层：九宫格预览 + 整组生成 -->
-  <view class="mask" wx:if="{{pickedSeries}}" bindtap="closeSeries">
-    <view class="sheet" catchtap="noop">
-      <view class="sheet-body">
-        <view class="name serif">{{pickedSeries.title}} · {{pickedSeries.count}} 张</view>
-        <view class="desc">同系列场景/服装/色调锁定，整组生成直接发九宫格；点单张可只生成那一张</view>
-
-        <view class="nine">
-          <image wx:for="{{pickedSeries.variants}}" wx:for-item="v" wx:key="id" src="{{v.img}}" mode="aspectFill" lazy-load data-id="{{v.id}}" data-url="{{v.img}}" catchtap="pickVariant" />
-        </view>
-
-        <view class="swap-sec" wx:if="{{anchorsF.length && pickedSeries.mode !== 'solo_m'}}">
-          <view class="swap-title">女生定妆照{{pickedSeries.mode === 'couple' ? '（新娘位）' : ''}}</view>
-          <scroll-view scroll-x class="mini-scroll">
-            <view class="mini-item {{swapAnchorF === a.key ? 'active' : ''}}" wx:for="{{anchorsF}}" wx:for-item="a" wx:key="key" data-g="f" data-key="{{a.key}}" bindtap="swapAnchor">
-              <image src="{{a.url}}" mode="aspectFill" />
-              <view class="mini-name">{{a.name}}</view>
-            </view>
-          </scroll-view>
-        </view>
-
-        <view class="swap-sec" wx:if="{{anchorsM.length && pickedSeries.mode !== 'solo_f'}}">
-          <view class="swap-title">男生定妆照{{pickedSeries.mode === 'couple' ? '（新郎位）' : ''}}</view>
-          <scroll-view scroll-x class="mini-scroll">
-            <view class="mini-item {{swapAnchorM === a.key ? 'active' : ''}}" wx:for="{{anchorsM}}" wx:for-item="a" wx:key="key" data-g="m" data-key="{{a.key}}" bindtap="swapAnchor">
-              <image src="{{a.url}}" mode="aspectFill" />
-              <view class="mini-name">{{a.name}}</view>
-            </view>
-          </scroll-view>
-        </view>
-
-        <button class="btn confirm" bindtap="confirmSeries">整组生成 {{pickedSeries.count}} 张 →</button>
-        <view class="hint">整组约需 {{pickedSeries.count}} 张额度；保持模板构图/场景/服装不变，只把人换成你</view>
-      </view>
-    </view>
-  </view>
-
-  <!-- 确认弹层（单张）：大图 + 一键同款 + 微调 -->
+  <!-- 确认弹层（老版回退单张）：大图 + 一键同款 + 微调 -->
   <view class="mask" wx:if="{{picked}}" bindtap="closePick">
     <view class="sheet" catchtap="noop">
       <image class="sheet-img" src="{{picked.img}}" mode="aspectFill" data-url="{{picked.img}}" bindtap="previewImg" />

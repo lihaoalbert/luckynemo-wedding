@@ -6,6 +6,9 @@ Page({
     order: null,
     photo: '',
     photos: [],      // template_series 整组结果（九宫格）
+    mmPhotos: [],    // 朋友圈 mock 缩略（前 9 张）
+    seriesTitle: '', // 来源系列（模板 vs 成片对比）
+    templateCover: '',
   },
 
   onLoad() {
@@ -15,7 +18,15 @@ Page({
       const seriesJob = (res.jobs || []).find(j =>
         j.kind === 'template_series' && j.result && j.result.urls && j.result.urls.length);
       if (seriesJob) {
-        this.setData({ photos: seriesJob.result.urls.map(u => u.url) });
+        const photos = seriesJob.result.urls.map(u => u.url);
+        // 详情页生成时留下的系列信息（job 接口不回传 series_id），没有就不渲染对比块
+        const last = app.globalData.lastSeries || {};
+        this.setData({
+          photos,
+          mmPhotos: photos.slice(0, 9),
+          seriesTitle: last.title || '',
+          templateCover: last.cover || '',
+        });
         return;
       }
       const job = (res.jobs || []).find(j =>

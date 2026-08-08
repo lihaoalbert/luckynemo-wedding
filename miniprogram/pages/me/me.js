@@ -149,6 +149,10 @@ Page({
     wx.navigateTo({ url: '/pages/feedback/feedback' });
   },
 
+  goFav() {
+    wx.navigateTo({ url: '/pages/moka_fav/moka_fav' });
+  },
+
   // 长按删除上传的照片（OSS + 记录都删）
   delUpload(e) {
     const key = e.currentTarget.dataset.key;

@@ -18,6 +18,9 @@ Page({
     const payload = pending ? pending.payload
       : Object.assign(app.globalData.selection || {}, { mode: order.mode || '' });
     app.globalData.pendingJob = null;
+    // 整组进度的总张数：选片子集按 variant_ids 长度，否则以后端 total / 9 兜底
+    this.expectedTotal = (pending && pending.payload
+      && Array.isArray(pending.payload.variant_ids) && pending.payload.variant_ids.length) || 0;
     this.setData({ order, kind });
     app.req('/api/mp/job', 'POST', {
       order_no: order.order_no,
@@ -62,7 +65,7 @@ Page({
         const job = (res.jobs || []).find(j => j.kind === this.data.kind);
         // 整组生成（九宫格）：逐张出图，实时显示 x/N 进度
         if (job && job.result && job.result.urls) {
-          this.setData({ progress: { done: job.result.urls.length, total: job.result.total || 9 } });
+          this.setData({ progress: { done: job.result.urls.length, total: job.result.total || this.expectedTotal || 9 } });
         }
         if (job && job.status === 'done') {
           clearInterval(this.poller);

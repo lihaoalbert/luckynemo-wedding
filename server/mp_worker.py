@@ -331,7 +331,10 @@ def run_template_series(job_id: int, order_no: str, payload: dict) -> None:
     if not series:
         raise RuntimeError(f"模卡系列不存在 {series_id}")
     tpl_map = {t["id"]: t for t in moka_data.get("templates", [])}
-    variant_ids = [v for v in series.get("variants", []) if v in tpl_map]
+    # variant_ids（选片子集，v4）：只生成选中的变体；缺省=整组
+    want = set(payload.get("variant_ids") or [])
+    variant_ids = [v for v in series.get("variants", [])
+                   if v in tpl_map and (not want or v in want)]
     if not variant_ids:
         raise RuntimeError(f"系列 {series_id} 没有可用模板")
     # 锚点规则与 template_photo 一致：定妆照优先，缺省回退原始上传照片
