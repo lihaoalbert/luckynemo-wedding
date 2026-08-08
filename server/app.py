@@ -1532,10 +1532,24 @@ class MpFavIn(BaseModel):
     fav: bool = True
 
 
+def _fav_openid(open_token: str) -> str:
+    """收藏鉴权：open_token 取 wx- 前缀得 openid，且须是登录过（mp_sessions 有记录）的用户。"""
+    openid = _vp_openid(open_token)
+    if not openid:
+        return ""
+    conn = _db()
+    try:
+        row = conn.execute(
+            "SELECT 1 FROM mp_sessions WHERE openid=?", (openid,)).fetchone()
+    finally:
+        conn.close()
+    return openid if row else ""
+
+
 @app.post("/api/mp/fav")
 def mp_fav_set(body: MpFavIn) -> JSONResponse:
     """收藏/取消收藏一个系列。openid 取自 open_token（wx- 前缀），与虚拟支付同一约定。"""
-    openid = _vp_openid(body.open_token)
+    openid = _fav_openid(body.open_token)
     if not openid:
         raise HTTPException(status_code=401, detail="登录态无效")
     conn = _db()
@@ -1558,7 +1572,7 @@ def mp_fav_set(body: MpFavIn) -> JSONResponse:
 @app.get("/api/mp/favs")
 def mp_fav_list(open_token: str = "") -> JSONResponse:
     """我的收藏系列 id 列表。"""
-    openid = _vp_openid(open_token)
+    openid = _fav_openid(open_token)
     if not openid:
         raise HTTPException(status_code=401, detail="登录态无效")
     conn = _db()
