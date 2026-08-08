@@ -19,8 +19,10 @@ Page({
     priceText: '',
     priceSub: '',
     goText: '',
-    // 定妆照锚点（生成时按性别取）
+    // 定妆照锚点（生成时按性别取，详情页「出镜人」区块可换）
     anchors: [],
+    anchorsF: [],
+    anchorsM: [],
     swapAnchorF: '',
     swapAnchorM: '',
   },
@@ -66,7 +68,7 @@ Page({
       const anchorsF = anchors.filter(a => a.gender !== 'male');
       const anchorsM = anchors.filter(a => a.gender === 'male');
       this.setData({
-        anchors,
+        anchors, anchorsF, anchorsM,
         swapAnchorF: selection.anchor_key || (anchorsF[0] && anchorsF[0].key) || '',
         swapAnchorM: selection.anchor_key_b || (anchorsM[0] && anchorsM[0].key) || '',
       });
@@ -147,6 +149,13 @@ Page({
     }
   },
 
+  // ---- 出镜人：换定妆照锚点（反馈 #32） ----
+  swapAnchor(e) {
+    const { g, key } = e.currentTarget.dataset;
+    if (g === 'f') this.setData({ swapAnchorF: key });
+    else this.setData({ swapAnchorM: key });
+  },
+
   // ---- 生成 ----
   // 锚点按系列性别走：女单→女生定妆照，男单→男生定妆照，情侣→两个都要
   _anchorsFor(mode) {
@@ -200,11 +209,21 @@ Page({
       payload.variant_ids = this.data.selIds.slice()
         .sort((x, y) => order.indexOf(x) - order.indexOf(y));
     }
-    this._checkAnchors(s.mode, payload, () => {
-      app.globalData.pendingJob = { kind: 'template_series', payload };
-      // 结果页「模板 vs 成片」对比用（job 接口不回传 series_id）
-      app.globalData.lastSeries = { id: s.id, title: s.title, cover: s.coverImg };
-      wx.navigateTo({ url: '/pages/generating/generating' });
+    // 扣费确认（反馈 #32：一键九宫格需二次确认）
+    const n = this.data.selMode ? this.data.selCount : s.count;
+    wx.showModal({
+      title: '确认生成',
+      content: `${n} 张成片，消耗 ${n * PRICE_PER} 币`,
+      confirmText: '开始生成',
+      success: (r) => {
+        if (!r.confirm) return;
+        this._checkAnchors(s.mode, payload, () => {
+          app.globalData.pendingJob = { kind: 'template_series', payload };
+          // 结果页「模板 vs 成片」对比用（job 接口不回传 series_id）
+          app.globalData.lastSeries = { id: s.id, title: s.title, cover: s.coverImg };
+          wx.navigateTo({ url: '/pages/generating/generating' });
+        });
+      },
     });
   },
 });

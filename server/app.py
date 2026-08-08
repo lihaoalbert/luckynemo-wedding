@@ -1812,7 +1812,7 @@ def mp_me(order_no: str) -> JSONResponse:
         for r in conn.execute(
                 "SELECT kind, result_json, created_at FROM mp_jobs"
                 " WHERE order_no=? AND status='done' AND kind != 'face_sheet'"
-                " ORDER BY id DESC LIMIT 20",
+                " ORDER BY id DESC LIMIT 200",  # 反馈 #31：20 条窗口会把老成片挤出相册
                 (order_no,)).fetchall():
             result = json.loads(r[1]) if r[1] else {}
             if result.get("url"):

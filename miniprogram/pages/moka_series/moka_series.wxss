@@ -77,6 +77,19 @@
 }
 .comp-row .k { flex: none; width: 88rpx; color: #a89a90; }
 .comp-row .v { flex: 1; color: var(--ink); }
+/* 出镜人（定妆照锚点选择） */
+.anchor-sec { margin-top: 20rpx; }
+.swap-title { font-size: 24rpx; font-weight: 600; margin-bottom: 10rpx; }
+.mini-scroll { white-space: nowrap; }
+.mini-item {
+  display: inline-block; width: 110rpx; margin-right: 12rpx;
+  border: 3rpx solid var(--hairline); border-radius: 12rpx; overflow: hidden;
+  background: var(--surface); vertical-align: top;
+}
+.mini-item.active { border-color: var(--accent); }
+.mini-item image { width: 110rpx; height: 146rpx; display: block; background: var(--blush); }
+.mini-name { font-size: 18rpx; text-align: center; padding: 4rpx; white-space: normal; line-height: 1.3; }
+.anchor-empty { font-size: 22rpx; color: #a89a90; padding: 12rpx 0; }
 .foot-space { height: 200rpx; }
 /* 底部 CTA */
 .cta-bar {

@@ -53,6 +53,34 @@
           <text class="k">{{item.k}}</text><text class="v">{{item.v}}</text>
         </view>
       </view>
+
+      <!-- 出镜人：定妆照锚点，可点选更换 -->
+      <view class="sec">
+        <view class="sec-head">
+          <view class="sec-title serif">出镜人</view>
+          <view class="sec-more">点照片可换定妆照</view>
+        </view>
+        <view class="anchor-sec" wx:if="{{series.mode !== 'solo_m'}}">
+          <view class="swap-title">女生定妆照</view>
+          <scroll-view scroll-x class="mini-scroll" wx:if="{{anchorsF.length}}">
+            <view class="mini-item {{swapAnchorF === a.key ? 'active' : ''}}" wx:for="{{anchorsF}}" wx:for-item="a" wx:key="key" data-g="f" data-key="{{a.key}}" bindtap="swapAnchor">
+              <image src="{{a.url}}" mode="aspectFill" />
+              <view class="mini-name">{{a.name}}</view>
+            </view>
+          </scroll-view>
+          <view class="anchor-empty" wx:else>还没有定妆照，生成时会用上传的原始照片</view>
+        </view>
+        <view class="anchor-sec" wx:if="{{series.mode !== 'solo_f'}}">
+          <view class="swap-title">男生定妆照</view>
+          <scroll-view scroll-x class="mini-scroll" wx:if="{{anchorsM.length}}">
+            <view class="mini-item {{swapAnchorM === a.key ? 'active' : ''}}" wx:for="{{anchorsM}}" wx:for-item="a" wx:key="key" data-g="m" data-key="{{a.key}}" bindtap="swapAnchor">
+              <image src="{{a.url}}" mode="aspectFill" />
+              <view class="mini-name">{{a.name}}</view>
+            </view>
+          </scroll-view>
+          <view class="anchor-empty" wx:else>还没有定妆照，生成时会用上传的原始照片</view>
+        </view>
+      </view>
       <view class="foot-space"></view>
     </view>
 
