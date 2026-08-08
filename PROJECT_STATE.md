@@ -113,6 +113,7 @@
 
 ## 更新日志
 
+- 2026-08-08 抖音版上线推进：main 合并 46651f1 + 37733ad（修正 code2session 为 POST JSON，GET 404）；ECS app.py 已部署、`.env` 已配 DOUYIN_APPID/SECRET（AppID tt426534d8dc1fdb9301），luckynemo 重启 active，线上冒烟 `/api/dy/login` 坏 code 返回「bad code」即凭证已被字节接受 ✓；web-view 域名校验文件已上 `/var/www/luckynemo/UiXxZYeEkz.txt`（公网 200 ✓）；小程序 AppID 已填 project.config.json。**待：担保支付进件后配 DOUYIN_PAY_SALT/TOKEN；抖音开发者工具真机走查前端；控制台回验 web-view 域名**
 - 2026-08-08 抖音小程序版移植落地（douyin 分支，未提交）：`miniprogram-douyin/` 由微信版整体移植（codemod wx.→tt./wxml→ttml/wxss→ttss，16 页全 js/json 校验过）；适配层——登录 tt.login→/api/dy/login（openid 前缀 dy-）、支付改担保支付按单付（无金币模式，app.js vpay 重写）、**iOS canPay=false 全端隐藏付费入口**（result/me 页 tt:if 门控）、客服 open-type=contact→意见反馈、WechatSI 语音插件下线（入口注释）、海报小程序码暂缺走无码版、去除全部微信号引流（审核红线）。后端 server/app.py 新增 /api/dy/login + /api/dy/pay/{prepare,confirm,notify}（复用 mp_pay_orders 表，confirm 走字节 query_order 核验不信客户端），_vp_openid 泛化支持 dy- 前缀（收藏/vpay 共用）；未配置时降级 500/503 已冒烟。**待：抖音 AppID/SECRET/SALT 配 ECS .env；前端需抖音开发者工具真机走查（本地无法验证 TTML 渲染）；担保支付签名/回调字段需凭据到位后真单校准**
 - 2026-08-08 抖音小程序版规划定稿：产出 `research/2026-08-抖音小程序版规划.md`（核心判断：tt.* 与 wx.* 近 1:1 可移植不重写，开发量集中在登录/担保支付/分享三通道；金币代币模式在抖音不成立改按单支付；iOS 无虚拟支付只能免费体验且禁止引导文案；人脸核身替代方案待调研）
 - 2026-08-08 微信小程序组独立 worktree `/Users/app/LuckyNemo-Wedding-miniprogram` 建立（miniprogram 分支 0 领先已 ff 到 main 7495637）
