@@ -840,22 +840,23 @@ def mp_login(code: str) -> JSONResponse:
 def dy_login(code: str) -> JSONResponse:
     """抖音 tt.login 的 code 换 openid（抖音小程序启动时调用）。
 
-    字节 code2session v2：GET https://developer.toutiao.com/api/apps/v2/jscode2session
+    字节 code2session v2：POST https://developer.toutiao.com/api/apps/v2/jscode2session
+    （JSON body；GET 404，2026-08-08 实测校准）
     返回 {"err_no": 0, "data": {"openid", "session_key", ...}}；openid 由前端加 dy- 前缀。
     """
     if not DOUYIN_APPID or not DOUYIN_SECRET:
         raise HTTPException(status_code=500, detail="抖音小程序凭证未配置（DOUYIN_APPID/DOUYIN_SECRET）")
     try:
-        r = requests.get(
+        r = requests.post(
             "https://developer.toutiao.com/api/apps/v2/jscode2session",
-            params={"appid": DOUYIN_APPID, "secret": DOUYIN_SECRET, "code": code},
+            json={"appid": DOUYIN_APPID, "secret": DOUYIN_SECRET, "code": code},
             timeout=15,
         )
         resp = r.json()
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"抖音接口异常：{exc}")
     data = resp.get("data") or {}
-    if "openid" not in data:
+    if not data.get("openid"):
         raise HTTPException(status_code=400, detail=f"登录失败：{resp.get('err_tips') or resp.get('errmsg') or resp}")
     # 存 session_key（与微信同表，存原始 openid；渠道前缀 wx-/dy- 由 _openid_of 统一剥离）
     if data.get("session_key"):
