@@ -1,0 +1,45 @@
+.page { height: 100vh; display: flex; align-items: center; justify-content: center; }
+.center { text-align: center; padding: 0 60rpx; }
+/* 可爱的线条小人（拍照中） */
+.worker { position: relative; width: 180rpx; height: 220rpx; margin: 0 auto; }
+.w-head {
+  position: absolute; left: 50%; top: 10rpx; margin-left: -36rpx;
+  width: 72rpx; height: 72rpx; border-radius: 50%;
+  border: 6rpx solid #c0736a; background: #fff;
+  animation: bob 1.6s ease-in-out infinite;
+}
+.w-body {
+  position: absolute; left: 50%; top: 90rpx; margin-left: -3rpx;
+  width: 6rpx; height: 80rpx; background: #c0736a; border-radius: 3rpx;
+}
+.w-leg {
+  position: absolute; left: 50%; top: 166rpx; margin-left: -22rpx;
+  width: 44rpx; height: 50rpx;
+  border-left: 6rpx solid #c0736a; border-right: 6rpx solid #c0736a;
+  border-radius: 0 0 12rpx 12rpx;
+}
+.w-camera {
+  position: absolute; left: 50%; top: 96rpx; margin-left: -6rpx;
+  width: 64rpx; height: 44rpx; border-radius: 10rpx;
+  border: 6rpx solid #c0736a; background: #fff;
+  animation: camWork 2s ease-in-out infinite;
+}
+.w-lens {
+  position: absolute; left: 50%; top: 50%; margin: -11rpx 0 0 -11rpx;
+  width: 22rpx; height: 22rpx; border-radius: 50%;
+  border: 5rpx solid #c0736a;
+}
+.w-flash {
+  position: absolute; right: 6rpx; top: 60rpx;
+  width: 26rpx; height: 26rpx; border-radius: 50%;
+  background: #f5d76e; opacity: 0;
+  animation: flash 2s ease-in-out infinite;
+}
+@keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(8rpx); } }
+@keyframes camWork { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10rpx); } }
+@keyframes flash {
+  0%, 70%, 100% { opacity: 0; transform: scale(.5); }
+  78% { opacity: 1; transform: scale(1.6); }
+  88% { opacity: 0; transform: scale(1); }
+}
+.tip { margin-top: 20rpx; font-size: 28rpx; color: var(--accent); }

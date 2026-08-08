@@ -1,0 +1,65 @@
+<view class="page">
+  <scroll-view id="scroll" scroll-y class="chat">
+    <view class="hero">
+      <view class="eyebrow">LuckyNemo · AI 照相馆</view>
+      <view class="h1 serif">不出门，<text class="accent">拍好婚纱照</text></view>
+    </view>
+    <view class="thread">
+      <block tt:for="{{messages}}" tt:key="index">
+        <view class="msg-row {{item.role}}">
+          <image class="avatar" tt:if="{{item.role === 'ai'}}" src="/assets/avatar.png" mode="aspectFill" />
+          <view class="avatar user-avatar" tt:if="{{item.role === 'me'}}">
+            <open-data type="userAvatarUrl" style="display:block;width:56rpx;height:56rpx;border-radius:50%;overflow:hidden;"></open-data>
+          </view>
+          <view class="bubble {{item.role}} {{item.images ? 'img-bubble' : ''}}">
+            <view tt:if="{{item.text}}">{{item.text}}</view>
+            <view class="imgs" tt:if="{{item.images}}">
+              <image tt:for="{{item.images}}" tt:for-item="img" tt:key="*this"
+                     src="{{img}}" mode="aspectFill" data-url="{{img}}" bindtap="previewImg" lazy-load />
+            </view>
+            <view tt:if="{{item.action && item.action.card}}" class="act-card" data-action="{{item.action}}" bindtap="onAction">
+              <image class="act-card-img" src="{{item.action.card.img}}" mode="aspectFill" lazy-load />
+              <view class="act-card-body">
+                <view class="act-card-title">{{item.action.card.title}}</view>
+                <view class="act-card-desc">{{item.action.card.desc}}</view>
+              </view>
+              <view class="act-card-arrow">→</view>
+            </view>
+            <view tt:elif="{{item.action}}" class="act-btn" data-action="{{item.action}}" bindtap="onAction">
+              {{item.action.text}}
+            </view>
+          </view>
+        </view>
+      </block>
+    </view>
+  </scroll-view>
+
+  <view class="dock">
+    <!-- 待发送图片条 -->
+    <view class="pending" tt:if="{{pendingImages.length}}">
+      <view class="pending-item" tt:for="{{pendingImages}}" tt:key="path">
+        <image src="{{item.path}}" mode="aspectFill" />
+        <view class="pending-status">{{item.status}}</view>
+        <view class="pending-del" data-idx="{{index}}" catchtap="removePending">✕</view>
+      </view>
+    </view>
+    <!-- 语音态：按住说话 -->
+    <view class="dock-row" tt:if="{{inputMode === 'voice'}}">
+      <view class="voice-btn flex1 {{recording ? 'recording' : ''}}"
+            bindtouchstart="startVoice" bindtouchend="stopVoice" bindtouchcancel="stopVoice">
+        {{recording ? '松开结束' : '按住 说话'}}
+      </view>
+      <view class="icon-btn" bindtap="closeVoice">✕</view>
+    </view>
+    <!-- 常驻输入条（快捷动作都在对话流里） -->
+    <view class="dock-row" tt:else>
+      <input class="chat-input" value="{{inputValue}}" bindinput="onInput"
+             confirm-type="send" bindconfirm="sendChat"
+             placeholder="说说你的想法，比如：腮红淡一点" />
+      <view class="icon-btn" bindtap="chooseImage">📷</view>
+      <!-- 语音输入下线：WechatSI 同声传译是微信插件，抖音无对应能力；恢复需接抖音 ASR -->
+      <!-- <view class="icon-btn" bindtap="openVoice">🎤</view> -->
+      <view class="icon-btn send" bindtap="sendChat">发送</view>
+    </view>
+  </view>
+</view>

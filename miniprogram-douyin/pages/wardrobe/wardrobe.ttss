@@ -1,0 +1,45 @@
+.page { min-height: 100vh; padding: 0 28rpx 160rpx; }
+.hero { padding: 40rpx 0 20rpx; }
+.tabs { display: flex; gap: 16rpx; margin: 10rpx 0 28rpx; }
+.tab { padding: 14rpx 30rpx; border-radius: 999rpx; font-size: 26rpx; background: var(--surface); border: 1rpx solid var(--hairline); }
+.tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; }
+.set { position: relative; background: var(--surface); border: 3rpx solid var(--hairline); border-radius: 24rpx; overflow: hidden; }
+.set.selected { border-color: var(--accent); }
+.imgs { display: grid; grid-template-columns: 1fr 1fr; }
+.imgs image { width: 100%; aspect-ratio: 3/4; background: var(--blush); }
+.solo-img { width: 100%; aspect-ratio: 3/4; background: var(--blush); }
+.scene-img { width: 100%; aspect-ratio: 16/10; background: var(--blush); }
+.body { padding: 16rpx 18rpx 18rpx; }
+.name { font-size: 28rpx; font-weight: 600; }
+.style { font-size: 22rpx; color: var(--accent); margin-left: 8rpx; }
+.pitch { font-size: 24rpx; color: var(--ink-soft); margin-top: 6rpx; }
+.detail-toggle { margin-top: 12rpx; font-size: 22rpx; color: var(--accent); }
+.detail { margin-top: 12rpx; padding-top: 12rpx; border-top: 1rpx dashed var(--hairline); }
+.d-row { display: flex; gap: 12rpx; margin-top: 8rpx; }
+.d-k { flex: none; width: 52rpx; font-size: 22rpx; color: var(--accent); font-weight: 600; }
+.d-v { flex: 1; font-size: 22rpx; color: var(--ink-soft); line-height: 1.6; }
+.check {
+  position: absolute; top: 14rpx; right: 14rpx; width: 44rpx; height: 44rpx;
+  border-radius: 50%; background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 28rpx;
+}
+/* 定妆照选择条 */
+.anchor-strip { margin: 4rpx 0 20rpx; }
+.anchor-label { font-size: 22rpx; color: var(--ink-soft); margin-bottom: 10rpx; }
+.anchor-scroll { white-space: nowrap; }
+.anchor-item {
+  display: inline-block; width: 120rpx; margin-right: 14rpx;
+  border: 3rpx solid var(--hairline); border-radius: 14rpx; overflow: hidden;
+  background: var(--surface); vertical-align: top;
+}
+.anchor-item.active { border-color: var(--accent); }
+.anchor-item image { width: 120rpx; height: 160rpx; display: block; background: var(--blush); }
+.anchor-name {
+  font-size: 18rpx; color: var(--ink); text-align: center;
+  padding: 6rpx 4rpx; white-space: normal; line-height: 1.3;
+}
+.dock {
+  position: fixed; left: 0; right: 0; bottom: 0; padding: 20rpx 28rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: rgba(253, 248, 244, 0.92); border-top: 1rpx solid var(--hairline);
+}

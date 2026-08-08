@@ -1,0 +1,30 @@
+.page { padding: 24rpx; }
+.empty { padding: 120rpx 0; text-align: center; }
+.empty-txt { color: var(--ink-soft, #a89a90); font-size: 28rpx; }
+.grid { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.cell {
+  position: relative;
+  width: calc((100% - 16rpx) / 2);
+  border-radius: 12rpx; overflow: hidden; background: var(--blush, #f3e9e2);
+}
+.cell image { width: 100%; height: 460rpx; display: block; }
+.cell-label {
+  position: absolute; left: 12rpx; bottom: 12rpx;
+  padding: 2rpx 14rpx; border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.45); color: #fff; font-size: 20rpx;
+}
+.cell-count {
+  position: absolute; right: 12rpx; top: 12rpx;
+  padding: 2rpx 14rpx; border-radius: 999rpx;
+  background: var(--accent, #c0736a); color: #fff; font-size: 20rpx;
+}
+/* 类型筛选 */
+.chips { white-space: nowrap; margin-bottom: 20rpx; }
+.chip {
+  display: inline-block; margin-right: 16rpx;
+  padding: 10rpx 28rpx; border-radius: 999rpx;
+  font-size: 24rpx; color: var(--ink-soft, #a89a90);
+  background: var(--surface, #fff); border: 1rpx solid var(--hairline, #e8ddd5);
+}
+.chip.on { color: #fff; background: var(--accent, #c0736a); border-color: var(--accent, #c0736a); }
+.tip { margin-top: 20rpx; font-size: 22rpx; color: var(--ink-soft, #a89a90); text-align: center; }

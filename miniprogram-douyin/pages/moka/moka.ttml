@@ -1,0 +1,176 @@
+<view class="page">
+  <view class="home-head">
+    <view class="home-title serif">同款大片</view>
+    <view class="home-sub">选一个系列，一次出齐九张，直接发九宫格</view>
+  </view>
+
+  <!-- 搜索入口暂不开放（2026-08-08 用户要求隐藏；js 逻辑保留，恢复时去掉注释即可）
+  <view class="searchbar" tt:if="{{groups.length}}">
+    <text class="search-ic">🔍</text>
+    <input class="search-input" placeholder="搜「海边」「中式」「夜景」…" placeholder-class="search-ph"
+           value="{{searchText}}" bindinput="onSearch" confirm-type="search" />
+    <text class="search-clear" tt:if="{{searchText}}" bindtap="clearSearch">✕</text>
+  </view>
+  -->
+
+  <!-- 搜索结果 -->
+  <block tt:if="{{searchText && groups.length}}">
+    <view class="sec">
+      <view class="sec-head">
+        <view class="sec-title serif">「{{searchText}}」</view>
+        <view class="sec-more">{{searchResults.length}} 个系列</view>
+      </view>
+      <view class="sgrid" tt:if="{{searchResults.length}}">
+        <view class="scard" tt:for="{{searchResults}}" tt:key="id" data-id="{{item.id}}" bindtap="openSeries">
+          <view class="imgw">
+            <image src="{{item.coverImg}}" mode="aspectFill" lazy-load />
+            <view class="badge gold nine-tag">◫ {{item.count}}张</view>
+          </view>
+          <view class="body">
+            <view class="n serif">{{item.title}}</view>
+            <view class="d">{{item.modeText}} · {{item.count === 9 ? '一键九宫格' : item.count + '张精选'}}{{item.hotText ? ' · ' + item.hotText + '人拍过' : ''}}</view>
+          </view>
+        </view>
+      </view>
+      <view class="grid-empty" tt:else>没有匹配的系列，换个关键词试试</view>
+    </view>
+  </block>
+
+  <!-- 发现首页 -->
+  <block tt:elif="{{groups.length}}">
+    <!-- 主推轮播 -->
+    <scroll-view scroll-x class="hero-track" enhanced show-scrollbar="{{false}}" bindscroll="onHeroScroll" tt:if="{{heroList.length}}">
+      <view class="hero-card" tt:for="{{heroList}}" tt:key="id" data-id="{{item.id}}" bindtap="openSeries">
+        <image src="{{item.coverImg}}" mode="aspectFill" lazy-load />
+        <view class="shade"></view>
+        <view class="badges">
+          <view class="badge gold" tt:if="{{item.badgeText}}">{{item.badgeText}}</view>
+          <view class="badge">{{item.count === 9 ? '9张·一键九宫格' : item.count + '张·整组'}}</view>
+        </view>
+        <view class="meta">
+          <view class="t serif">{{item.title}}</view>
+          <view class="s">{{item.desc}}</view>
+        </view>
+      </view>
+    </scroll-view>
+    <view class="hero-dots" tt:if="{{heroList.length > 1}}">
+      <view class="dot {{heroIdx === index ? 'on' : ''}}" tt:for="{{heroList}}" tt:key="id"></view>
+    </view>
+
+    <!-- 人生节点 -->
+    <view class="sec" tt:if="{{moments.length}}">
+      <view class="sec-head"><view class="sec-title serif">我的人生节点</view><view class="sec-more">按场景选 ›</view></view>
+      <view class="moments">
+        <view class="moment {{activeMoment === item.id ? 'on' : ''}}" tt:for="{{moments}}" tt:key="id"
+              data-id="{{item.id}}" data-title="{{item.title}}" bindtap="pickMoment">
+          <view class="ic">{{item.icon}}</view>
+          <view class="n">{{item.title}}</view>
+          <view class="c">{{item.sub}}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 本周热门已下线（2026-08-08 用户决定：干扰大于帮助）；hotList 逻辑保留，恢复时去掉注释
+    <view class="sec" tt:if="{{hotList.length}}">
+      <view class="sec-head"><view class="sec-title serif">本周热门</view><view class="sec-more">大家都在拍</view></view>
+      <scroll-view scroll-x class="hot-track" enhanced show-scrollbar="{{false}}">
+        <view class="hot-card" tt:for="{{hotList}}" tt:key="id" data-id="{{item.id}}" bindtap="openSeries">
+          <view class="imgw">
+            <image src="{{item.coverImg}}" mode="aspectFill" lazy-load />
+            <view class="badge rank">TOP {{index + 1}}</view>
+          </view>
+          <view class="n">{{item.title}}</view>
+          <view class="s">{{item.hotText}} 人拍过{{item.modeText ? ' · ' + item.modeText : ''}}</view>
+        </view>
+      </scroll-view>
+    </view>
+    -->
+
+    <!-- 全部分组 -->
+    <view class="sec">
+      <view class="sec-head">
+        <view class="sec-title serif">{{activeMoment ? activeMomentTitle : '全部系列'}}</view>
+        <view class="sec-more">{{seriesAll.length}} 个系列</view>
+      </view>
+      <scroll-view scroll-x class="gtabs" enhanced show-scrollbar="{{false}}">
+        <view class="chip {{activeGroup === item.id && !activeMoment ? 'on' : ''}}" tt:for="{{groups}}" tt:key="id"
+              data-id="{{item.id}}" bindtap="pickGroup">{{item.title}}</view>
+      </scroll-view>
+      <view class="sgrid" tt:if="{{gridList.length}}">
+        <view class="scard" tt:for="{{gridList}}" tt:key="id" data-id="{{item.id}}" bindtap="openSeries">
+          <view class="imgw">
+            <image src="{{item.coverImg}}" mode="aspectFill" lazy-load />
+            <view class="badge gold nine-tag">◫ {{item.count}}张</view>
+          </view>
+          <view class="body">
+            <view class="n serif">{{item.title}}</view>
+            <view class="d">{{item.modeText}} · {{item.count === 9 ? '一键九宫格' : item.count + '张精选'}}{{item.hotText ? ' · ' + item.hotText + '人拍过' : ''}}</view>
+          </view>
+        </view>
+      </view>
+      <view class="grid-empty" tt:else>这个节点下暂时没有系列</view>
+    </view>
+  </block>
+
+  <!-- 老版回退：按人群平铺单张 -->
+  <block tt:else>
+    <view class="old-tabs">
+      <view class="tab {{tab === t.key ? 'active' : ''}}" tt:for="{{tabs}}" tt:for-item="t" tt:key="key" data-key="{{t.key}}" bindtap="switchTab">{{t.label}}</view>
+    </view>
+    <view class="grid">
+      <view class="card" tt:for="{{templates}}" tt:key="id" tt:if="{{item.mode === tab}}" data-id="{{item.id}}" bindtap="pick">
+        <image src="{{item.img}}" mode="aspectFill" lazy-load data-url="{{item.img}}" catchtap="previewImg" />
+        <view class="body">
+          <view class="name serif">{{item.title}}</view>
+          <view class="desc">{{item.desc}}</view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 确认弹层（老版回退单张）：大图 + 一键同款 + 微调 -->
+  <view class="mask" tt:if="{{picked}}" bindtap="closePick">
+    <view class="sheet" catchtap="noop">
+      <image class="sheet-img" src="{{picked.img}}" mode="aspectFill" data-url="{{picked.img}}" bindtap="previewImg" />
+      <view class="sheet-body">
+        <view class="name serif">{{picked.title}}</view>
+        <view class="comp" tt:for="{{picked.componentsList}}" tt:for-item="c" tt:key="k">
+          <text class="comp-k">{{c.k}}</text><text class="comp-v">{{c.v}}</text>
+        </view>
+
+        <view class="swap-sec" tt:if="{{anchorsF.length && picked.mode !== 'solo_m'}}">
+          <view class="swap-title">女生定妆照{{picked.mode === 'couple' ? '（新娘位）' : '（换妆容）'}}</view>
+          <scroll-view scroll-x class="mini-scroll">
+            <view class="mini-item {{swapAnchorF === a.key ? 'active' : ''}}" tt:for="{{anchorsF}}" tt:for-item="a" tt:key="key" data-g="f" data-key="{{a.key}}" bindtap="swapAnchor">
+              <image src="{{a.url}}" mode="aspectFill" />
+              <view class="mini-name">{{a.name}}</view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <view class="swap-sec" tt:if="{{anchorsM.length && picked.mode !== 'solo_f'}}">
+          <view class="swap-title">男生定妆照{{picked.mode === 'couple' ? '（新郎位）' : '（换妆容）'}}</view>
+          <scroll-view scroll-x class="mini-scroll">
+            <view class="mini-item {{swapAnchorM === a.key ? 'active' : ''}}" tt:for="{{anchorsM}}" tt:for-item="a" tt:key="key" data-g="m" data-key="{{a.key}}" bindtap="swapAnchor">
+              <image src="{{a.url}}" mode="aspectFill" />
+              <view class="mini-name">{{a.name}}</view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <view class="swap-sec">
+          <view class="swap-title">微调 · 换服装</view>
+          <scroll-view scroll-x class="mini-scroll">
+            <view class="mini-item {{swapSetId === s.id ? 'active' : ''}}" tt:for="{{sets}}" tt:for-item="s" tt:key="id" data-id="{{s.id}}" bindtap="swapSet">
+              <image src="{{s.dressImg}}" mode="aspectFill" />
+              <view class="mini-name">{{s.name}}</view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <button class="btn confirm" bindtap="confirm">一键同款 →</button>
+        <view class="hint">保持模板的构图/场景/服装/神态不变，只把人换成你</view>
+      </view>
+    </view>
+  </view>
+</view>

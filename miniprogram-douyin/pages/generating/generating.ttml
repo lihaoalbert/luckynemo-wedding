@@ -1,0 +1,18 @@
+<view class="page">
+  <view class="center">
+    <!-- 可爱的线条小人：正在拍照 -->
+    <view class="worker">
+      <view class="w-flash"></view>
+      <view class="w-head"></view>
+      <view class="w-body"></view>
+      <view class="w-camera">
+        <view class="w-lens"></view>
+      </view>
+      <view class="w-leg"></view>
+    </view>
+    <view class="h1 serif" style="margin-top: 32rpx;">正在为你们生成</view>
+    <view class="tip" tt:if="{{progress}}">已完成 {{progress.done}} / {{progress.total}} 张</view>
+    <view class="tip" tt:else>{{tips[tipIdx]}}</view>
+    <view class="sub" style="margin-top: 30rpx;">{{progress ? '整组生成中，每张约 1 分钟，可以切出去逛逛，好了我叫你' : '大约需要 1-2 分钟，可以切出去逛逛，好了我叫你'}}</view>
+  </view>
+</view>

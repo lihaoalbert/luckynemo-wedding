@@ -1,0 +1,73 @@
+<view class="page">
+  <view class="hero">
+    <view class="eyebrow">Step 3 · 霓裳阁</view>
+    <view class="h1 serif">挑一套，穿起来</view>
+  </view>
+
+  <view class="tabs">
+    <view class="tab {{tab === 'sets' ? 'active' : ''}}" data-tab="sets" bindtap="switchTab">套装（推荐）</view>
+    <view class="tab {{tab === 'scenes' ? 'active' : ''}}" data-tab="scenes" bindtap="switchTab">场景（可多选）</view>
+  </view>
+
+  <!-- 我的定妆照：多张可选，不同衣服配不同妆（按她/他分组） -->
+  <view class="anchor-strip" tt:if="{{anchors.length && tab === 'sets'}}">
+    <block tt:if="{{anchorsA.length}}">
+      <view class="anchor-label">她的妆容</view>
+      <scroll-view scroll-x class="anchor-scroll">
+        <view class="anchor-item {{activeAnchor === a.key ? 'active' : ''}}" tt:for="{{anchorsA}}" tt:for-item="a" tt:key="key"
+              data-key="{{a.key}}" data-name="{{a.name}}" data-role="A" bindtap="pickAnchor">
+          <image src="{{a.url}}" mode="aspectFill" lazy-load />
+          <view class="anchor-name">{{a.name}}</view>
+        </view>
+      </scroll-view>
+    </block>
+    <block tt:if="{{anchorsB.length}}">
+      <view class="anchor-label">他的妆容</view>
+      <scroll-view scroll-x class="anchor-scroll">
+        <view class="anchor-item {{activeAnchor === a.key ? 'active' : ''}}" tt:for="{{anchorsB}}" tt:for-item="a" tt:key="key"
+              data-key="{{a.key}}" data-name="{{a.name}}" data-role="B" bindtap="pickAnchor">
+          <image src="{{a.url}}" mode="aspectFill" lazy-load />
+          <view class="anchor-name">{{a.name}}</view>
+        </view>
+      </scroll-view>
+    </block>
+  </view>
+
+  <view tt:if="{{tab === 'sets'}}" class="grid">
+    <view class="set {{setId === item.id ? 'selected' : ''}}" tt:for="{{sets}}" tt:key="id" data-id="{{item.id}}" bindtap="pickSet">
+      <view class="imgs" tt:if="{{mode === 'couple'}}">
+        <image src="{{item.dressImg}}" mode="aspectFill" lazy-load data-url="{{item.dressImg}}" catchtap="previewImg" />
+        <image src="{{item.suitImg}}" mode="aspectFill" lazy-load data-url="{{item.suitImg}}" catchtap="previewImg" />
+      </view>
+      <view tt:else>
+        <image class="solo-img" src="{{gender === 'male' ? item.suitImg : item.dressImg}}" mode="aspectFill" lazy-load data-url="{{gender === 'male' ? item.suitImg : item.dressImg}}" catchtap="previewImg" />
+      </view>
+      <view class="body">
+        <view class="name serif">{{item.name}} <text class="style">{{item.style}}</text></view>
+        <view class="pitch">{{item.pitch}}</view>
+        <view class="detail-toggle" data-id="{{item.id}}" catchtap="toggleDetail">{{expandedId === item.id ? '收起说明 ▲' : '服装细节 ▼'}}</view>
+        <view class="detail" tt:if="{{expandedId === item.id}}">
+          <view class="d-row" tt:if="{{mode !== 'solo' || gender !== 'male'}}"><text class="d-k">女装</text><text class="d-v">{{item.dress.name}}</text></view>
+          <view class="d-row" tt:if="{{mode !== 'solo' || gender === 'male'}}"><text class="d-k">男装</text><text class="d-v">{{item.suit.name}}</text></view>
+          <view class="d-row" tt:if="{{item.scenes && item.scenes.length}}"><text class="d-k">适配</text><text class="d-v">{{item.scenes.join('、')}}</text></view>
+        </view>
+      </view>
+      <view class="check" tt:if="{{setId === item.id}}">✓</view>
+    </view>
+  </view>
+
+  <view tt:else class="grid">
+    <view class="set scene {{sceneIds[item.id] ? 'selected' : ''}}" tt:for="{{scenes}}" tt:key="id" data-id="{{item.id}}" bindtap="pickScene">
+      <image class="scene-img" src="{{item.img}}" mode="aspectFill" lazy-load data-url="{{item.img}}" catchtap="previewImg" />
+      <view class="body">
+        <view class="name serif">{{item.name}}</view>
+        <view class="pitch">「{{item.pitch}}」</view>
+      </view>
+      <view class="check" tt:if="{{sceneIds[item.id]}}">✓</view>
+    </view>
+  </view>
+
+  <view class="dock">
+    <button class="btn" bindtap="confirm">{{tab === 'sets' ? '选好了，去挑场景 →' : '去挑动作神态 →'}}</button>
+  </view>
+</view>

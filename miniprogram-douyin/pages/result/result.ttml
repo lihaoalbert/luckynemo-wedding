@@ -1,0 +1,78 @@
+<view class="page">
+  <view class="hero">
+    <view class="eyebrow">免费第一张 · 礼成</view>
+    <view class="h1 serif">看看，是不是你们？</view>
+  </view>
+
+  <!-- 整组九宫格结果 -->
+  <block tt:if="{{photos.length}}">
+    <view class="nine">
+      <image tt:for="{{photos}}" tt:key="*this" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="previewOne" />
+    </view>
+    <view class="row">
+      <button class="btn ghost" bindtap="saveAll">全部存到相册</button>
+      <button class="btn ghost">分享给朋友</button>
+    </view>
+
+    <!-- 朋友圈 mock -->
+    <view class="mm card">
+      <view class="mm-title serif">发到朋友圈长这样</view>
+      <view class="mm-main">
+        <view class="mm-avatar serif">恩</view>
+        <view class="mm-info">
+          <view class="mm-name">徐大恩</view>
+          <view class="mm-text">{{seriesTitle ? seriesTitle + '，' : ''}}一次出齐，刚刚好 🌸</view>
+          <view class="mm-grid">
+            <image tt:for="{{mmPhotos}}" tt:key="*this" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="previewOne" />
+          </view>
+          <view class="mm-foot">3分钟前 · LuckyNemo</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 模板 vs 成片 -->
+    <view class="ba card" tt:if="{{templateCover}}">
+      <view class="mm-title serif">模板 vs 你的成片</view>
+      <view class="ba-row">
+        <view class="ba-cell">
+          <view class="lab">模板</view>
+          <image src="{{templateCover}}" mode="aspectFill" />
+        </view>
+        <view class="ba-cell">
+          <view class="lab">你的脸</view>
+          <image src="{{photos[0]}}" mode="aspectFill" />
+        </view>
+      </view>
+      <view class="mm-foot" style="margin-top: 12rpx;">场景 / 服装 / 构图还原模板，只换人</view>
+    </view>
+  </block>
+
+  <block tt:else>
+    <view class="photo card" bindtap="preview">
+      <image tt:if="{{photo}}" src="{{photo}}" mode="widthFix" />
+      <view tt:else class="ph">成片生成中，稍等一下下拉刷新～</view>
+    </view>
+
+    <view class="row">
+      <button class="btn ghost" bindtap="save">存到相册</button>
+      <button class="btn ghost">分享给朋友</button>
+    </view>
+  </block>
+
+  <view class="upcard card" tt:if="{{canPay}}">
+    <view class="uptitle serif">想要更多？</view>
+    <view class="opt" bindtap="buyPer">
+      <view><b>4 元/张</b><view class="sub">按张付费，喜欢再要</view></view>
+      <view class="go">→</view>
+    </view>
+    <view class="opt hot" bindtap="buyPack">
+      <view><b>52 元 · 20 张</b><view class="sub">多风格多场景，最划算</view></view>
+      <view class="go">→</view>
+    </view>
+  </view>
+
+  <view class="film card" bindtap="upgrade">
+    <view class="uptitle serif">💌 还有更特别的</view>
+    <view class="sub">把你们的故事做成一支爱情短片：专属脚本、配音配乐，婚礼开场放一次，纪念日再看一次。</view>
+  </view>
+</view>

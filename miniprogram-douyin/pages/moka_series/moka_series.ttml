@@ -1,0 +1,94 @@
+<view class="page">
+  <view class="loading" tt:if="{{loading}}">加载中…</view>
+
+  <view class="loading" tt:elif="{{notFound}}">
+    <view>系列不存在或已下架</view>
+    <button class="btn ghost back-btn" bindtap="goBack">返回</button>
+  </view>
+
+  <block tt:elif="{{series}}">
+    <!-- 顶部大图 + 收藏 -->
+    <view class="hero">
+      <image src="{{series.coverImg}}" mode="aspectFill" />
+      <view class="shade"></view>
+      <view class="fav {{fav ? 'on' : ''}}" bindtap="toggleFav">{{fav ? '❤️' : '♡'}}</view>
+    </view>
+
+    <view class="body">
+      <view class="d-title serif">{{series.title}}</view>
+      <view class="d-tags">
+        <view class="d-tag" tt:if="{{series.modeText}}">{{series.modeText}}</view>
+        <view class="d-tag" tt:for="{{series.tags}}" tt:key="*this">{{item}}</view>
+      </view>
+      <view class="d-desc" tt:if="{{series.desc}}">{{series.desc}}——场景、服装、妆容、姿势全部搭配好，你只需要「换人」。</view>
+
+      <view class="d-stats">
+        <view class="d-stat"><b>{{series.count}}</b><span>同风格成片</span></view>
+        <view class="d-stat"><b>{{series.modeText || '—'}}</b><span>出镜人数</span></view>
+        <view class="d-stat"><b>≈4分钟</b><span>整组生成</span></view>
+        <view class="d-stat" tt:if="{{series.hasHot}}"><b>{{series.hotText}}</b><span>人拍过</span></view>
+      </view>
+
+      <!-- 九宫格预览 -->
+      <view class="sec">
+        <view class="sec-head">
+          <view class="sec-title serif">这个系列有什么</view>
+          <view class="sec-more">{{selMode ? '点圆圈选片' : '点开看大图'}}</view>
+        </view>
+        <view class="nine {{selMode ? 'selmode' : ''}}">
+          <view class="cell {{item.sel ? 'sel' : ''}}" tt:for="{{cells}}" tt:key="id"
+                data-id="{{item.id}}" data-url="{{item.img}}" bindtap="cellTap">
+            <image src="{{item.img}}" mode="aspectFill" lazy-load />
+            <view class="ph-badge" tt:if="{{item.placeholder}}">预览</view>
+            <view class="num">{{index + 1}}/{{series.count}}</view>
+            <view class="pick">{{item.sel ? '✓' : ''}}</view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 成分表 -->
+      <view class="sec" tt:if="{{comps.length}}">
+        <view class="sec-head"><view class="sec-title serif">都搭配好了</view></view>
+        <view class="comp-row" tt:for="{{comps}}" tt:key="k">
+          <text class="k">{{item.k}}</text><text class="v">{{item.v}}</text>
+        </view>
+      </view>
+
+      <!-- 出镜人：定妆照锚点，可点选更换 -->
+      <view class="sec">
+        <view class="sec-head">
+          <view class="sec-title serif">出镜人</view>
+          <view class="sec-more">点照片可换定妆照</view>
+        </view>
+        <view class="anchor-sec" tt:if="{{series.mode !== 'solo_m'}}">
+          <view class="swap-title">女生定妆照</view>
+          <scroll-view scroll-x class="mini-scroll" tt:if="{{anchorsF.length}}">
+            <view class="mini-item {{swapAnchorF === a.key ? 'active' : ''}}" tt:for="{{anchorsF}}" tt:for-item="a" tt:key="key" data-g="f" data-key="{{a.key}}" bindtap="swapAnchor">
+              <image src="{{a.url}}" mode="aspectFill" />
+              <view class="mini-name">{{a.name}}</view>
+            </view>
+          </scroll-view>
+          <view class="anchor-empty" tt:else>还没有定妆照，生成时会用上传的原始照片</view>
+        </view>
+        <view class="anchor-sec" tt:if="{{series.mode !== 'solo_f'}}">
+          <view class="swap-title">男生定妆照</view>
+          <scroll-view scroll-x class="mini-scroll" tt:if="{{anchorsM.length}}">
+            <view class="mini-item {{swapAnchorM === a.key ? 'active' : ''}}" tt:for="{{anchorsM}}" tt:for-item="a" tt:key="key" data-g="m" data-key="{{a.key}}" bindtap="swapAnchor">
+              <image src="{{a.url}}" mode="aspectFill" />
+              <view class="mini-name">{{a.name}}</view>
+            </view>
+          </scroll-view>
+          <view class="anchor-empty" tt:else>还没有定妆照，生成时会用上传的原始照片</view>
+        </view>
+      </view>
+      <view class="foot-space"></view>
+    </view>
+
+    <!-- 底部 CTA -->
+    <view class="cta-bar">
+      <view class="cta-price"><b>{{priceText}}</b><span>{{priceSub}}</span></view>
+      <button class="btn ghost cta-ghost" bindtap="toggleSelMode">{{selMode ? '取消选张' : '只拍单张'}}</button>
+      <button class="btn cta-go" bindtap="generate" disabled="{{selMode && !selCount}}">{{goText}}</button>
+    </view>
+  </block>
+</view>

@@ -566,6 +566,13 @@ MP_AUTH_INVITE_URL = _env(
     "https://router.i-focusing.com/real-human-auth/invite/c35ce4ae81e62679db18bf8c1437e1fb?v=c35ce4ae",
 )
 
+#: 抖音小程序（AppSecret 只在服务端使用，换取 openid）
+DOUYIN_APPID = _env("DOUYIN_APPID")
+DOUYIN_SECRET = _env("DOUYIN_SECRET")
+#: 抖音担保支付（按单支付，无代币模式；开发者平台「功能 → 支付」进件后取 SALT/回调 TOKEN）
+DOUYIN_PAY_SALT = _env("DOUYIN_PAY_SALT", "")
+DOUYIN_PAY_TOKEN = _env("DOUYIN_PAY_TOKEN", "")
+
 #: 微信小程序（AppSecret 只在服务端使用，换取 openid）
 MP_APPID = _env("MP_APPID")
 MP_SECRET = _env("MP_SECRET")
@@ -826,6 +833,40 @@ def mp_login(code: str) -> JSONResponse:
         conn.commit()
         conn.close()
     log.info("mp login ok openid=%s", data["openid"][:8] + "***")
+    return JSONResponse({"ok": True, "openid": data["openid"]})
+
+
+@app.get("/api/dy/login")
+def dy_login(code: str) -> JSONResponse:
+    """抖音 tt.login 的 code 换 openid（抖音小程序启动时调用）。
+
+    字节 code2session v2：GET https://developer.toutiao.com/api/apps/v2/jscode2session
+    返回 {"err_no": 0, "data": {"openid", "session_key", ...}}；openid 由前端加 dy- 前缀。
+    """
+    if not DOUYIN_APPID or not DOUYIN_SECRET:
+        raise HTTPException(status_code=500, detail="抖音小程序凭证未配置（DOUYIN_APPID/DOUYIN_SECRET）")
+    try:
+        r = requests.get(
+            "https://developer.toutiao.com/api/apps/v2/jscode2session",
+            params={"appid": DOUYIN_APPID, "secret": DOUYIN_SECRET, "code": code},
+            timeout=15,
+        )
+        resp = r.json()
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"抖音接口异常：{exc}")
+    data = resp.get("data") or {}
+    if "openid" not in data:
+        raise HTTPException(status_code=400, detail=f"登录失败：{resp.get('err_tips') or resp.get('errmsg') or resp}")
+    # 存 session_key（与微信同表，存原始 openid；渠道前缀 wx-/dy- 由 _openid_of 统一剥离）
+    if data.get("session_key"):
+        conn = _db()
+        conn.execute(
+            "INSERT INTO mp_sessions(openid, session_key, updated_at) VALUES(?,?,?) "
+            "ON CONFLICT(openid) DO UPDATE SET session_key=excluded.session_key, updated_at=excluded.updated_at",
+            (data["openid"], data["session_key"], _now()))
+        conn.commit()
+        conn.close()
+    log.info("dy login ok openid=%s", data["openid"][:8] + "***")
     return JSONResponse({"ok": True, "openid": data["openid"]})
 
 
@@ -1723,7 +1764,10 @@ def _vp_hmac(data: str, key: str) -> str:
 
 
 def _vp_openid(open_token: str) -> str:
-    return open_token[3:] if open_token.startswith("wx-") else ""
+    """open_token → openid：剥离渠道前缀（wx- 微信 / dy- 抖音），其他前缀不认。"""
+    if open_token.startswith(("wx-", "dy-")):
+        return open_token[3:]
+    return ""
 
 
 def _vp_grant(conn: sqlite3.Connection, pay: sqlite3.Row) -> None:
@@ -1849,6 +1893,166 @@ async def mp_vpay_notify(request: Request) -> JSONResponse:
     finally:
         conn.close()
     return JSONResponse({"code": "SUCCESS", "message": "OK"})
+
+
+# ---------------- 抖音担保支付（按单支付，无代币模式） ----------------
+# 与微信金币体系不同：一次支付直接买 N 张额度（4 元/张、52 元/20 张，价格与微信保持一致）。
+# 复用 mp_pay_orders 表（coins 列在抖音语义下=金额元）。到账以字节异步回调为准，
+# 客户端 confirm 走 query_order 查单核验后入账（不信客户端回调，与微信版的信任客户端债不同）。
+# 文档：https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/server/payment/introduction
+
+DY_PRODUCTS = {
+    "per_photo": {"amount": 4, "grant": 1, "title": "4 元/张"},
+    "pack52": {"amount": 52, "grant": 20, "title": "52 元 · 20 张"},
+}
+_DY_PAY_BASE = "https://developer.toutiao.com"
+
+
+def _dy_pay_sign(params: dict) -> str:
+    """担保支付签名：除 sign 外参数按 key 字典序取 value 拼接，末尾拼 SALT，MD5。"""
+    raw = "".join(str(params[k]) for k in sorted(params) if k != "sign") + DOUYIN_PAY_SALT
+    return hashlib.md5(raw.encode("utf-8")).hexdigest()
+
+
+def _dy_pay_call(path: str, params: dict) -> dict:
+    """担保支付服务端调用（自动补 app_id/sign），宽容解包并记日志。"""
+    body = {"app_id": DOUYIN_APPID, **params}
+    body["sign"] = _dy_pay_sign(body)
+    r = requests.post(_DY_PAY_BASE + path, json=body, timeout=15)
+    data = r.json()
+    log.info("dy pay %s resp=%s", path, json.dumps(data, ensure_ascii=False)[:500])
+    return data
+
+
+def openid_is_douyin(open_token: str) -> bool:
+    """防串渠道：抖音支付只接受 dy- 前缀的登录态。"""
+    return open_token.startswith("dy-")
+
+
+class MpDyPayPrepareIn(BaseModel):
+    order_no: str = Field(min_length=6, max_length=40)
+    product: str = Field(min_length=2, max_length=20)
+    open_token: str = Field(min_length=6, max_length=120)
+
+
+@app.post("/api/dy/pay/prepare")
+def dy_pay_prepare(body: MpDyPayPrepareIn) -> JSONResponse:
+    """担保支付预下单：字节 create_order → orderInfo（order_id/order_token）给 tt.pay。"""
+    if not DOUYIN_APPID or not DOUYIN_SECRET or not DOUYIN_PAY_SALT:
+        raise HTTPException(status_code=503, detail="担保支付未配置（DOUYIN_PAY_SALT）")
+    product = DY_PRODUCTS.get(body.product)
+    if not product:
+        raise HTTPException(status_code=400, detail="未知商品")
+    openid = _vp_openid(body.open_token)
+    conn = _db()
+    try:
+        if not openid or not openid_is_douyin(body.open_token):
+            raise HTTPException(status_code=401, detail="支付需要抖音登录态，请重启小程序后再试")
+        sess = conn.execute(
+            "SELECT session_key FROM mp_sessions WHERE openid=?", (openid,)).fetchone()
+        if not sess:
+            raise HTTPException(status_code=401, detail="登录态已过期，请重启小程序后再试")
+        if not _mp_get_order(conn, body.order_no):
+            raise HTTPException(status_code=404, detail="订单不存在")
+        out_trade_no = f"DY{int(time.time())}{secrets.token_hex(3)}".upper()
+        resp = _dy_pay_call("/api/apps/ecpay/v1/create_order", {
+            "out_order_no": out_trade_no,
+            "total_amount": product["amount"] * 100,  # 单位：分
+            "subject": product["title"],
+            "body": f"徐大恩 {product['title']}（订单 {body.order_no}）",
+            "valid_time": 1800,
+            "notify_url": f"{PUBLIC_BASE}/api/dy/pay/notify",
+            "expand_order_info": json.dumps({"original_delivery_info": []}, ensure_ascii=False),
+        })
+        data = resp.get("data") or {}
+        if resp.get("err_no") != 0 or not data.get("order_id"):
+            raise HTTPException(status_code=502, detail=f"字节预下单失败：{resp.get('err_tips') or resp}")
+        conn.execute(
+            "INSERT INTO mp_pay_orders(out_trade_no,order_no,openid,product,coins,grant_count,status,created_at)"
+            " VALUES(?,?,?,?,?,?,'created',?)",
+            (out_trade_no, body.order_no, openid, body.product,
+             product["amount"], product["grant"], _now()))
+        conn.commit()
+        return JSONResponse({
+            "ok": True,
+            "orderInfo": {"order_id": data["order_id"], "order_token": data["order_token"]},
+            "outTradeNo": out_trade_no,
+        })
+    finally:
+        conn.close()
+
+
+class MpDyPayConfirmIn(BaseModel):
+    out_trade_no: str = Field(min_length=8, max_length=64)
+    open_token: str = Field(min_length=6, max_length=120)
+
+
+@app.post("/api/dy/pay/confirm")
+def dy_pay_confirm(body: MpDyPayConfirmIn) -> JSONResponse:
+    """客户端支付成功后的补偿到账：先向字节 query_order 核验支付状态（幂等）。"""
+    conn = _db()
+    conn.row_factory = sqlite3.Row
+    try:
+        pay = conn.execute(
+            "SELECT * FROM mp_pay_orders WHERE out_trade_no=?", (body.out_trade_no,)).fetchone()
+        if not pay:
+            raise HTTPException(status_code=404, detail="支付单不存在")
+        if pay["openid"] != _vp_openid(body.open_token):
+            raise HTTPException(status_code=403, detail="支付单不属于当前用户")
+        if pay["status"] == "created" and DOUYIN_PAY_SALT:
+            # 查单核验：只有字节侧确认支付成功才入账（回调延迟时这是主补偿通道）
+            resp = _dy_pay_call("/api/apps/ecpay/v1/query_order", {"out_order_no": body.out_trade_no})
+            info = (resp.get("data") or {})
+            if info.get("payment_info") and isinstance(info["payment_info"], str):
+                try:
+                    info = json.loads(info["payment_info"])
+                except ValueError:
+                    info = {}
+            if (info.get("pay_status") or info.get("status") or "") not in ("SUCCESS", "success", "PAY_SUCCESS"):
+                raise HTTPException(status_code=409, detail="字节侧未确认支付成功，请稍后刷新")
+        _vp_grant(conn, pay)
+        conn.commit()
+        order = _mp_get_order(conn, pay["order_no"])
+        return JSONResponse({"ok": True, "paid_count": order["paid_count"] if order else 0})
+    finally:
+        conn.close()
+
+
+@app.post("/api/dy/pay/notify")
+async def dy_pay_notify(request: Request) -> JSONResponse:
+    """字节担保支付异步回调：验签（md5(sorted(timestamp,nonce,msg,type)+SALT)）→ 幂等到账。"""
+    raw = (await request.body()).decode("utf-8", "replace")
+    log.info("dy pay notify body=%s", raw[:800])
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return JSONResponse({"err_no": 400, "err_tips": "bad json"})
+    signature = data.get("signature") or ""
+    signed_fields = sorted([str(data.get(k, "")) for k in ("timestamp", "nonce", "msg", "type")])
+    expected = hashlib.md5(("".join(signed_fields) + DOUYIN_PAY_SALT).encode("utf-8")).hexdigest() \
+        if DOUYIN_PAY_SALT else ""
+    if not expected or not hmac.compare_digest(signature, expected):
+        log.warning("dy pay notify 验签不通过（sig=%s）", signature[:16])
+        return JSONResponse({"err_no": 403, "err_tips": "sign mismatch"})
+    if data.get("type") != "payment":
+        return JSONResponse({"err_no": 0, "err_tips": "success"})
+    try:
+        msg = json.loads(data.get("msg") or "{}")
+    except ValueError:
+        msg = {}
+    if msg.get("status") == "SUCCESS":
+        conn = _db()
+        conn.row_factory = sqlite3.Row
+        try:
+            pay = conn.execute(
+                "SELECT * FROM mp_pay_orders WHERE out_trade_no=?",
+                (msg.get("cp_orderno") or msg.get("out_order_no") or "",)).fetchone()
+            if pay:
+                _vp_grant(conn, pay)
+                conn.commit()
+        finally:
+            conn.close()
+    return JSONResponse({"err_no": 0, "err_tips": "success"})
 
 
 @app.get("/api/mp/me")

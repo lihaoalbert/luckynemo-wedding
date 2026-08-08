@@ -1,0 +1,25 @@
+<view class="page">
+  <!-- 类型筛选 -->
+  <scroll-view scroll-x class="chips" tt:if="{{photos.length}}">
+    <view class="chip {{chip === c.id ? 'on' : ''}}" tt:for="{{chips}}" tt:for-item="c" tt:key="id"
+          data-id="{{c.id}}" bindtap="chipTap">{{c.label}}</view>
+  </scroll-view>
+
+  <view class="empty" tt:if="{{!cells.length && !loading}}">
+    <view class="empty-txt">这里还没有照片，去创作页出一张吧～</view>
+  </view>
+
+  <view class="grid" tt:if="{{cells.length}}">
+    <view class="cell" tt:for="{{cells}}" tt:key="cid"
+          data-idx="{{index}}" data-url="{{item.isGroup ? item.cover : item.url}}"
+          bindtap="previewImg" bindlongpress="showOps">
+      <image src="{{item.isGroup ? item.cover : item.url}}" mode="aspectFill" lazy-load />
+      <view class="cell-label">{{item.label}}</view>
+      <view class="cell-count" tt:if="{{item.isGroup}}">{{item.urls.length}} 张</view>
+    </view>
+  </view>
+  <view class="tip" tt:if="{{cells.length}}">点开图可左右滑动 · 长按可保存/做分享海报/删除</view>
+
+  <!-- 离屏 canvas：生成分享海报用 -->
+  <canvas canvas-id="poster" style="position:fixed;left:-3000rpx;top:0;width:600px;height:900px;"></canvas>
+</view>
