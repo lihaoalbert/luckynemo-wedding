@@ -73,7 +73,8 @@
 - **v3 品控与入库（2026-08-04，全部完成）**：72 张换脸底片 4 路审片 71 通过；lig09（"Save the Date" 文字牌）账户充值后加去文字词重跑通过（文字牌换花束、墨镜保留、脸已换）。**index.json v3 终态：108 模板（36 mk + 72 新）/ 20 系列 / 6 分组，lv 56 张全下架**；本地起服务验证 catalog 返回 moka_groups 6 组 ✓。注：方舟账户曾欠费导致全部生图 403，充值后恢复
 - **v3 已上线（2026-08-04）**：main 合并 631af75（无 gh，本地 ff 合并推 origin/main）；ECS `/var/www/luckynemo/moka/` 已同步 108 模板 + index.json v3（lv 文件已删，线上 404），`/opt/luckynemo/server/` app.py/mp_worker.py 已更新，luckynemo + luckynemo-worker 重启 active；线上冒烟 catalog=108 模板/20 系列/6 分组 ✓ hyd01.png 200 ✓。待办：微信开发者工具上传小程序（moka/generating/result 三页）
 
-- **v4 内容体验规划（2026-08-07，讨论稿，未入库未提交）**：`research/2026-08-模卡内容体验规划.md` + H5 demo `research/moka-h5-demo/index.html`（发现首页/系列详情独立页/结果页朋友圈预览三屏，图片用线上模板）。核心主张：系列即九宫格、节点语言入口（领证/婚纱/旅拍/写真）、详情页价格前置+效果预期、上新日历驱动复购；9 个决策点待用户拍板后再定是否实施
+- **v4 已上线（2026-08-07）**：main 合并 f845f8e → 96822e1（含 fav 鉴权收紧）；ECS `/var/www/luckynemo/moka/` 180 模板 + index.json v4、`/opt/luckynemo/server/` app.py/mp_worker.py 已同步，两服务 active；线上冒烟 catalog=180模板/20系列(全9变体)/6分组/4节点、mk301.png 200、lv001.png 404、fav 伪造 token 401 ✓。发现并修复：仓库 templates/ 残留 56 张 lv 旧卡被 rsync 误回线上，已删线上+删库（7908671，lovers_draft 存档保留）。**待办：微信开发者工具上传小程序（v4 三新页面+首页重构，未经验证）；占位稿 Seedream 重出替换**
+- v4 规划文档（已定稿实施）：`research/2026-08-模卡内容体验规划.md` + H5 demo `research/moka-h5-demo/index.html`（发现首页/系列详情独立页/结果页朋友圈预览三屏，图片用线上模板）。核心主张：系列即九宫格、节点语言入口（领证/婚纱/旅拍/写真）、详情页价格前置+效果预期、上新日历驱动复购
 
 - **小程序人脸三视图（2026-08-07 上线，反馈 #26/#27）**：`face_sheet` 任务（me 页入口选正脸底照+侧脸原照 → 脸部三视图卡，不参考服装），template_photo/duo_photo/template_series 自动注入做侧脸身份锚定；chat 说身高（"他183我165"）→ selection.heights → 双人照还原身高差
 - **me 页改版（2026-08-07，前端待发布）**：生成的照片挪二级页 `pages/photos/`（网格 + 长按保存/删除，me 页只留入口行，防几十张图撑长页面）；全屏预览改整组 urls 传参，系统自带左右滑动（上传照片/生成照片都支持）
