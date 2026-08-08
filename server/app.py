@@ -1068,6 +1068,21 @@ def _mp_required_roles(order: dict) -> list[str]:
     return ["A", "B"] if order.get("mode") == "couple" else ["A"]
 
 
+def _mp_find_auth(conn: sqlite3.Connection, open_token: str):
+    """按微信身份找该用户最近一次已完成的真人认证（新订单/加入订单时继承，免重复认证）。
+
+    匹配本人在历史订单里的成员记录：自己创建的订单里是 A，被邀请加入的订单里是 B。
+    老订单可能没有 mp_devices 行，故用 mp_orders.open_token 并集设备表。
+    """
+    return conn.execute(
+        "SELECT m.byted_token, m.asset_group_id FROM mp_members m"
+        " JOIN mp_orders o ON o.order_no=m.order_no"
+        " LEFT JOIN mp_devices d ON d.order_no=m.order_no AND d.open_token=?"
+        " WHERE m.auth_ok=1 AND m.role=COALESCE(d.role, 'A')"
+        " AND (o.open_token=? OR d.open_token IS NOT NULL)"
+        " ORDER BY m.id DESC LIMIT 1", (open_token, open_token)).fetchone()
+
+
 def _mp_recompute_auth(conn: sqlite3.Connection, order_no: str) -> bool:
     """按成员状态重算订单级 auth_ok（双人模式需 A+B 都过）并落库。"""
     order = _mp_get_order(conn, order_no)
@@ -1208,6 +1223,38 @@ def mp_auth_status(order_no: str) -> dict:
         conn.close()
 
 
+@app.get("/api/mp/orders")
+def mp_orders_list(open_token: str) -> JSONResponse:
+    """按微信身份列历史订单（删小程序/换手机找回用）：含自己创建的与作为伴侣加入的。"""
+    conn = _db()
+    try:
+        rows = conn.execute(
+            "SELECT o.order_no, o.mode, o.created_at,"
+            " COALESCE((SELECT d.role FROM mp_devices d"
+            "           WHERE d.order_no=o.order_no AND d.open_token=?), 'A')"
+            " FROM mp_orders o"
+            " WHERE o.open_token=?"
+            " OR EXISTS(SELECT 1 FROM mp_devices d2"
+            "           WHERE d2.order_no=o.order_no AND d2.open_token=?)"
+            " ORDER BY o.id DESC LIMIT 20",
+            (open_token, open_token, open_token)).fetchall()
+        orders = []
+        for order_no, mode, created_at, role in rows:
+            n = 0
+            for r in conn.execute(
+                    "SELECT result_json FROM mp_jobs WHERE order_no=? AND status='done' AND kind != 'face_sheet'"
+                    " ORDER BY id DESC LIMIT 200", (order_no,)).fetchall():
+                result = json.loads(r[0]) if r[0] else {}
+                if result.get("url"):
+                    n += 1
+                n += sum(1 for it in (result.get("urls") or []) if isinstance(it, dict) and it.get("url"))
+            orders.append({"order_no": order_no, "mode": mode or "", "role": role,
+                           "created_at": created_at, "photo_count": n})
+        return JSONResponse({"ok": True, "orders": orders})
+    finally:
+        conn.close()
+
+
 @app.post("/api/mp/order")
 def mp_order_create(body: MpOrderIn) -> JSONResponse:
     """创建或恢复小程序订单；带 mode 时更新订单模式（couple 婚纱照 / solo 个人写真）。"""
@@ -1234,6 +1281,12 @@ def mp_order_create(body: MpOrderIn) -> JSONResponse:
             "INSERT OR IGNORE INTO mp_devices(order_no,open_token,role,created_at) VALUES(?,?,?,?)",
             (order_no, body.open_token, "A", _now()),
         )
+        # 认证继承：该微信身份之前完成过真人认证则直接带过来（删小程序/新订单免重做）
+        auth = _mp_find_auth(conn, body.open_token)
+        if auth and (auth[0] or auth[1]):
+            _mp_member_upsert(conn, order_no, "A", auth_ok=1,
+                              byted_token=auth[0] or "", asset_group_id=auth[1] or "")
+            log.info("mp order %s 继承历史认证 role=A", order_no)
         conn.commit()
         log.info("mp order created order_no=%s ref=%s", order_no, body.ref or "-")
         return JSONResponse({"ok": True, "order": _mp_get_order(conn, order_no)})
@@ -1266,6 +1319,13 @@ def mp_join(body: MpJoinIn) -> JSONResponse:
             conn.execute(
                 "INSERT INTO mp_devices(order_no,open_token,role,created_at) VALUES(?,?,?,?)",
                 (order_no, body.open_token, "B", _now()))
+            # 认证继承：加入者本人之前完成过真人认证则直接带过来
+            auth = _mp_find_auth(conn, body.open_token)
+            if auth and (auth[0] or auth[1]):
+                _mp_member_upsert(conn, order_no, "B", auth_ok=1,
+                                  byted_token=auth[0] or "", asset_group_id=auth[1] or "")
+                _mp_recompute_auth(conn, order_no)
+                log.info("mp join %s 继承历史认证 role=B", order_no)
             conn.commit()
             role = "B"
         log.info("mp join order_no=%s role=%s", order_no, role)

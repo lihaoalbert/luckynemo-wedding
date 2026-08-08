@@ -113,6 +113,8 @@
 
 ## 更新日志
 
+- 2026-08-08 真人认证跨订单继承上线：新增 `_mp_find_auth`（按 open_token 在历史订单的成员表里找最近一条 auth_ok=1，本人订单 role=A/被邀请订单 role=B）；`mp_order_create` 建单自动继承到 A、`mp_join` 新加入者自动继承到 B 并重算订单 auth_ok（双方都有历史认证时双人单直接免认证）。继承含 asset_group_id；**隐患：若服务商侧人脸资产已清理，继承的 auth_ok 生图会失败，需观察**（目前未配删除策略，暂无此情况）。已部署 ECS 并用 AXEZ 身份 E2E 验证（新订单自动带出 A 认证 ✓，测试单已清理）。注：生图技术上不需要认证，`/api/mp/job` 的 403 是我们自己的肖像权闸门
+- 2026-08-08 新增订单找回（删小程序/换手机场景）：身份=微信 openid 稳定不变，丢失的只是本地缓存的订单号指针。后端新增 `GET /api/mp/orders?open_token=`（mp_orders.open_token ∪ mp_devices 双通道匹配，老订单无 devices 行也覆盖，按时间倒序带 photo_count）；chat.js ensureOrder 无本地订单且无分享参数时先查历史，有成片的订单优先弹「恢复继续 / 开始新订单」（恢复拉 /api/mp/order/:no 写回本地缓存续跑）。**注：老用户若有点过 ?ref= 推荐卡，已产生的空新订单会被过滤不影响找回**。后端已部署 ECS 并用 AXEZ openid 冒烟（返回 4 单含 AXEZ 73 张 ✓）；前端随下次上传生效
 - 2026-08-08 同款大片页两个板块调整（用户决定）：搜索入口隐藏（暂不开放，wxml 注释保留逻辑）、「本周热门」板块下线（干扰大于帮助，wxml 注释保留 hotList 逻辑）
 - 2026-08-08 修复开发者工具白屏：静态分析器（ignoreDevUnusedFiles）把已注册页面 js 误判为无依赖文件（uploads.js/feedback.js 接连被 ignored 导致 app 启动白屏）；处理=project.config.json 加 ignoreDevUnusedFiles/ignoreUploadUnusedFiles=false + 新页面改名 `pages/uploads/`→`pages/myuploads/` 绕开陈旧索引 + feedback.js IDE 内保存强制重索引；另修 landing.wxml 自闭合 `<view/>` 隐患。**教训：前端改动必须先在开发者工具验证再累计**（本次 v4 批次 4 批未验证集中爆雷）
 - 2026-08-08 me 页改版（按用户 8 点意见）：①个人信息卡默认折叠（摘要行+点击展开）；②额度卡改「还可生成 N 张」合计显示（金币系即买即兑无钱包余额，不显示金币）；③新增「邀请有礼」banner（open-type=share）；④资产区三入口：相册(原生成的照片)/我的收藏(上移)/我上传的照片(新二级页 `pages/myuploads/`，含隐私小字)；⑤photos 页改「相册」：类型筛选 chips（全部/定妆照/同款大片/系列组图）+ template_series 按 job 收叠成组封面（后端 /api/mp/me photos 项补 `job` 字段，已部署验证）；⑥底部：意见反馈/联系客服(open-type=contact)/隐私承诺/开启新订单(弱化+文案说清不删历史)；⑦人脸三视图点选流程随上传照片迁入 uploads 页（?fs=A|B 直入选片模式）。后端已部署 ECS active；**前端待微信开发者工具上传**

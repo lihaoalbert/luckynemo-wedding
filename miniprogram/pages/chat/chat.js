@@ -88,17 +88,54 @@ Page({
     }
     // 等 wx.login 拿到 openid 后再建订单，否则 open_token 为空会 422
     app.globalData.tokenPromise.then(() => {
-      app.req('/api/mp/order', 'POST', {
-        open_token: app.globalData.openToken, ref: app.globalData.ref || undefined,
-      })
+      // 找回：按微信身份查历史订单（删小程序/换手机后本地订单号丢失的场景）
+      app.req('/api/mp/orders', 'GET', { open_token: app.globalData.openToken })
         .then(res => {
-          this.setData({ order: res.order });
-          app.globalData.order = res.order;
-          wx.setStorageSync('mp_order', res.order);
-          this.resume(res.order);
+          // 优先恢复有成片的订单（空订单/只选了模式的新订单跳过）
+          const list = res.orders || [];
+          const last = list.find(o => o.photo_count > 0) || list.find(o => o.mode);
+          if (!last) return this._createOrder();
+          wx.showModal({
+            title: '发现你之前的订单',
+            content: `${String(last.created_at).slice(0, 10)} 的订单 · ${last.photo_count} 张成片`,
+            confirmText: '恢复继续',
+            cancelText: '开始新订单',
+            success: (r) => {
+              if (r.confirm) this._restoreOrder(last);
+              else this._createOrder();
+            },
+          });
         })
-        .catch(e => this.push('ai', '服务器开小差了，' + e.message));
+        .catch(() => this._createOrder());
     });
+  },
+
+  _createOrder() {
+    app.req('/api/mp/order', 'POST', {
+      open_token: app.globalData.openToken, ref: app.globalData.ref || undefined,
+    })
+      .then(res => {
+        this.setData({ order: res.order });
+        app.globalData.order = res.order;
+        wx.setStorageSync('mp_order', res.order);
+        this.resume(res.order);
+      })
+      .catch(e => this.push('ai', '服务器开小差了，' + e.message));
+  },
+
+  // 恢复历史订单：拉全量订单信息 → 写本地缓存 → 续跑流程
+  _restoreOrder(last) {
+    app.globalData.myRole = last.role || 'A';
+    wx.setStorageSync('mp_role', app.globalData.myRole);
+    app.req('/api/mp/order/' + last.order_no, 'GET')
+      .then(res => {
+        this.setData({ order: res.order });
+        app.globalData.order = res.order;
+        wx.setStorageSync('mp_order', res.order);
+        this.push('ai', '欢迎回来～ 之前的订单和成片都找回来了 🎉');
+        this.resume(res.order);
+      })
+      .catch(() => this._createOrder());
   },
 
   resume(order) {
