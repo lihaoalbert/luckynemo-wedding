@@ -21,6 +21,10 @@ const PAGE_CARDS = {
     img: 'https://luckynemo.ibi.ren/moka/templates/mk005.png',
     title: '同款大片', desc: '挑一张喜欢的大片，换成你们的脸',
   },
+  '/pages/photos/photos': {
+    img: 'https://luckynemo.ibi.ren/hongzhuang/styles/hz008.png',
+    title: '我的相册', desc: '查看生成的照片，长按保存到手机',
+  },
   '/pages/wardrobe/wardrobe': {
     img: 'https://luckynemo.ibi.ren/wardrobe/img/婚纱/nz-001.jpg',
     title: '高级定制', desc: '服装、场景、动作，自己搭配',
@@ -185,6 +189,7 @@ Page({
     // 认证齐全 → 按服务端真实进度续走：没照片→上传；没定妆→定妆；已定妆→选衣服
     this.setData({ step: 'wardrobe' });
     app.req('/api/mp/order/' + order.order_no).then(res => {
+      this.notifyNewPhotos(res.jobs || []);
       const hasPhotos = (res.photo_count || 0) > 0;
       const makeupDone = (res.jobs || []).some(j => j.kind === 'makeup_photo' && j.status === 'done');
       const key = `go:${hasPhotos}:${makeupDone}`;
@@ -201,9 +206,27 @@ Page({
         this.push('ai', '照片和定妆照都在，挑一张喜欢的大片，换成你们的脸吧～', { text: '去挑同款大片 →', page: '/pages/moka/moka' });
         this.push('ai', '想要独一无二的一张？把喜欢的样片发给我，再说一句想法，我帮你定制专属大片 ✨');
         this.push('ai', '想换个妆容再拍一版？点这里', { text: '换个妆容 →', page: '/pages/makeup/makeup' });
-        this.push('ai', '想自己搭配服装场景？进高级定制', { text: '高级定制 →', page: '/pages/wardrobe/wardrobe' });
       }
     }).catch(() => {});
+  },
+
+  // 生成完成提醒：回到对话页时，若上次离开后有新成片/定妆照完成，发消息并引导去相册查看
+  notifyNewPhotos(jobs) {
+    const PHOTO_KINDS = ['makeup_photo', 'template_photo', 'template_series', 'duo_photo',
+                         'solo_photo', 'free_photo', 'paid_photo'];
+    const done = jobs.filter(j => PHOTO_KINDS.includes(j.kind) && j.status === 'done'
+                             && j.result && (j.result.url || (j.result.urls || []).length));
+    const maxId = done.reduce((m, j) => Math.max(m, j.id || 0), 0);
+    const key = 'mp_seen_job_' + (this.data.order && this.data.order.order_no);
+    const seen = tt.getStorageSync(key);
+    if (!seen) { tt.setStorageSync(key, maxId); return; }  // 首次只记基线，不翻旧账
+    if (maxId > seen) {
+      tt.setStorageSync(key, maxId);
+      const n = done.filter(j => (j.id || 0) > seen)
+        .reduce((s, j) => s + ((j.result.urls || []).length || 1), 0);
+      this.push('ai', `你的 ${n} 张新照片生成好啦 ✨ 点这里查看，长按可以保存到手机相册`,
+        { text: '查看新照片 →', page: '/pages/photos/photos' });
+    }
   },
 
   setMode(mode) {
@@ -415,7 +438,7 @@ Page({
     if (localPaths.length) this.push('me', '', null, localPaths);
     this.push('ai', '…');
     // 带最近对话上下文，M3 才能听懂"嗯/提交吧"这类确认；带图的消息标注图数
-    const history = this.data.messages.slice(-6).map(m =>
+    const history = this.data.messages.slice(-12).map(m =>
       `${m.role === 'me' ? '用户' : '助手'}：${m.text || ''}${m.images ? `[${m.images.length}张图]` : ''}`);
     app.req('/api/mp/chat', 'POST', { order_no: this.data.order.order_no, message, images, history })
       .then(res => {

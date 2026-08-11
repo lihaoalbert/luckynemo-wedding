@@ -9,28 +9,34 @@
     <view class="tab {{tab === 'scenes' ? 'active' : ''}}" data-tab="scenes" bindtap="switchTab">场景（可多选）</view>
   </view>
 
-  <!-- 我的定妆照：多张可选，不同衣服配不同妆（按她/他分组） -->
+  <!-- 我的定妆照：多张可选，不同衣服配不同妆（按性别分组，A 不一定是女生） -->
   <view class="anchor-strip" wx:if="{{anchors.length && tab === 'sets'}}">
     <block wx:if="{{anchorsA.length}}">
-      <view class="anchor-label">她的妆容</view>
+      <view class="anchor-label">女生妆容</view>
       <scroll-view scroll-x class="anchor-scroll">
         <view class="anchor-item {{activeAnchor === a.key ? 'active' : ''}}" wx:for="{{anchorsA}}" wx:for-item="a" wx:key="key"
-              data-key="{{a.key}}" data-name="{{a.name}}" data-role="A" bindtap="pickAnchor">
+              data-key="{{a.key}}" data-name="{{a.name}}" data-role="{{a.role}}" data-gender="{{a.gender}}" bindtap="pickAnchor">
           <image src="{{a.url}}" mode="aspectFill" lazy-load />
           <view class="anchor-name">{{a.name}}</view>
         </view>
       </scroll-view>
     </block>
     <block wx:if="{{anchorsB.length}}">
-      <view class="anchor-label">他的妆容</view>
+      <view class="anchor-label">男生妆容</view>
       <scroll-view scroll-x class="anchor-scroll">
         <view class="anchor-item {{activeAnchor === a.key ? 'active' : ''}}" wx:for="{{anchorsB}}" wx:for-item="a" wx:key="key"
-              data-key="{{a.key}}" data-name="{{a.name}}" data-role="B" bindtap="pickAnchor">
+              data-key="{{a.key}}" data-name="{{a.name}}" data-role="{{a.role}}" data-gender="{{a.gender}}" bindtap="pickAnchor">
           <image src="{{a.url}}" mode="aspectFill" lazy-load />
           <view class="anchor-name">{{a.name}}</view>
         </view>
       </scroll-view>
     </block>
+  </view>
+
+  <!-- 个人写真：服装性别切换（反馈 #38：solo 只能看到一个性别的服装） -->
+  <view class="tabs" wx:if="{{mode === 'solo' && tab === 'sets'}}">
+    <view class="tab {{gender === 'female' ? 'active' : ''}}" data-g="female" bindtap="switchGender">女士服装</view>
+    <view class="tab {{gender === 'male' ? 'active' : ''}}" data-g="male" bindtap="switchGender">男士服装</view>
   </view>
 
   <view wx:if="{{tab === 'sets'}}" class="grid">

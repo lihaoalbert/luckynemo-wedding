@@ -27,17 +27,20 @@ Page({
         .map(j => ({
           url: j.result.url, key: j.result.oss_key || '',
           name: j.makeup_name || '定妆照', role: j.role || 'A',
+          // 性别以任务 gender 字段为准（反馈 #38：按妆名前缀判断会把"素颜干净版/原图直出版"男妆误判为女）
+          gender: j.gender === 'male' ? 'male' : 'female',
         }));
-      // 服装性别：优先会话选择；否则按当前定妆照妆名推断（"男士"开头即男妆）
+      // 服装性别：优先会话选择；否则按当前定妆照的性别
       let gender = (app.globalData.selection || {}).gender;
       if (!gender) {
         const active = anchors.find(a => a.key === this.data.activeAnchor) || anchors[0];
-        gender = active && active.name.startsWith('男士') ? 'male' : 'female';
+        gender = active ? active.gender : 'female';
       }
       this.setData({
         anchors,
-        anchorsA: anchors.filter(a => a.role !== 'B'),
-        anchorsB: anchors.filter(a => a.role === 'B'),
+        // 按性别分组（反馈 #38：按 role A/B 分组 + 硬编码她/他标签会错——A 不一定是女生）
+        anchorsA: anchors.filter(a => a.gender !== 'male'),
+        anchorsB: anchors.filter(a => a.gender === 'male'),
         gender,
       });
     }).catch(() => {
@@ -96,7 +99,7 @@ Page({
 
   // 选择本次出图使用的定妆照（按角色写入对应锚点：她的→anchor_key，他的→anchor_key_b）
   pickAnchor(e) {
-    const { key, name, role } = e.currentTarget.dataset;
+    const { key, name, role, gender } = e.currentTarget.dataset;
     const selection = app.globalData.selection || {};
     if (role === 'B') {
       selection.anchor_key_b = key;
@@ -104,12 +107,17 @@ Page({
     } else {
       selection.anchor_key = key;
       selection.makeup_name = name;
-      selection.gender = name.startsWith('男士') ? 'male' : 'female';
+      selection.gender = gender === 'male' ? 'male' : 'female';
     }
     app.globalData.selection = selection;
     // 换定妆照时联动服装性别
     this.setData({ activeAnchor: key, gender: selection.gender || this.data.gender });
     tt.showToast({ title: `已选用「${name}」`, icon: 'none' });
+  },
+
+  // 个人写真：手动切换服装性别（反馈 #38：solo 只显示单性别服装且无法切换）
+  switchGender(e) {
+    this.setData({ gender: e.currentTarget.dataset.g });
   },
 
   confirm() {

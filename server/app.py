@@ -31,7 +31,7 @@ from urllib.parse import quote
 
 import requests
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -701,6 +701,19 @@ def oss_signed_get_url(key: str, expire: int = 7 * 86400) -> str:
     sign = _oss_sign_string(OSS_SK, f"GET\n\n\n{expires}\n{resource}")
     return (f"{OSS_ENDPOINT}/{quote(key)}?OSSAccessKeyId={OSS_AK}"
             f"&Expires={expires}&Signature={quote(sign)}")
+
+
+def fresh_result_urls(result):
+    """重签任务结果里的 OSS URL（反馈 #38：worker 写入时签名只有 7 天，
+    老任务的 result.url 过期 403 → 前端定妆照/成片显示空白；读取时按 oss_key 重签）。"""
+    if not isinstance(result, dict):
+        return result
+    if result.get("oss_key"):
+        result["url"] = oss_signed_get_url(result["oss_key"], expire=86400)
+    for item in result.get("urls") or []:
+        if isinstance(item, dict) and item.get("oss_key"):
+            item["url"] = oss_signed_get_url(item["oss_key"], expire=86400)
+    return result
 
 
 def oss_put(key: str, data: bytes, content_type: str) -> None:
@@ -1417,12 +1430,13 @@ def mp_order_get(order_no: str) -> JSONResponse:
         except Exception:
             pass
         for r in conn.execute(
-                "SELECT kind,status,result_json,payload_json FROM mp_jobs WHERE order_no=? ORDER BY id DESC LIMIT 200",  # 反馈 #33：30 条窗口会把老定妆照挤出锚点列表
+                "SELECT id,kind,status,result_json,payload_json FROM mp_jobs WHERE order_no=? ORDER BY id DESC LIMIT 200",  # 反馈 #33：30 条窗口会把老定妆照挤出锚点列表
                 (order_no,)):
-            payload = json.loads(r[3]) if r[3] else {}
+            payload = json.loads(r[4]) if r[4] else {}
             jobs.append({
-                "kind": r[0], "status": r[1],
-                "result": json.loads(r[2]) if r[2] else None,
+                "id": r[0],
+                "kind": r[1], "status": r[2],
+                "result": fresh_result_urls(json.loads(r[3]) if r[3] else None),
                 "role": payload.get("role", "A"),
                 "makeup_name": payload.get("makeup_name", ""),
                 "gender": payload.get("gender", "") or makeup_gender.get(payload.get("makeup_id", ""), ""),
@@ -1924,6 +1938,76 @@ async def mp_vpay_notify(request: Request) -> JSONResponse:
     return JSONResponse({"code": "SUCCESS", "message": "OK"})
 
 
+# ---------------- 微信小程序消息推送（iOS 虚拟支付退款问询等事件） ----------------
+# MP 后台「开发管理 → 消息推送」配置：URL=https://luckynemo.ibi.ren/api/mp/msgpush，
+# Token 填 .env 的 MP_MSG_TOKEN，选明文模式（JSON）。
+# iOS 退款问询（xpay_subscribe_ios_refund_query_notify）必须 3 秒内应答；连续 3 次超时
+# 微信会向 Apple 回「不确定」，退款决定权完全交给 Apple（基本等于必退）。
+# 文档：https://developers.weixin.qq.com/miniprogram/dev/platform-capabilities/business-capabilities/virtual-payment/ios.html
+MP_MSG_TOKEN = _env("MP_MSG_TOKEN", "")
+
+
+def _msg_sig_ok(query) -> bool:
+    """消息推送签名校验：sha1(sort(token, timestamp, nonce))。未配 token 时放行并告警。"""
+    if not MP_MSG_TOKEN:
+        log.warning("MP_MSG_TOKEN 未配置，消息推送签名校验跳过")
+        return True
+    sig = query.get("signature", "")
+    raw = "".join(sorted([MP_MSG_TOKEN, query.get("timestamp", ""), query.get("nonce", "")]))
+    return hmac.compare_digest(sig, hashlib.sha1(raw.encode("utf-8")).hexdigest())
+
+
+@app.get("/api/mp/msgpush")
+async def mp_msgpush_verify(request: Request) -> PlainTextResponse:
+    """消息推送 URL 校验：验签后原样返回 echostr。"""
+    if not _msg_sig_ok(request.query_params):
+        raise HTTPException(status_code=403, detail="sign mismatch")
+    return PlainTextResponse(request.query_params.get("echostr", ""))
+
+
+@app.post("/api/mp/msgpush")
+async def mp_msgpush(request: Request):
+    """消息推送事件处理：iOS 退款问询 3 秒应答；其余事件记录后回 success。"""
+    raw = (await request.body()).decode("utf-8", "replace")
+    if not _msg_sig_ok(request.query_params):
+        log.warning("msgpush 验签不通过 body=%s", raw[:500])
+        raise HTTPException(status_code=403, detail="sign mismatch")
+    log.info("msgpush body=%s", raw[:1000])
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return PlainTextResponse("success")
+    event = data.get("Event", "")
+    if event == "xpay_subscribe_ios_refund_query_notify":
+        content = data.get("content") or {}
+        if isinstance(content, str):
+            try:
+                content = json.loads(content)
+            except ValueError:
+                content = {}
+        pay_order_id = str(content.get("pay_order_id", ""))
+        provide_status = str(content.get("provide_status", ""))
+        reason = str(content.get("refund_request_reason", ""))[:100]
+        # 应答策略：代币已发货（provide_status=1）→ 拦截；未发货/发货中 → 放过。
+        # 代币是即发即到（confirm 补偿闭环已验证），已发货的退款都拦，用户纠纷走客服人工处理。
+        if provide_status == "1":
+            resp = {"result_code": 1,
+                    "result_info": "虚拟代币已到账并已可使用，拒绝退款",
+                    "evidence": (f"支付单 {pay_order_id} 的代币已发货到账（平台发货状态=已发货），"
+                                 f"虚拟道具交付完成；用户退款理由：{reason or '未填写'}")}
+        else:
+            resp = {"result_code": 0,
+                    "result_info": "代币未发货，同意退款",
+                    "evidence": f"支付单 {pay_order_id} 发货状态={provide_status or '未知'}，代币未交付，建议退款"}
+        log.info("iOS 退款问询应答 pay_order_id=%s provide_status=%s -> %s",
+                 pay_order_id, provide_status, resp)
+        return JSONResponse(resp)
+    if event == "xpay_refund_notify":
+        # iOS 退款成功通知：仅记录（对账用 MP「虚拟支付 → 交易订单」）
+        log.info("iOS 退款成功通知 body=%s", raw[:500])
+    return PlainTextResponse("success")
+
+
 # ---------------- 抖音担保支付（按单支付，无代币模式） ----------------
 # 与微信金币体系不同：一次支付直接买 N 张额度（4 元/张、52 元/20 张，价格与微信保持一致）。
 # 复用 mp_pay_orders 表（coins 列在抖音语义下=金额元）。到账以字节异步回调为准，
@@ -2107,7 +2191,7 @@ def mp_me(order_no: str) -> JSONResponse:
                 " WHERE order_no=? AND status='done' AND kind != 'face_sheet'"
                 " ORDER BY id DESC LIMIT 200",  # 反馈 #31：20 条窗口会把老成片挤出相册
                 (order_no,)).fetchall():
-            result = json.loads(r[2]) if r[2] else {}
+            result = fresh_result_urls(json.loads(r[2]) if r[2] else {})
             if result.get("url"):
                 photos.append({
                     "job": r[0], "kind": r[1], "url": result["url"], "key": result.get("oss_key", ""), "time": r[3],
@@ -2189,6 +2273,8 @@ action 只能是以下之一：
 - "改一下刚出的图/去个眼镜/这张去掉XX" → edit_photo（改成片）；"改妆容/重新定妆" → regenerate_makeup（改定妆照），别混
 - "用这张修/做一张定妆照""修一张原始图作为定妆照" → makeup_photo（who 按对话判断，给对 makeup_id）
 - 【禁止光说不给按钮】reply 里说"点这里/点下面"时，action 必须同时给对应按钮（navigate 或 generate_photo）；AI 答应在做的操作必须有 action 落地，绝不允许只回"好的，我明白了"却什么都不做
+
+【多轮对话】用户意图需要的信息不全时，先用 none 追问缺失的一项（语气温和、一次只问一个点），把用户多轮补充的信息合并起来后再执行对应 action；不要硬猜着执行，也不要重复追问历史对话里已经回答过的信息。
 
 【意见反馈流程】用户报 bug 或提功能想法时，先追问细节（action 用 none），把问题整理成一句话问用户"我帮你把这条反馈提交给团队吗？"。用户明确同意（好/提交/嗯）→ submit_feedback，text 是你整理后的完整描述（含用户补充的细节）。用户之前的消息里带图的（历史中标注[N张图]），反馈会一并带上。
 【图片意图】用户发图时（消息里会注明带了几张图），谨慎判断用途：
@@ -2282,7 +2368,7 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
     conn = _db()
     try:
         order, ctx, makeup_job = _mp_chat_context(conn, body.order_no)
-        dialog = "\n".join(body.history[-6:]) or "（本轮刚开始）"
+        dialog = "\n".join(body.history[-12:]) or "（本轮刚开始）"
         try:
             result = _m3_chat(_MP_CHAT_SYS.format(state=ctx["state"], assets=ctx["assets"], dialog=dialog),
                               _mp_chat_user_text(body))
@@ -2351,7 +2437,8 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
                 (body.order_no,)).fetchone()
             url = ""
             if row and row[0]:
-                url = (json.loads(row[0]) or {}).get("url", "")
+                res = json.loads(row[0]) or {}
+                url = oss_signed_get_url(res["oss_key"], expire=86400) if res.get("oss_key") else res.get("url", "")
             if url:
                 action = {"type": "show_result", "photos": [url]}
             else:
