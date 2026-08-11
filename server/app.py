@@ -30,6 +30,7 @@ from typing import Optional
 from urllib.parse import quote
 
 import requests
+import db_compat
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
@@ -80,6 +81,14 @@ LARK_OPENAPI = "https://open.feishu.cn/open-apis"
 
 DATA_DIR = Path(_env("DATA_DIR", str(SERVER_DIR / "data")))
 DB_PATH = DATA_DIR / "app.db"
+
+#: 数据库后端（2026-08-11 迁 RDS）：sqlite=默认/本地；mysql=生产 RDS（PyMySQL，见 db_compat.py）
+DB_BACKEND = _env("DB_BACKEND", "sqlite")
+MYSQL_HOST = _env("MYSQL_HOST", "")
+MYSQL_PORT = int(_env("MYSQL_PORT", "3306"))
+MYSQL_USER = _env("MYSQL_USER", "")
+MYSQL_PASSWORD = _env("MYSQL_PASSWORD", "")
+MYSQL_NAME = _env("MYSQL_NAME", "lucky_nemo")
 
 MAX_UPLOAD_BYTES = 500 * 1024 * 1024  # 500MB
 SIGN_EXPIRE_SECONDS = 600             # 签名 10 分钟过期
@@ -141,7 +150,12 @@ CREATE TABLE IF NOT EXISTS mp_jobs (
 
 
 def _migrate() -> None:
-    """轻量迁移：给 mp_orders 补 asset_group_id 列（人脸认证回调写入）。"""
+    """轻量迁移：给 mp_orders 补 asset_group_id 列（人脸认证回调写入）。
+
+    仅 SQLite 路径需要：MySQL 建表 DDL（db_compat.MYSQL_SCHEMA）已含全部迁移后的列，
+    存量回填（share_token/成员认证继承）在数据迁移前已在 SQLite 侧执行完毕。"""
+    if DB_BACKEND == "mysql":
+        return
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     cols = [r[1] for r in conn.execute("PRAGMA table_info(mp_orders)")]
@@ -249,6 +263,11 @@ MP_AUTH_CALLBACK_TOKEN = _env("MP_AUTH_CALLBACK_TOKEN", "")
 
 
 def _db() -> sqlite3.Connection:
+    """数据库连接：默认 SQLite；DB_BACKEND=mysql 时走 RDS（db_compat 双后端，2026-08-11）。"""
+    if DB_BACKEND == "mysql":
+        return db_compat.connect_mysql(host=MYSQL_HOST, user=MYSQL_USER,
+                                       password=MYSQL_PASSWORD, database=MYSQL_NAME,
+                                       port=MYSQL_PORT)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.executescript(_SCHEMA)

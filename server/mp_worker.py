@@ -24,6 +24,8 @@ from urllib.parse import quote
 
 import requests
 
+import db_compat
+
 SERVER_DIR = Path(__file__).resolve().parent
 DB_PATH = SERVER_DIR / "data" / "app.db"
 TOOLKIT_ENV = Path("/opt/luckynemo/toolkit/.env")
@@ -64,6 +66,12 @@ def log(msg: str) -> None:
 
 
 def db() -> sqlite3.Connection:
+    """数据库连接：默认 SQLite；DB_BACKEND=mysql 时走 RDS（db_compat 双后端，2026-08-11）。"""
+    if ENV.get("DB_BACKEND") == "mysql":
+        return db_compat.connect_mysql(
+            host=ENV.get("MYSQL_HOST", ""), user=ENV.get("MYSQL_USER", ""),
+            password=ENV.get("MYSQL_PASSWORD", ""), database=ENV.get("MYSQL_NAME", "lucky_nemo"),
+            port=int(ENV.get("MYSQL_PORT", "3306")))
     return sqlite3.connect(DB_PATH)
 
 

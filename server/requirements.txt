@@ -1,3 +1,4 @@
 fastapi>=0.110
 uvicorn[standard]>=0.29
 requests>=2.31
+PyMySQL>=1.1  # RDS MySQL 后端（DB_BACKEND=mysql 时启用，db_compat.py）
