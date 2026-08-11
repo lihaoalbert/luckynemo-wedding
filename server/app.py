@@ -1374,7 +1374,7 @@ def mp_pay_orders_list(open_token: str) -> JSONResponse:
     try:
         rows = conn.execute(
             "SELECT out_trade_no,order_no,product,coins,grant_count,status,created_at,paid_at"
-            " FROM mp_pay_orders WHERE openid=? ORDER BY rowid DESC LIMIT 100",
+            " FROM mp_pay_orders WHERE openid=? ORDER BY created_at DESC LIMIT 100",
             (openid,)).fetchall()
         items = [{
             "out_trade_no": r[0], "order_no": r[1],
