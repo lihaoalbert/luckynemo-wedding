@@ -2397,12 +2397,15 @@ action 只能是以下之一：
 【多轮对话】用户意图需要的信息不全时，先用 none 追问缺失的一项（语气温和、一次只问一个点），把用户多轮补充的信息合并起来后再执行对应 action；不要硬猜着执行，也不要重复追问历史对话里已经回答过的信息。
 
 【意见反馈流程】用户报 bug 或提功能想法时，先追问细节（action 用 none），把问题整理成一句话问用户"我帮你把这条反馈提交给团队吗？"。用户明确同意（好/提交/嗯）→ submit_feedback，text 是你整理后的完整描述（含用户补充的细节）。用户之前的消息里带图的（历史中标注[N张图]），反馈会一并带上。
-【图片意图】用户发图时（消息里会注明带了几张图），谨慎判断用途：
-- 用户发图说"想要这样的/照这个做/定制同款/做成这样的模板" → custom_moka（图会作为范例一起提交）；
-- 用户发图说明是谁的照片（"这是新娘/新郎/我老婆的照片"）或说"做底图/新底图/重新上传/补传/用来生成/用这张拍" → add_base_photo 带上正确的 who，**不许只回"已收到"不保存**；
+【图片意图】用户发图时（消息里会注明带了几张图，并附图片内容的客观描述），结合描述谨慎判断用途：
+- 描述是婚纱照/写真范例，用户说"想要这样的/照这个做/定制同款/做成这样的模板" → custom_moka（图会作为范例一起提交）；
+- 描述是人物照片，用户说明是谁的（"这是新娘/新郎/我老婆的照片"）或说"做底图/新底图/重新上传/补传/用来生成/用这张拍" → add_base_photo 带上正确的 who，**不许只回"已收到"不保存**；
 - 【硬约束】消息里出现"底图/新底图/上传/补传/重新上传"字样时，一律 add_base_photo，**严禁 custom_moka**——"底图"是拍摄用的人脸照片，不是大片范例图；
-- UI 截图、效果问题图、带"你看这个/怎么回事"的图，一律视为反馈素材，走意见反馈流程；
-- 拿不准时先问一句"这张图是反馈问题的截图，还是当拍摄底图？"，别擅自处理。"""
+- 描述是 UI 截图、效果问题图，或用户带"你看这个/怎么回事" → 视为反馈素材，走意见反馈流程；
+- 描述与用户的说法对不上、或拿不准时，先问一句"这张图是反馈问题的截图，还是当拍摄底图？"，别擅自处理。
+
+【确认再执行】删除资产(delete_assets)、定制大片(custom_moka)、出定妆照(makeup_photo)、出片(generate_photo)、修图(edit_photo)、合照(duo_photo) 这类消耗额度或不可逆的操作：用户的指令若是明确直接的命令（"帮我生成/把这张删掉/用这张出片"）直接执行；若意图是你从图片或模糊表述中推测的，先用 none 复述你的理解请用户确认（"你是想…吗？"），确认后再执行。所有页面跳转类动作都以卡片/按钮入口的形式给用户自己点，不会自动进入页面——reply 里用"点下面的卡片"这种说法引导。"""
+
 
 
 def _mp_chat_context(conn: sqlite3.Connection, order_no: str) -> tuple[dict, dict, dict | None]:
@@ -2450,11 +2453,49 @@ def _mp_chat_context(conn: sqlite3.Connection, order_no: str) -> tuple[dict, dic
     return order, {"state": state_text, "assets": assets_text}, makeup_job
 
 
+def _vlm_describe_images(keys: list[str]) -> str:
+    """VLM 识别聊天图片内容（≤3 张），给 M3 做意图判断依据（反馈 #40：发图被乱理解）。
+    失败返回空串，静默降级为仅标注图片数量。"""
+    if not MINIMAX_KEY or not keys:
+        return ""
+    content = [{"type": "text", "text": (
+        "客观描述这些图片的内容（每张一两句话）：是人物照片（人数、正脸/侧脸/全身、性别）/"
+        "婚纱照或写真范例图（场景、服装、风格）/手机界面截图（大概什么页面、有无异常）/其他。"
+        "只描述事实，不要评价、不要给建议。")}]
+    for k in keys[:3]:
+        try:
+            resp = requests.get(oss_signed_get_url(k, expire=600), timeout=30)
+            resp.raise_for_status()
+            b64 = base64.b64encode(resp.content).decode()
+            content.append({"type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{b64}"}})
+        except Exception as e:
+            log.warning("聊天图片拉取失败 %s: %s", k, e)
+    if len(content) == 1:
+        return ""
+    try:
+        r = requests.post(
+            f"{MINIMAX_BASE}/chat/completions",
+            headers={"Authorization": f"Bearer {MINIMAX_KEY}"},
+            json={"model": "abab6.5s-chat", "max_tokens": 300, "temperature": 0.2,
+                  "messages": [{"role": "user", "content": content}]},
+            timeout=45,
+        )
+        return r.json()["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        log.warning("聊天图片识别失败（降级为仅标注数量）：%s", e)
+        return ""
+
+
 def _mp_chat_user_text(body: MpChatIn) -> str:
-    """用户消息 + 图片附注。"""
+    """用户消息 + 图片附注（有图先过 VLM 识别内容，反馈 #40）。"""
     text = body.message.strip() or "（只发了图片，没说话）"
     if body.images:
-        text += f"\n[用户同时发了 {len(body.images)} 张图片]"
+        desc = _vlm_describe_images(body.images)
+        text += f"\n[用户同时发了 {len(body.images)} 张图片"
+        if desc:
+            text += f"，图片内容：{desc}"
+        text += "]"
     return text
 
 

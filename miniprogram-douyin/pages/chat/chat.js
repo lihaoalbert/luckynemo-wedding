@@ -31,6 +31,15 @@ const PAGE_CARDS = {
   },
 };
 
+// 操作类动作的入口按钮文案（反馈 #40：不再自动执行/自动跳页，一律给入口让用户确认后自己点）
+const ACTION_BTN_TEXT = {
+  generate_photo: '开始生成 →',
+  edit_photo: '去修图 →',
+  duo_photo: '生成合照 →',
+  makeup_photo: '查看定妆进度 →',
+  regenerate_makeup: '去定妆页 →',
+};
+
 Page({
   data: {
     messages: [],      // [{role:'ai'|'me', text, action?}]
@@ -312,6 +321,38 @@ Page({
       this.useDiyMoka(action);
       return;
     }
+    // 生成类动作入口（反馈 #40：用户点击才执行）
+    if (action.type === 'generate_photo' && action.template_key) {
+      app.globalData.pendingJob = {
+        kind: 'template_photo',
+        payload: {
+          custom_template_key: action.template_key,
+          mode: action.mode || 'couple',
+          anchor_key: action.anchor_key || '',
+          anchor_key_b: action.anchor_key_b || '',
+          swap_imgs: [],
+          swap_note: action.note || '',
+        },
+      };
+      tt.navigateTo({ url: '/pages/generating/generating' });
+      return;
+    }
+    if (action.type === 'edit_photo' && action.base_key) {
+      app.globalData.pendingJob = {
+        kind: 'edit_photo',
+        payload: { base_key: action.base_key, instruction: action.instruction || '' },
+      };
+      tt.navigateTo({ url: '/pages/generating/generating' });
+      return;
+    }
+    if (action.type === 'duo_photo' && action.images && action.images.length) {
+      app.globalData.pendingJob = {
+        kind: 'duo_photo',
+        payload: { photos: action.images, note: action.note || '' },
+      };
+      tt.navigateTo({ url: '/pages/generating/generating' });
+      return;
+    }
     if (action.page) tt.navigateTo({ url: action.page });
   },
 
@@ -442,34 +483,42 @@ Page({
       `${m.role === 'me' ? '用户' : '助手'}：${m.text || ''}${m.images ? `[${m.images.length}张图]` : ''}`);
     app.req('/api/mp/chat', 'POST', { order_no: this.data.order.order_no, message, images, history })
       .then(res => {
-        this.replaceLast(res.reply || '我在呢～');
+        this.replaceLast(res.reply || '我在呢～', res.action || null);
         this.runChatAction(res.action || {});
       })
       .catch(() => this.replaceLast('网络有点卡，你再说一次好吗？'));
   },
 
-  replaceLast(text) {
+  replaceLast(text, action) {
+    // 动作一律以入口卡片/按钮挂在气泡上，由用户自己点（反馈 #40：不自动执行、不自动跳页）
+    if (action && action.type && action.type !== 'none') {
+      if (action.page && PAGE_CARDS[action.page] && !action.card) {
+        action = Object.assign({}, action, { card: PAGE_CARDS[action.page] });
+      }
+      if (!action.card && !action.text && (ACTION_BTN_TEXT[action.type] || action.page)) {
+        action = Object.assign({}, action, { text: ACTION_BTN_TEXT[action.type] || '点这里 →' });
+      }
+      // 纯副作用动作（update_selection/set_mode/delete_assets 等）无需入口，不挂气泡
+      if (!action.card && !action.text) action = null;
+    } else {
+      action = null;
+    }
     const messages = this.data.messages.slice();
     if (messages.length && messages[messages.length - 1].text === '…') {
-      messages[messages.length - 1] = { role: 'ai', text };
+      messages[messages.length - 1] = { role: 'ai', text, action };
     } else {
-      messages.push({ role: 'ai', text });
+      messages.push({ role: 'ai', text, action });
     }
     this.setData({ messages });
     setTimeout(() => tt.pageScrollTo({ scrollTop: 99999, duration: 200 }), 50);
   },
 
   runChatAction(action) {
-    if (action.type === 'navigate' && action.page) {
-      setTimeout(() => tt.navigateTo({ url: action.page }), 800);
-    } else if (action.type === 'update_selection' && action.selection) {
+    // 反馈 #40：navigate/生成类动作不再自动执行，入口已挂在气泡上（replaceLast），
+    // 这里只保留无副作用的本地状态同步与图片展示
+    if (action.type === 'update_selection' && action.selection) {
       const selection = Object.assign(app.globalData.selection || {}, action.selection);
       app.globalData.selection = selection;
-    } else if (action.type === 'regenerate_makeup' && action.page) {
-      setTimeout(() => tt.navigateTo({ url: action.page }), 800);
-    } else if (action.type === 'makeup_photo' && action.page) {
-      // 对话里直接出定妆照：任务已在服务端创建，定妆页会自动恢复等待页并轮询
-      setTimeout(() => tt.navigateTo({ url: action.page }), 800);
     } else if ((action.type === 'show_result' || action.type === 'show_uploads') && action.photos && action.photos.length) {
       this.push('ai', '', null, action.photos);
     } else if (action.type === 'set_mode' && action.mode) {
@@ -481,34 +530,6 @@ Page({
       this.resume(order);
     } else if (action.type === 'custom_moka') {
       this.pollDiyMoka();
-    } else if (action.type === 'generate_photo' && action.template_key) {
-      // 直接出片：刚发的图/最近聊天图当模板 + 最新定妆照锚点，走 generating 页统一创建任务
-      app.globalData.pendingJob = {
-        kind: 'template_photo',
-        payload: {
-          custom_template_key: action.template_key,
-          mode: action.mode || 'couple',
-          anchor_key: action.anchor_key || '',
-          anchor_key_b: action.anchor_key_b || '',
-          swap_imgs: [],
-          swap_note: action.note || '',
-        },
-      };
-      setTimeout(() => tt.navigateTo({ url: '/pages/generating/generating' }), 800);
-    } else if (action.type === 'edit_photo' && action.base_key) {
-      // 成片局部修图：最新成片做底 + 修改指令，走 generating 页统一创建任务
-      app.globalData.pendingJob = {
-        kind: 'edit_photo',
-        payload: { base_key: action.base_key, instruction: action.instruction || '' },
-      };
-      setTimeout(() => tt.navigateTo({ url: '/pages/generating/generating' }), 800);
-    } else if (action.type === 'duo_photo' && action.images && action.images.length) {
-      // 双人合照：用户发的两个人照片直接生成，走 generating 页统一创建任务
-      app.globalData.pendingJob = {
-        kind: 'duo_photo',
-        payload: { photos: action.images, note: action.note || '' },
-      };
-      setTimeout(() => tt.navigateTo({ url: '/pages/generating/generating' }), 800);
     } else if (action.type === 'delete_assets') {
       // 资产已删，清空本地进度并重新走流程
       app.globalData.selection = {};
