@@ -558,8 +558,11 @@ SITE_DIR = Path(ENV.get("SITE_DIR", "/var/www/luckynemo"))
 FACE_SHEET_IDENTITY = ("，保持与参考图人物五官、脸型完全一致，侧脸的鼻梁高度、下颌线、"
                        "耳朵形状严格按侧面参考照还原，不要美化成标准模板脸")
 #: 生成任务注入人脸三视图时的锚定尾缀
+#: （三视图由原始照片生成、不随定妆/换发型重出，故明确"仅供五官参考"，
+#:  发型妆容跟主锚点图/模板走，避免侧脸镜头被三视图里的旧发型往回拉）
 FACE_SHEET_ANCHOR = ("随附的人脸三视图（正/左/右侧脸部特写）是人物五官的权威参考："
-                     "人物的侧脸鼻梁高度、下颌线、耳朵形状严格按三视图还原，不要美化成标准模板脸")
+                     "人物的侧脸鼻梁高度、下颌线、耳朵形状严格按三视图还原，不要美化成标准模板脸；"
+                     "三视图仅供五官特征参考，其中的发型与妆容不作参考")
 
 
 def scene_index() -> dict:
@@ -881,21 +884,32 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
         result = seedream_qc(prompt, photos, expect, job_id, "template_photo")
     elif kind == "solo_photo":
         # 个人写真：定妆照锚点（A=本人/新娘；anchor_key_b 存在时为男士单人）+ 服装/场景视觉参考
-        if payload.get("anchor_key_b") and not payload.get("anchor_key"):
+        male_solo = bool(payload.get("anchor_key_b")) and not payload.get("anchor_key")
+        if male_solo:
             photos = _anchor_or_photos_b(order_no, payload, job_id)
         else:
             photos = _anchor_or_photos(order_no, payload, job_id)
+        # 人脸三视图注入（侧脸身份锚定，与 template_photo 一致）：插在人物锚点后、服装场景参考前
+        face_refs = _face_sheet_refs(order_no, ["B"] if male_solo else ["A"])
+        photos += face_refs
         extra, scene_txt = asset_refs(payload)
         photos += extra
         prompt = build_photo_prompt(payload, scene_txt)
+        if face_refs:
+            prompt += "。" + FACE_SHEET_ANCHOR
     else:
         # 婚纱照：新娘/新郎双锚点 + 服装/场景视觉参考，脸和氛围都锁住
         bride = _anchor_or_photos(order_no, payload, job_id)
         groom = _anchor_or_photos_b(order_no, payload, job_id)
         photos = (bride[:1] + groom[:2]) if bride else groom
+        # 人脸三视图注入（侧脸身份锚定）：插在人物锚点后、服装场景参考前
+        face_refs = _face_sheet_refs(order_no, ["A", "B"])
+        photos += face_refs
         extra, scene_txt = asset_refs(payload)
         photos += extra
         prompt = build_photo_prompt(payload, scene_txt)
+        if face_refs:
+            prompt += "。" + FACE_SHEET_ANCHOR
     if not photos:
         raise RuntimeError("订单没有可用照片（uploads 表为空）")
     if result is None:
