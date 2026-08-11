@@ -61,6 +61,7 @@
 
     <!-- 帮助与其他 -->
     <view class="card">
+      <view class="link-row" bindtap="goOrders">订单中心（充值记录）<text class="arrow">→</text></view>
       <view class="link-row" bindtap="goFeedback">意见反馈（bug / 功能期望）<text class="arrow">→</text></view>
       <button class="link-row share-link" open-type="contact">联系客服<text class="arrow">→</text></button>
       <view class="link-row" bindtap="privacy">隐私承诺（交付即删）<text class="arrow">→</text></view>

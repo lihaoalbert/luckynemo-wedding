@@ -1,0 +1,20 @@
+.page { min-height: 100vh; padding: 32rpx 32rpx 60rpx; }
+.hero { padding: 40rpx 0 20rpx; }
+.loading { padding: 200rpx 0; text-align: center; color: var(--ink-soft); font-size: 26rpx; }
+.empty { padding: 160rpx 0; text-align: center; }
+.empty-txt { color: var(--ink-soft); font-size: 26rpx; }
+.empty-sub { color: var(--ink-soft); font-size: 22rpx; margin-top: 12rpx; opacity: 0.8; }
+
+.ocard {
+  background: var(--surface); border: 1rpx solid var(--hairline);
+  border-radius: 28rpx; padding: 24rpx 28rpx; margin-bottom: 20rpx;
+}
+.orow { display: flex; justify-content: space-between; align-items: baseline; }
+.otitle { font-size: 30rpx; font-weight: 700; }
+.ostatus { font-size: 22rpx; color: var(--ink-soft); }
+.ostatus.ok { color: var(--accent); font-weight: 600; }
+.orow.sub { margin-top: 10rpx; font-size: 24rpx; color: var(--ink); }
+.orow.sub.dim { color: var(--ink-soft); font-size: 22rpx; }
+.oprice { font-size: 28rpx; font-weight: 700; color: var(--accent); }
+.otrade { margin-top: 14rpx; font-size: 20rpx; color: var(--ink-soft); opacity: 0.75; }
+.note { margin-top: 32rpx; text-align: center; font-size: 22rpx; color: var(--ink-soft); }

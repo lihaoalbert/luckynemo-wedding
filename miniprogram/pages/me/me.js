@@ -48,6 +48,10 @@ Page({
     wx.navigateTo({ url: '/pages/moka_fav/moka_fav' });
   },
 
+  goOrders() {
+    wx.navigateTo({ url: '/pages/orders/orders' });
+  },
+
   // 人脸三视图：跳到上传照片页进入点选模式（反馈 #26：侧脸不像）
   fsStart(e) {
     const role = e.currentTarget.dataset.role;

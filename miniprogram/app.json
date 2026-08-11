@@ -9,6 +9,7 @@
     "pages/result/result",
     "pages/webview/webview",
     "pages/me/me",
+    "pages/orders/orders",
     "pages/photos/photos",
     "pages/myuploads/myuploads",
     "pages/landing/landing",

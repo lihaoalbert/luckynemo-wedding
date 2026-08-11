@@ -1297,6 +1297,29 @@ def mp_orders_list(open_token: str) -> JSONResponse:
         conn.close()
 
 
+@app.get("/api/mp/pay_orders")
+def mp_pay_orders_list(open_token: str) -> JSONResponse:
+    """订单中心：当前登录身份的充值/购买记录（新→旧）。微信提审要求提供订单中心页。"""
+    openid = _vp_openid(open_token)
+    if not openid:
+        raise HTTPException(status_code=401, detail="需要登录态，请重启小程序后再试")
+    conn = _db()
+    try:
+        rows = conn.execute(
+            "SELECT out_trade_no,order_no,product,coins,grant_count,status,created_at,paid_at"
+            " FROM mp_pay_orders WHERE openid=? ORDER BY rowid DESC LIMIT 100",
+            (openid,)).fetchall()
+        items = [{
+            "out_trade_no": r[0], "order_no": r[1],
+            "title": (VP_PRODUCTS.get(r[2]) or {}).get("title", r[2]),
+            "coins": r[3], "grant_count": r[4], "status": r[5],
+            "created_at": r[6], "paid_at": r[7] or "",
+        } for r in rows]
+        return JSONResponse({"ok": True, "pay_orders": items})
+    finally:
+        conn.close()
+
+
 @app.post("/api/mp/order")
 def mp_order_create(body: MpOrderIn) -> JSONResponse:
     """创建或恢复小程序订单；带 mode 时更新订单模式（couple 婚纱照 / solo 个人写真）。"""

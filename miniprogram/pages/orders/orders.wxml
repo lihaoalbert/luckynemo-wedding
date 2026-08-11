@@ -1,0 +1,35 @@
+<view class="page">
+  <view class="hero">
+    <view class="eyebrow">LuckyNemo</view>
+    <view class="h1 serif">订单中心</view>
+  </view>
+
+  <view class="loading" wx:if="{{loading}}">加载中…</view>
+
+  <block wx:if="{{!loading}}">
+    <view class="empty" wx:if="{{!items.length}}">
+      <view class="empty-txt">{{failed ? '订单记录加载失败，请稍后再试' : '还没有购买记录'}}</view>
+      <view class="empty-sub" wx:if="{{!failed}}">充值生成额度后，记录会显示在这里</view>
+    </view>
+
+    <view class="ocard" wx:for="{{items}}" wx:key="out_trade_no">
+      <view class="orow">
+        <view class="otitle serif">{{item.title}}</view>
+        <view class="ostatus {{item.status === 'paid' ? 'ok' : ''}}">{{item.status === 'paid' ? '已到账' : '待支付'}}</view>
+      </view>
+      <view class="orow sub">
+        <text>到账 {{item.grant_count}} 张额度</text>
+        <text class="oprice">¥{{item.coins}}</text>
+      </view>
+      <view class="orow sub dim">
+        <text>下单 {{item.created_at}}</text>
+      </view>
+      <view class="orow sub dim" wx:if="{{item.paid_at}}">
+        <text>到账 {{item.paid_at}}</text>
+      </view>
+      <view class="otrade" bindtap="copyTradeNo" data-no="{{item.out_trade_no}}">交易单号 {{item.out_trade_no}}（点击复制）</view>
+    </view>
+
+    <view class="note" wx:if="{{items.length}}">对订单有疑问？回「我的」页联系客服</view>
+  </block>
+</view>
