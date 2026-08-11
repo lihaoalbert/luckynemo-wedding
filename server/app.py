@@ -180,6 +180,13 @@ def _migrate() -> None:
     fb_cols = [r[1] for r in conn.execute("PRAGMA table_info(mp_feedback)")]
     if "reply" not in fb_cols:
         conn.execute("ALTER TABLE mp_feedback ADD COLUMN reply TEXT DEFAULT ''")
+    # 订阅消息凭证（一次性：用户接受一次订阅=可推送一次，生成完成通知用，2026-08-11）
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS mp_subs("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "order_no TEXT NOT NULL, openid TEXT NOT NULL,"
+        "used INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)"
+    )
     # 上传照片的拍摄槽位（front/left/right/body/''）：三视图素材自动归集（2026-08-07）
     up_cols = [r[1] for r in conn.execute("PRAGMA table_info(uploads)")]
     if "slot" not in up_cols:
@@ -1017,11 +1024,36 @@ class MpJobIn(BaseModel):
     payload: dict = Field(default_factory=dict)
 
 
+class MpSubscribeIn(BaseModel):
+    order_no: str = Field(min_length=1, max_length=50)
+    open_token: str = Field(min_length=6, max_length=120)
+
+
+@app.post("/api/mp/subscribe")
+def mp_subscribe(body: MpSubscribeIn) -> JSONResponse:
+    """登记一次性订阅消息凭证（用户在前端接受「内容生成成功通知」订阅后调用）。
+    一次接受 = 一张凭证，生成完成时 worker 消耗一张发推送。"""
+    openid = _vp_openid(body.open_token)
+    if not openid or not body.open_token.startswith("wx-"):
+        raise HTTPException(status_code=401, detail="需要微信登录态")
+    conn = _db()
+    try:
+        if not _mp_get_order(conn, body.order_no):
+            raise HTTPException(status_code=404, detail="订单不存在")
+        conn.execute(
+            "INSERT INTO mp_subs(order_no,openid,used,created_at) VALUES(?,?,0,?)",
+            (body.order_no, openid, _now()))
+        conn.commit()
+        return JSONResponse({"ok": True})
+    finally:
+        conn.close()
+
+
 class MpChatIn(BaseModel):
     order_no: str = Field(min_length=1, max_length=50)
     message: str = Field(min_length=0, max_length=500)
     images: list[str] = Field(default_factory=list, max_length=3)  # 聊天中上传的图片 OSS keys
-    history: list[str] = Field(default_factory=list, max_length=8)  # 最近对话（追问/确认上下文）
+    history: list[str] = Field(default_factory=list, max_length=20)  # 最近对话（追问/确认上下文）
 
 
 class MpFeedbackIn(BaseModel):

@@ -1,6 +1,8 @@
 // 徐大恩 LuckyNemo 小程序
 // v1：设备 token 做订单归属（AppID 下来后换 wx.login openid）
 const API_BASE = 'https://luckynemo.ibi.ren';
+//: 订阅消息模板（MP 后台模板 73339「内容生成成功通知」）：生成完成时微信服务通知推送
+const SUB_TMPL_ID = 'IlIzXgigktofL--1YSNksEv_3snoOCS8Vhc-_Co67xs';
 
 App({
   globalData: {
@@ -73,6 +75,23 @@ App({
         },
         fail: (e) => reject(new Error('网络异常，请稍后再试')),
       });
+    });
+  },
+  // 订阅「生成完成通知」：接受一次=生成完成时微信服务通知推一次（凭证落后端 mp_subs）
+  // 在发起生成的入口调用（generating 页/定妆确认）；用户拒绝或取消不打扰
+  askSubscribe() {
+    const order = this.globalData.order || {};
+    if (!order.order_no || !wx.requestSubscribeMessage) return;
+    wx.requestSubscribeMessage({
+      tmplIds: [SUB_TMPL_ID],
+      success: (res) => {
+        if (res && res[SUB_TMPL_ID] === 'accept') {
+          this.req('/api/mp/subscribe', 'POST', {
+            order_no: order.order_no, open_token: this.globalData.openToken,
+          }).catch(() => {});
+        }
+      },
+      fail: () => {},
     });
   },
   // 虚拟支付（代币模式）：后端签名三要素 → wx.requestVirtualPayment → confirm 补偿到账

@@ -144,6 +144,8 @@ Page({
     const hair = this.data.hairstyles.find(x => x.id === this.data.hairstyleId);
     this.setData({ phase: 'waiting' });
     this.startTips();
+    // 订阅生成完成通知（接受后定妆照出炉会收到微信服务通知）
+    app.askSubscribe();
     const order = app.globalData.order;
     // 唇色快选合并进化妆意见（与用户对话提的意见共存）
     const notes = this.data.lipColor !== '默认配方' ? `唇色使用${this.data.lipColor}` : '';

@@ -22,6 +22,8 @@ Page({
     this.expectedTotal = (pending && pending.payload
       && Array.isArray(pending.payload.variant_ids) && pending.payload.variant_ids.length) || 0;
     this.setData({ order, kind });
+    // 订阅生成完成通知（接受后照片出炉会收到微信服务通知，点击进相册）
+    app.askSubscribe();
     app.req('/api/mp/job', 'POST', {
       order_no: order.order_no,
       kind,

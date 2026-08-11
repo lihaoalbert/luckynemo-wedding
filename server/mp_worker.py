@@ -53,6 +53,10 @@ OSS_AK = ENV.get("OSS_ACCESS_KEY_ID", "")
 OSS_SK = ENV.get("OSS_ACCESS_KEY_SECRET", "")
 OSS_BUCKET = ENV.get("OSS_BUCKET", "ibi-private")
 OSS_ENDPOINT = f"https://{OSS_BUCKET}.{ENV.get('OSS_REGION', 'oss-cn-shanghai')}.aliyuncs.com"
+#: 微信订阅消息（生成完成推送）：MP 后台模板 73339「内容生成成功通知」
+MP_APPID = ENV.get("MP_APPID", "")
+MP_SECRET = ENV.get("MP_SECRET", "")
+MP_SUB_TMPL = ENV.get("MP_SUB_TMPL", "IlIzXgigktofL--1YSNksEv_3snoOCS8Vhc-_Co67xs")
 
 
 def log(msg: str) -> None:
@@ -406,6 +410,7 @@ def run_template_series(job_id: int, order_no: str, payload: dict) -> None:
     conn.commit()
     conn.close()
     _maybe_ref_reward(order_no)
+    notify_photo_done(order_no, "template_series", len(urls))
     log(f"job#{job_id} template_series 完成 {series_id} 共 {len(urls)} 张")
 
 
@@ -931,7 +936,72 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
     conn.commit()
     conn.close()
     _maybe_ref_reward(order_no)
+    if kind in PHOTO_KIND_LABEL:
+        notify_photo_done(order_no, kind, 1)
     log(f"job#{job_id} 完成 -> {key}")
+
+
+# ---------------- 微信订阅消息（生成完成推送，2026-08-11） ----------------
+#: 用户发起生成时前端弹订阅（一次性：接受一次=可发一次），凭证落 mp_subs 表；
+#: 任务完成时消耗一张凭证发推送，点击进相册页 pages/photos/photos。
+#: 模板 73339「内容生成成功通知」：short_thing1=内容类型 / number2=生成数量 / time3=生成时间
+PHOTO_KIND_LABEL = {"makeup_photo": "定妆照", "template_photo": "同款大片",
+                    "template_series": "系列组图", "duo_photo": "双人合照",
+                    "solo_photo": "个人写真", "free_photo": "婚纱照", "paid_photo": "婚纱照"}
+_wx_token_cache: dict = {}
+
+
+def _wx_access_token() -> str:
+    now = time.time()
+    if _wx_token_cache.get("token") and now < _wx_token_cache.get("expires", 0):
+        return _wx_token_cache["token"]
+    r = requests.get("https://api.weixin.qq.com/cgi-bin/token",
+                     params={"grant_type": "client_credential",
+                             "appid": MP_APPID, "secret": MP_SECRET}, timeout=15)
+    data = r.json()
+    if not data.get("access_token"):
+        raise RuntimeError(f"取微信 access_token 失败：{data}")
+    _wx_token_cache["token"] = data["access_token"]
+    _wx_token_cache["expires"] = now + data.get("expires_in", 7200) - 300
+    return data["access_token"]
+
+
+def notify_photo_done(order_no: str, kind: str, count: int = 1) -> None:
+    """生成完成 → 订阅消息推送（无订阅凭证/未配置时静默跳过）。"""
+    if not (MP_APPID and MP_SECRET and MP_SUB_TMPL):
+        return
+    conn = db()
+    row = conn.execute("SELECT open_token FROM mp_orders WHERE order_no=?", (order_no,)).fetchone()
+    openid = row[0][3:] if row and row[0] and row[0].startswith("wx-") else ""
+    sub = None
+    if openid:
+        sub = conn.execute(
+            "SELECT id FROM mp_subs WHERE order_no=? AND openid=? AND used=0 ORDER BY id LIMIT 1",
+            (order_no, openid)).fetchone()
+        if sub:
+            # 先消耗凭证再发：一次性订阅发不出去（用户后来取消了授权等）也不重试
+            conn.execute("UPDATE mp_subs SET used=1 WHERE id=?", (sub[0],))
+            conn.commit()
+    conn.close()
+    if not sub:
+        return
+    label = PHOTO_KIND_LABEL.get(kind, "照片")
+    try:
+        r = requests.post(
+            f"https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token={_wx_access_token()}",
+            json={"touser": openid, "template_id": MP_SUB_TMPL,
+                  "page": "pages/photos/photos",
+                  "data": {"short_thing1": {"value": label},
+                           "number2": {"value": count},
+                           "time3": {"value": time.strftime("%Y年%-m月%-d日 %H:%M")}}},
+            timeout=15)
+        resp = r.json()
+        if resp.get("errcode"):
+            log(f"订阅消息发送失败 order={order_no}: {resp}")
+        else:
+            log(f"订阅消息已推送 order={order_no} {label}x{count}")
+    except Exception as e:
+        log(f"订阅消息发送异常 order={order_no}: {e}")
 
 
 def _maybe_ref_reward(order_no: str) -> None:
