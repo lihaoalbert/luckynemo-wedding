@@ -205,9 +205,16 @@ def vlm_json(text: str, images: list[Path], max_tokens: int = 700) -> dict:
     try:
         return json.loads(out)
     except json.JSONDecodeError:
-        m = re.search(r"\{[\s\S]*\}", out)
-        if m:
-            return json.loads(m.group(0))
+        # 兜底：raw_decode 只取第一个完整 JSON 对象，忽略其后多余内容
+        #（旧实现用贪心正则 \{[\s\S]*\}，LLM 输出多段花括号内容时必炸 "Extra data"，反馈 #35）
+        start = out.find("{")
+        if start >= 0:
+            try:
+                obj, _ = json.JSONDecoder().raw_decode(out[start:])
+                if isinstance(obj, dict):
+                    return obj
+            except json.JSONDecodeError:
+                pass
         raise RuntimeError(f"VLM 返回非 JSON：{out[:120]}")
 
 
@@ -772,6 +779,12 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
             if payload.get("makeup_notes"):
                 prompt += (f"\n额外修饰要求（仅限皮肤瑕疵层面，五官脸型表情严禁改变）："
                            f"{payload['makeup_notes']}")
+            # 用户显式选了发型（反馈 #36）：原图直出唯一放开的改动——只换发型，其余仍严格不动
+            if payload.get("hairstyle"):
+                prompt += (
+                    f"\n发型例外：允许且仅允许将人物发型调整为「{payload['hairstyle']}」，"
+                    "除此之外脸部、五官、脸型、表情、服装、画面构图仍严格保持与参考照片一致"
+                )
         else:
             # LLM 化妆师：先分析人物原图给出个性化建议，融合进标准提示词
             advice = analyze_face(photos[0], payload.get("makeup_name", ""), payload.get("gender", "female"))
