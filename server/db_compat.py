@@ -214,7 +214,8 @@ MYSQL_SCHEMA = [
        openid VARCHAR(64) NOT NULL, product VARCHAR(32) NOT NULL,
        coins INT NOT NULL, grant_count INT NOT NULL,
        status VARCHAR(16) NOT NULL DEFAULT 'created',
-       created_at VARCHAR(40) NOT NULL, paid_at VARCHAR(40) DEFAULT ''
+       created_at VARCHAR(40) NOT NULL, paid_at VARCHAR(40) DEFAULT '',
+       wechat_order_id VARCHAR(64) DEFAULT ''
        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
     """CREATE TABLE IF NOT EXISTS mp_favs(
        openid VARCHAR(64) NOT NULL, series_id VARCHAR(64) NOT NULL,
@@ -224,6 +225,11 @@ MYSQL_SCHEMA = [
 
 _ensured = False
 
+#: 老库补列（errno 1060=列已存在，忽略）；新库走 MYSQL_SCHEMA 已含这些列
+MYSQL_ALTERS = [
+    "ALTER TABLE mp_pay_orders ADD COLUMN wechat_order_id VARCHAR(64) DEFAULT ''",
+]
+
 
 def ensure_mysql_schema(conn: MyConn) -> None:
     """建表（幂等，进程内只做一次）。"""
@@ -232,6 +238,11 @@ def ensure_mysql_schema(conn: MyConn) -> None:
         return
     for ddl in MYSQL_SCHEMA:
         conn.execute(ddl)
+    for sql in MYSQL_ALTERS:
+        try:
+            conn.execute(sql)
+        except Exception:
+            pass  # 列已存在
     conn.commit()
     _ensured = True
 

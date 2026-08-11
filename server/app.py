@@ -231,6 +231,10 @@ def _migrate() -> None:
         "product TEXT NOT NULL, coins INTEGER NOT NULL, grant_count INTEGER NOT NULL,"
         "status TEXT NOT NULL DEFAULT 'created', created_at TEXT NOT NULL, paid_at TEXT DEFAULT '')"
     )
+    # 微信支付单补微信侧订单号（iOS 退款匹配用，Midas 推送回填，2026-08-11）
+    po_cols = [r[1] for r in conn.execute("PRAGMA table_info(mp_pay_orders)")]
+    if "wechat_order_id" not in po_cols:
+        conn.execute("ALTER TABLE mp_pay_orders ADD COLUMN wechat_order_id VARCHAR(64) DEFAULT ''")
     # 同款大片收藏（按微信 openid 归属）
     conn.execute(
         "CREATE TABLE IF NOT EXISTS mp_favs("
@@ -1982,6 +1986,14 @@ async def mp_vpay_notify(request: Request) -> JSONResponse:
         pay = conn.execute(
             "SELECT * FROM mp_pay_orders WHERE out_trade_no=?", (out_trade_no,)).fetchone()
         if pay:
+            # 回填微信侧订单号（iOS 退款匹配用；字段名按 Midas 推送实测校准）
+            wx_oid = str(data.get("pay_order_id") or data.get("transaction_id")
+                         or (data.get("order") or {}).get("pay_order_id") or "")
+            if wx_oid:
+                conn.execute(
+                    "UPDATE mp_pay_orders SET wechat_order_id=? WHERE out_trade_no=?"
+                    " AND (wechat_order_id IS NULL OR wechat_order_id='')",
+                    (wx_oid, out_trade_no))
             _vp_grant(conn, pay)
             conn.commit()
     finally:
@@ -2054,9 +2066,66 @@ async def mp_msgpush(request: Request):
                  pay_order_id, provide_status, resp)
         return JSONResponse(resp)
     if event == "xpay_refund_notify":
-        # iOS 退款成功通知：仅记录（对账用 MP「虚拟支付 → 交易订单」）
-        log.info("iOS 退款成功通知 body=%s", raw[:500])
+        # iOS 退款成功通知：标记退款单 + 回收未消费额度（善后，2026-08-11）
+        content = data.get("content") or {}
+        if isinstance(content, str):
+            try:
+                content = json.loads(content)
+            except ValueError:
+                content = {}
+        try:
+            _handle_ios_refund(content)
+        except Exception as e:
+            log.warning("iOS 退款善后异常（需人工跟进）：%s content=%s", e, content)
     return PlainTextResponse("success")
+
+
+def _handle_ios_refund(content: dict) -> None:
+    """iOS 退款成功善后：标记 mp_pay_orders refunded + 回收该笔未消费额度（地板 0）。
+
+    匹配顺序：①wechat_order_id（Midas 推送回填）②金币数+支付日唯一匹配。
+    都匹配不到只告警不动作，人工在 MP 后台对账处理。已消费部分的额度无法回收，日志留痕。
+    """
+    pay_order_id = str(content.get("pay_order_id", ""))
+    p_count = str(content.get("p_count", ""))
+    order_time = str(content.get("order_time", ""))
+    log.info("iOS 退款成功 content=%s", content)
+    conn = _db()
+    conn.row_factory = sqlite3.Row
+    try:
+        pay = None
+        if pay_order_id:
+            pay = conn.execute(
+                "SELECT * FROM mp_pay_orders WHERE wechat_order_id=?", (pay_order_id,)).fetchone()
+        if not pay and p_count.isdigit():
+            # 含 refunded：重复推送时能命中下面的幂等分支，而不是误报"未匹配需人工处理"
+            candidates = conn.execute(
+                "SELECT * FROM mp_pay_orders WHERE coins=? AND status IN ('paid','refunded')",
+                (int(p_count),)).fetchall()
+            day = time.strftime("%Y-%m-%d", time.gmtime(int(order_time))) if order_time.isdigit() else ""
+            same_day = [c for c in candidates if str(c["created_at"])[:10] == day]
+            if len(same_day) == 1:
+                pay = same_day[0]
+        if not pay:
+            log.warning("iOS 退款单未匹配到本地支付单（pay_order_id=%s p_count=%s order_time=%s），需人工处理",
+                        pay_order_id, p_count, order_time)
+            return
+        if pay["status"] == "refunded":
+            log.info("iOS 退款单已处理过，跳过 out_trade_no=%s", pay["out_trade_no"])
+            return
+        conn.execute("UPDATE mp_pay_orders SET status='refunded' WHERE out_trade_no=?",
+                     (pay["out_trade_no"],))
+        # 回收未消费额度（地板 0 在 Python 侧算：MySQL 的 MAX() 是聚合函数，与 SQLite 标量 MAX(a,b) 方言冲突）
+        row = conn.execute("SELECT paid_count FROM mp_orders WHERE order_no=?",
+                           (pay["order_no"],)).fetchone()
+        new_count = max(0, (row[0] or 0) - pay["grant_count"]) if row else 0
+        conn.execute("UPDATE mp_orders SET paid_count=?, updated_at=? WHERE order_no=?",
+                     (new_count, _now(), pay["order_no"]))
+        conn.commit()
+        log.info("iOS 退款善后完成：out_trade_no=%s order_no=%s 回收 %d 张，剩余付费额度 %d",
+                 pay["out_trade_no"], pay["order_no"], pay["grant_count"], new_count)
+    finally:
+        conn.close()
 
 
 # ---------------- 抖音担保支付（按单支付，无代币模式） ----------------
