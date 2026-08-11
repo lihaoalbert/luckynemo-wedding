@@ -7,6 +7,11 @@
 
   <!-- 选妆 -->
   <view tt:if="{{phase === 'pick'}}">
+    <!-- 给伴侣定妆但 TA 还没照片：先引导去上传（反馈 #37） -->
+    <view class="upload-tip" tt:if="{{role === 'B' && bEmpty}}">
+      <view class="upload-tip-text">TA 还没有照片：上传 TA 的正脸照（最好再带左右侧脸），才能给 TA 定妆</view>
+      <button class="btn" bindtap="goUpload">去上传 TA 的照片 →</button>
+    </view>
     <!-- 底照选择：定妆以哪张为基础，其余照片做人脸参考 -->
     <view class="hair-sec" tt:if="{{uploads.length > 1}}">
       <view class="hair-title">选一张底照<text class="hair-skip">定妆照以它为基础，其余照片做人脸参考</text></view>

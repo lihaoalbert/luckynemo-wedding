@@ -25,6 +25,12 @@
 }
 .engine-item.active { background: #f9eeec; border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .engine-hint { display: block; font-size: 18rpx; color: var(--ink-soft); margin-top: 2rpx; }
+/* 伴侣相册为空的上传引导（反馈 #37） */
+.upload-tip {
+  margin: 10rpx 0 24rpx; padding: 24rpx;
+  background: #f9eeec; border: 1rpx solid var(--accent); border-radius: 16rpx;
+}
+.upload-tip-text { font-size: 24rpx; color: var(--ink); margin-bottom: 16rpx; line-height: 1.6; }
 /* 发型选择 */
 .hair-sec { margin-top: 24rpx; }
 .hair-title { font-size: 26rpx; font-weight: 600; margin-bottom: 12rpx; }

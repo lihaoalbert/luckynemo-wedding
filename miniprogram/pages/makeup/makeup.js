@@ -23,6 +23,7 @@ Page({
     uploads: [],      // 已上传照片（选底照用，本人+伴侣双相册，带 role/label）
     baseKey: '',      // 底照 oss_key（定妆以它为基础，其余照片做人脸参考）
     baseRole: 'A',    // 底照所在相册（A=本人/B=伴侣），定妆任务按它取对应相册照片
+    bEmpty: false,    // 伴侣相册为空（role=B 定妆时显示上传引导，反馈 #37）
     lipColors: ['默认配方', '豆沙色', '番茄红', '奶茶色', '正红色'],
     lipColor: '默认配方',
     phase: 'pick',     // pick → waiting → done
@@ -71,6 +72,9 @@ Page({
         const label = r === mine ? '我的' : '伴侣的';
         for (const u of ((res.uploads && res.uploads[r]) || [])) ups.push({ ...u, role: r, label });
       }
+      // B 相册为空时给上传引导（反馈 #37：提醒给爱人定妆却没有上传入口）
+      const bEmpty = !((res.uploads && res.uploads.B) || []).length;
+      this.setData({ bEmpty });
       if (ups.length) this.setData({ uploads: ups, baseKey: ups[0].key, baseRole: ups[0].role });
     }).catch(() => {});
     // 有正在进行的定妆任务（含对话里发起的重生成）→ 直接恢复等待页
@@ -111,6 +115,11 @@ Page({
 
   pickBase(e) {
     this.setData({ baseKey: e.currentTarget.dataset.key, baseRole: e.currentTarget.dataset.role || 'A' });
+  },
+
+  // 伴侣相册为空 → 去上传页传 TA 的照片（反馈 #37）
+  goUpload() {
+    wx.navigateTo({ url: '/pages/upload/upload' });
   },
 
   pickLip(e) {

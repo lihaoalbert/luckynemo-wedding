@@ -230,7 +230,7 @@ Page({
         cancelText: '去定妆',
         success: (r) => {
           if (r.confirm) go();
-          else wx.navigateTo({ url: '/pages/makeup/makeup' });
+          else wx.navigateTo({ url: '/pages/makeup/makeup' + (missB ? '?role=B' : '') });
         },
       });
       return;

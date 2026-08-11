@@ -113,6 +113,7 @@
 
 ## 更新日志
 
+- 2026-08-11 反馈 #37（solo 用户没地方传伴侣照片，只被提醒给爱人定妆）三处前端修复：①upload 页伴侣（B）区 solo 模式也常显（原仅 couple 可见，solo 用户全 App 无 B 相册入口），solo 时标题加注"可选，拍情侣大片用"；②makeup 页 role=B 且 B 相册为空时显示「去上传 TA 的照片」引导条（bEmpty 标记）；③moka/moka_series 缺定妆照弹窗「去定妆」带 role 参数（missB→?role=B，落在男士 tab）。抖音版 6 文件同步同样改动（已动 douyin 组文件，群里同步一声）。已提交 main；**前端需微信/抖音开发者工具上传后才生效**；反馈已写入回复并标 done
 - 2026-08-11 三视图侧脸锚定补全 + hz108 卡图换版：①`solo_photo`/婚纱照分支补齐 `_face_sheet_refs` 三视图注入（此前只有 template_photo/duo_photo/template_series 有），插在人物锚点后、服装场景参考前；`FACE_SHEET_ANCHOR` 加"三视图仅供五官特征参考，其中的发型与妆容不作参考"（三视图用原始照片生成、定妆换发型后不重出，防侧脸镜头被旧发型拉回）；②hz108（男士原图直出版）卡图全身照 → 统一半身正脸照（Seedream 以旧图为人物参考重出，1776×2368 对齐 hz107/hz213/hz214，生成脚本 `assets/hongzhuang/gen_hz108_halfbody.py`）。已提交 main，ECS 已同步 `/opt/luckynemo/server/mp_worker.py` + `/var/www/luckynemo/hongzhuang/styles/hz108.png`，luckynemo-worker 重启 active
 - 2026-08-11 真人认证环节下线（用户决定：认证只能在小程序外完成，是转化卡点；视频功能上线时再恢复）：`server/app.py` 新增 `MP_REQUIRE_AUTH` 开关（默认 0 放开 /api/mp/job 的 403 认证闸门，ECS .env 设 1 恢复，认证链路 auth-session/回调/继承代码全保留）；chat.js 加 `AUTH_ENABLED=false` 跳过认证引导块、开场白与婚纱照话术去掉认证；landing 屏 3「真人认证保护」改「本人授权：请只上传本人或已获本人授权的照片」、upload 页 hint 与 me 页隐私弹窗同步加授权文案、me 页个人信息隐藏认证状态行。本地双向验证（默认放开可建任务 / 开关=1 恢复 403）✓；已提交 main 0786139，ECS app.py 已同步重启 active，线上冒烟未认证订单建任务 queued ✓（冒烟单已清理）。**注意：认证不再是肖像权同意链，授权依赖上传文案兜底；前端需微信开发者工具上传后新用户才不再被认证引导卡住；抖音版前端仍带认证引导（后端已不拦），douyin 组自行决定是否同步**
 - 2026-08-11 今日两新用户三视图目检正常：EL6C（job#120）、LB7Q（job#126）face_sheet 均 done，正/左/右三视角脸部特写卡 4320×2560 规范合格

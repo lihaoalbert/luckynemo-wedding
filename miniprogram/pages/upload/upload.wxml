@@ -43,9 +43,9 @@
     <button class="btn sub-btn" bindtap="chooseA">+ 上传更多照片（合照/生活照）</button>
   </view>
 
-  <!-- 伴侣的照片（B：婚纱照；B 端设备显示为"你的照片"） -->
-  <view class="section" wx:if="{{mode === 'couple'}}">
-    <view class="sec-title serif">{{myRole === 'B' ? '你的照片' : '伴侣的照片'}}</view>
+  <!-- 伴侣的照片（B：婚纱照；solo 也可传——拍情侣大片需要；B 端设备显示为"你的照片"） -->
+  <view class="section">
+    <view class="sec-title serif">{{myRole === 'B' ? '你的照片' : (mode === 'couple' ? '伴侣的照片' : '伴侣的照片（可选，拍情侣大片用）')}}</view>
     <view class="slots">
       <view class="slot {{slots.B.front.url ? 'filled' : ''}}" data-role="B" data-slot="front" bindtap="chooseSlot">
         <image wx:if="{{slots.B.front.url}}" src="{{slots.B.front.url}}" mode="aspectFill" />
