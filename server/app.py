@@ -647,6 +647,9 @@ VP_OFFER_ID = _env("VP_OFFER_ID", "")
 VP_APP_KEY = _env("VP_APP_KEY", "")                      # 现网 AppKey
 VP_APP_KEY_SANDBOX = _env("VP_APP_KEY_SANDBOX", "")      # 沙箱 AppKey
 VP_ENV = int(_env("VP_ENV", "0"))                        # 0=现网 1=沙箱
+#: 真人认证闸门（2026-08-11 起默认放开：认证只能在小程序外完成，是转化卡点，用户决定先隐藏、
+#: 视频功能上线时再恢复——ECS .env 设 MP_REQUIRE_AUTH=1 即恢复 403 拦截；认证链路代码全部保留）
+MP_REQUIRE_AUTH = _env("MP_REQUIRE_AUTH", "0") == "1"
 #: 商品表：代币「金币」1 元 = 1 币（MP 后台已配，发布后不可改）；价格须整数元
 #: per_photo=4 币→1 张额度，pack52=52 币→20 张额度（2026-08-07 调价：原 49 币→50 张）
 #: iOS/Android 同价（用户会跨平台比价，费率差异当获客成本；iOS 通道费率 12%）
@@ -1719,13 +1722,15 @@ def mp_job_create(body: MpJobIn) -> JSONResponse:
         if not order:
             raise HTTPException(status_code=404, detail="订单不存在")
         # 定妆/单人写真/人脸三视图只需对应成员认证（新郎侧查 B）；婚纱照成片需订单所需成员全部认证
-        if body.kind in ("makeup_photo", "solo_photo", "face_sheet"):
-            role = (body.payload or {}).get("role", "A")
-            role = "B" if role == "B" else "A"
-            if not order["members"].get(role, {}).get("auth_ok"):
-                raise HTTPException(status_code=403, detail="请先完成真人认证")
-        elif not order["auth_ok"]:
-            raise HTTPException(status_code=403, detail="请先完成双人真人认证")
+        # （2026-08-11 起默认放开，MP_REQUIRE_AUTH=1 恢复）
+        if MP_REQUIRE_AUTH:
+            if body.kind in ("makeup_photo", "solo_photo", "face_sheet"):
+                role = (body.payload or {}).get("role", "A")
+                role = "B" if role == "B" else "A"
+                if not order["members"].get(role, {}).get("auth_ok"):
+                    raise HTTPException(status_code=403, detail="请先完成真人认证")
+            elif not order["auth_ok"]:
+                raise HTTPException(status_code=403, detail="请先完成双人真人认证")
         # 定妆限量：每单免费 10 次，超出后每次扣 1 张免费额度（防止无限刷妆造图）
         if body.kind == "makeup_photo":
             makeup_count = conn.execute(

@@ -1,10 +1,13 @@
-// 对话流主页：AI 引导完成 认证→上传→选装→免费生成
+// 对话流主页：AI 引导完成 上传→定妆→选装→免费生成
+// 注：真人认证环节 2026-08-11 起下线（AUTH_ENABLED=false），视频功能上线时再恢复
 const app = getApp();
+
+const AUTH_ENABLED = false;  // 真人认证开关：恢复时改 true（后端 MP_REQUIRE_AUTH 同步设 1）
 
 const WELCOME = [
   '你好呀，我是徐大恩的 AI 小助手 💌',
   '从今天开始，你们的婚纱照可以不出门就拍好——先免费送你们 1 张试试手艺。',
-  '第一步很简单，先完成一次「真人认证」。这是为了保护你们的脸：认证过的照片，只用来给你们自己生成作品，交付即删。',
+  '第一步很简单：上传几张照片——正脸、侧脸、全身越全，生成越像。照片只用来给你们自己生成作品，交付即删。',
 ];
 
 // 功能卡片配图（跳转按钮的图片化版本，图片即卖点；均为站点公开资产）
@@ -82,7 +85,7 @@ Page({
             app.globalData.order = res.order;
             wx.setStorageSync('mp_order', res.order);
             if (res.role === 'B') {
-              this.push('ai', '欢迎加入 💌 你们的订单已经连在一起啦，完成你的认证后就可以继续创作～');
+              this.push('ai', '欢迎加入 💌 你们的订单已经连在一起啦，上传你的照片就可以继续创作～');
             }
             this._resumeKey = null;
             this.resume(res.order);
@@ -159,13 +162,13 @@ Page({
       this._resumeKey = key;
       this.setData({ step: 'mode' });
       this.push('ai', '先告诉我，今天想拍什么？');
-      this.push('ai', '👰 婚纱照：你们两个人一起，需要先各自完成真人认证', { text: '拍婚纱照 →', kind: 'mode', mode: 'couple' });
+      this.push('ai', '👰 婚纱照：你们两个人一起，各自上传照片就能合拍', { text: '拍婚纱照 →', kind: 'mode', mode: 'couple' });
       this.push('ai', '📷 个人写真：就你一个人，妆造服装场景随心挑', { text: '拍个人写真 →', kind: 'mode', mode: 'solo' });
       return;
     }
 
-    // 第 1 步：成员认证（婚纱照需要新娘+新郎各自认证）
-    if (pending.length) {
+    // 第 1 步：成员认证（婚纱照需要新娘+新郎各自认证）——2026-08-11 起下线，AUTH_ENABLED 恢复
+    if (AUTH_ENABLED && pending.length) {
       const key = 'auth:' + pending.join(',');
       if (this._resumeKey === key) return;
       this._resumeKey = key;
@@ -182,7 +185,7 @@ Page({
       return;
     }
 
-    // 认证齐全 → 按服务端真实进度续走：没照片→上传；没定妆→定妆；已定妆→选衣服
+    // 认证齐全（认证已下线则直接到这） → 按服务端真实进度续走：没照片→上传；没定妆→定妆；已定妆→选衣服
     this.setData({ step: 'wardrobe' });
     app.req('/api/mp/order/' + order.order_no).then(res => {
       const hasPhotos = (res.photo_count || 0) > 0;
@@ -192,7 +195,7 @@ Page({
       this._resumeKey = key;
       if (!hasPhotos) {
         this.setData({ dockText: '上传我们的照片 →', dockPage: '/pages/upload/upload' });
-        this.push('ai', '认证都通过啦 👏 接下来上传照片，然后定妆、选衣服、选动作，一张美美的照片就出来啦～', { text: '去上传照片', page: '/pages/upload/upload' });
+        this.push('ai', '接下来上传照片，然后定妆、选衣服、选动作，一张美美的照片就出来啦～', { text: '去上传照片', page: '/pages/upload/upload' });
       } else if (!makeupDone) {
         this.setData({ dockText: '去定妆 →', dockPage: '/pages/makeup/makeup' });
         this.push('ai', '你的照片已经在我这里啦，直接去定妆吧～', { text: '去定妆 →', page: '/pages/makeup/makeup' });

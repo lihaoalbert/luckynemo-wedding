@@ -48,13 +48,6 @@
         <text class="arrow">{{infoOpen ? '▲' : '▼'}}</text>
       </view>
       <block wx:if="{{infoOpen}}">
-        <view class="row">
-          <text class="k">真人认证</text>
-          <text class="v">
-            {{order.mode === 'couple' ? '新娘' : '本人'}}{{order.members.A && order.members.A.auth_ok ? ' ✓' : ' 未认证'}}
-            <block wx:if="{{order.mode === 'couple'}}"> · 新郎{{order.members.B && order.members.B.auth_ok ? ' ✓' : ' 未认证'}}</block>
-          </text>
-        </view>
         <view class="order-no" bindlongpress="copyOrderNo">订单号 {{order.order_no}}（长按复制）</view>
       </block>
     </view>

@@ -30,7 +30,7 @@
       <view class="screen">
         <view class="h1 serif">你的脸，只属于你</view>
         <view class="privacy">
-          <view class="li">🔒 真人认证保护：认证过的照片只给你们自己生成</view>
+          <view class="li">🔒 本人授权：请只上传本人或已获本人授权的照片</view>
           <view class="li">🗑 交付即删：照片加密存储，交付后彻底删除</view>
           <view class="li">🎁 新用户福利：免费送 1 张生成额度</view>
         </view>

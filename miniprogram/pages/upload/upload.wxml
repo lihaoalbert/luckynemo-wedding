@@ -84,6 +84,6 @@
 
   <view class="dock">
     <button class="btn gold" bindtap="goMakeup" wx:if="{{hasDone}}">照片传好了，去定妆 →</button>
-    <view class="hint">照片直传加密存储，交付即删</view>
+    <view class="hint">请只上传本人或已获本人授权的照片 · 加密存储，交付即删</view>
   </view>
 </view>
