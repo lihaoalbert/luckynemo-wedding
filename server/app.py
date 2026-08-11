@@ -158,7 +158,7 @@ def _migrate() -> None:
     if "ref" not in cols:
         conn.execute("ALTER TABLE mp_orders ADD COLUMN ref TEXT DEFAULT ''")
     if "free_quota" not in cols:
-        conn.execute("ALTER TABLE mp_orders ADD COLUMN free_quota INTEGER DEFAULT 20")
+        conn.execute("ALTER TABLE mp_orders ADD COLUMN free_quota INTEGER DEFAULT 1")
     # 裂变奖励标记：受邀订单首次生成成功后给邀请人 +1 张免费额度（只奖一次）
     if "ref_rewarded" not in cols:
         conn.execute("ALTER TABLE mp_orders ADD COLUMN ref_rewarded INTEGER DEFAULT 0")
@@ -1151,7 +1151,7 @@ def _mp_get_order(conn: sqlite3.Connection, order_no: str) -> dict | None:
         "created_at": row[7], "updated_at": row[8], "asset_group_id": row[9] or "",
         "byted_token": row[10] or "", "auth_url": row[11] or "",
         "mode": row[12] or "",
-        "share_token": row[13] or "", "free_quota": row[14] if row[14] is not None else 20,
+        "share_token": row[13] or "", "free_quota": row[14] if row[14] is not None else 1,
         "members": _mp_members(conn, order_no),
     }
 
@@ -1315,8 +1315,8 @@ def mp_order_create(body: MpOrderIn) -> JSONResponse:
         )
         share_token = secrets.token_hex(8)
         conn.execute(
-            "INSERT INTO mp_orders(order_no,open_token,status,share_token,ref,created_at,updated_at)"
-            " VALUES(?,?,?,?,?,?,?)",
+            "INSERT INTO mp_orders(order_no,open_token,status,share_token,ref,free_quota,created_at,updated_at)"
+            " VALUES(?,?,?,?,?,1,?,?)",
             (order_no, body.open_token, "created", share_token, body.ref or "", _now(), _now()),
         )
         conn.execute(
@@ -1714,7 +1714,7 @@ def mp_job_create(body: MpJobIn) -> JSONResponse:
                 else:
                     raise HTTPException(status_code=403, detail="免费额度已用完，请充值后再继续")
         if body.kind in ("free_photo", "solo_photo", "template_photo", "edit_photo", "duo_photo"):
-            # 内测额度：每单 free_quota 张免费（默认 20），先扣免费再扣付费
+            # 免费额度：每单 free_quota 张免费（2026-08-11 正式发布起新用户 1 张，原为内测 20 张），先扣免费再扣付费
             if (order["free_used"] or 0) < order["free_quota"]:
                 _mp_touch(conn, body.order_no, free_used=(order["free_used"] or 0) + 1, status="generating")
             elif order["paid_count"] > 0:

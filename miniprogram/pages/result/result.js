@@ -109,7 +109,7 @@ Page({
   onShareAppMessage() {
     const order = this.data.order || {};
     return {
-      title: '不出门，拍好婚纱照 📷 内测送你 20 张免费额度',
+      title: '不出门，拍好婚纱照 📷 新用户免费送 1 张',
       path: '/pages/chat/chat' + (order.share_token ? '?ref=' + order.share_token : ''),
       imageUrl: this.data.photo || '',
     };

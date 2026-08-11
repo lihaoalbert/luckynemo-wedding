@@ -32,7 +32,7 @@
         <view class="privacy">
           <view class="li">🔒 真人认证保护：认证过的照片只给你们自己生成</view>
           <view class="li">🗑 交付即删：照片加密存储，交付后彻底删除</view>
-          <view class="li">🎁 内测福利：免费送 20 张生成额度</view>
+          <view class="li">🎁 新用户福利：免费送 1 张生成额度</view>
         </view>
         <button class="btn cta" bindtap="start">免费试 1 张 →</button>
       </view>
