@@ -90,6 +90,8 @@ Page({
 
   applyGender(gender) {
     const makeup = this.data.allMakeup.filter(m => (m.gender || 'female') === gender);
+    // 「原图直出版」排最前（用户要求：最不容易不像本人的选项给最大曝光）
+    makeup.sort((a, b) => ((b.spec && b.spec.use_original) ? 1 : 0) - ((a.spec && a.spec.use_original) ? 1 : 0));
     const hairstyles = this.data.allHairstyles.filter(h => (h.gender || 'female') === gender);
     // MiniMax 男妆保真弱：显示但标不推荐（避免用户以为功能缺失）
     const engines = this.data.engines;

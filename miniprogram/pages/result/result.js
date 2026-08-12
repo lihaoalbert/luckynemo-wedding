@@ -11,31 +11,58 @@ Page({
     mmPhotos: [],    // 朋友圈 mock 缩略（前 9 张）
     seriesTitle: '', // 来源系列（模板 vs 成片对比）
     templateCover: '',
+    eyebrow: '',     // 顶部眉标（反馈 #46：不再写死"免费第一张"）
+    headline: '',    // 顶部主标（单人/双人文案不同）
+    quotaLeft: 0,    // 剩余可生成张数（免费余+付费余）：>0 时不显示充值卡（反馈 #46）
   },
 
   onLoad() {
-    const order = app.globalData.order;
+    const order = app.globalData.order || {};
+    const solo = order.mode === 'solo';
+    const headline = solo ? '看看，是不是你？' : '看看，是不是你们？';
     this.setData({ order });
     app.req('/api/mp/order/' + order.order_no).then(res => {
+      const o = res.order || {};
+      const quotaLeft = Math.max(0, (o.free_quota || 0) - (o.free_used || 0)) + (o.paid_count || 0);
       const seriesJob = (res.jobs || []).find(j =>
         j.kind === 'template_series' && j.result && j.result.urls && j.result.urls.length);
-      if (seriesJob) {
-        const photos = seriesJob.result.urls.map(u => u.url);
-        const photoKeys = seriesJob.result.urls.map(u => u.oss_key || '');
-        // 详情页生成时留下的系列信息（job 接口不回传 series_id），没有就不渲染对比块
-        const last = app.globalData.lastSeries || {};
+      // 整组（≥2 张）走九宫格；只有 1 张的系列结果按单张渲染（反馈 #46：单张九宫格布局错乱）
+      if (seriesJob && seriesJob.result.urls.length > 1) {
+        const urls = seriesJob.result.urls;
         this.setData({
-          photos,
-          photoKeys,
-          mmPhotos: photos.slice(0, 9),
-          seriesTitle: last.title || '',
-          templateCover: last.cover || '',
+          quotaLeft,
+          eyebrow: '系列组图 · 礼成',
+          headline,
+          photos: urls.map(u => u.url),
+          photoKeys: urls.map(u => u.oss_key || ''),
+          mmPhotos: urls.map(u => u.url).slice(0, 9),
         });
+        wx.setNavigationBarTitleText({ title: '系列组图出炉' });
+        this.loadSeriesInfo(seriesJob.result.series_id || '');
         return;
       }
-      const job = (res.jobs || []).find(j =>
-        (j.kind === 'free_photo' || j.kind === 'solo_photo' || j.kind === 'template_photo') && j.result && j.result.url);
-      if (job) this.setData({ photo: job.result.url, photoKey: job.result.oss_key || '' });
+      const single = seriesJob
+        ? { result: seriesJob.result.urls[0] }
+        : (res.jobs || []).find(j =>
+            (j.kind === 'free_photo' || j.kind === 'solo_photo' || j.kind === 'template_photo') && j.result && j.result.url);
+      this.setData({ quotaLeft, eyebrow: '成片 · 礼成', headline });
+      if (single) this.setData({ photo: single.result.url, photoKey: single.result.oss_key || '' });
+      wx.setNavigationBarTitleText({ title: solo ? '你的成片' : '你们的成片' });
+    }).catch(() => {});
+  },
+
+  // 模板 vs 成片：按任务结果里的 series_id 从 catalog 取正确的系列标题与封面
+  // （反馈 #46：之前用生成时暂存的 lastSeries，换生成路径后对不上模板）
+  loadSeriesInfo(seriesId) {
+    if (!seriesId) return;
+    app.req('/api/mp/catalog').then(res => {
+      const s = (res.moka_series || []).find(x => x.id === seriesId);
+      const tpl = (res.moka || []).find(t => t.series === seriesId);
+      const base = app.globalData.apiBase;
+      this.setData({
+        seriesTitle: (s && s.title) || '',
+        templateCover: tpl ? base + tpl.img : '',
+      });
     }).catch(() => {});
   },
 

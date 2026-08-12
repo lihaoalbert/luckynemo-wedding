@@ -454,6 +454,47 @@ def _order_heights(order_no: str) -> str:
     return str(sel.get("heights") or "")
 
 
+def _template_ref_for_result(order_no: str, base_key: str) -> Path | None:
+    """回溯成片对应的模卡模板图（反馈 #47：修图意见引用模板时作参考图传入）。
+    template_photo 按 payload.template_id / custom_template_key；template_series 按
+    result.urls 里与 base_key 匹配的变体 id。查不到或加载失败返回 None（不挡修图）。"""
+    conn = db()
+    rows = conn.execute(
+        "SELECT kind, payload_json, result_json FROM mp_jobs"
+        " WHERE order_no=? AND status='done' AND kind IN ('template_photo','template_series')"
+        " ORDER BY id DESC LIMIT 20", (order_no,)).fetchall()
+    conn.close()
+    tpl_id, custom_key = "", ""
+    for jkind, pj, rj in rows:
+        payload = json.loads(pj) if pj else {}
+        result = json.loads(rj) if rj else {}
+        if jkind == "template_photo" and result.get("oss_key") == base_key:
+            tpl_id = payload.get("template_id", "")
+            custom_key = payload.get("custom_template_key", "")
+            break
+        if jkind == "template_series":
+            hit = next((u for u in result.get("urls") or []
+                        if isinstance(u, dict) and u.get("oss_key") == base_key), None)
+            if hit:
+                tpl_id = hit.get("id", "")
+                break
+    try:
+        if tpl_id:
+            moka_path = SITE_DIR / "moka" / "index.json"
+            moka_data = json.loads(moka_path.read_text(encoding="utf-8"))
+            tpl_map = {t["id"]: t for t in moka_data.get("templates", [])}
+            t = tpl_map.get(tpl_id)
+            if t:
+                f = SITE_DIR / "moka" / t["file"]
+                if f.is_file():
+                    return f
+        if custom_key:
+            return oss_get(custom_key, TMP / f"{order_no}_edit_tpl.jpg")
+    except Exception as e:
+        log(f"修图模板回溯失败 {order_no} {base_key}: {e}")
+    return None
+
+
 def _face_sheet_refs(order_no: str, roles: list[str]) -> list[Path]:
     """收集各成员的人脸三视图（存在的才给）。"""
     refs = []
@@ -747,6 +788,12 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
         prompt = (f"这是对图1照片的局部修图，不是重新生成：{instruction}。"
                   "严格保持人物五官、构图、场景、服装、光影、色调等其余部分完全不变，"
                   "只修改用户要求的部分，修图痕迹自然无破绽，摄影级质感，无文字无水印")
+        # 反馈 #47：修改意见引用模板（"男生发型用模板里的"）时模板图必须传入，
+        # 否则模型无从得知模板内容——回溯底图来源任务，同款/系列成片带上对应模板作图2
+        tpl_ref = _template_ref_for_result(order_no, base_key)
+        if tpl_ref:
+            photos.append(tpl_ref)
+            prompt += "。图2是生成图1时使用的摄影模板，修改意见中提及「模板」的部分参照图2执行"
     elif kind == "duo_photo":
         # 双人合照：参考图里的两个人（两张单人照或一张现成合照）生成一张亲密合照
         keys = (payload.get("photos") or [])[:2]

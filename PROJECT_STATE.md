@@ -113,6 +113,8 @@
 
 ## 更新日志
 
+- 2026-08-12 两个前端小需求（用户提出）：①相册页（pages/photos）长按照片的 ActionSheet 加「提意见重生成」（插在海报与删除之间，单张有效；系列组图整组格仍只有保存/删除，组内单张修改走结果页长按）——复用 /api/mp/revise，定妆照也走 target=photo 图像编辑；②定妆页（pages/makeup）妆造列表「原图直出版」（spec.use_original）排序置顶（applyGender 内稳定排序）。均纯前端，**需微信开发者工具上传后生效**
+- 2026-08-12 反馈 #46/#47 处理完毕（未处理清零，AXEZ 测试结果页+重生成）：①**#47 实锤修复（重生成"用模板里的发型"不生效）**——edit_photo 只送成片底图，模型看不到模板；worker 新增 `_template_ref_for_result` 回溯底图来源任务（template_photo 按 template_id/custom_template_key、template_series 按 urls 里 oss_key 匹配的变体 id），找到则模板图作图2参考传入+提示词"提及模板参照图2"，chat 和 revise 两条修图链路都受益；ECS 已同步重启，用 AXEZ 真实系列片回溯到 hyd06.png 冒烟通过。②**#46 结果页五连修**：标题不写死（result.json 默认"成片出炉"，js 按场景 setNavigationBarTitleText：系列"系列组图出炉"/单人"你的成片"）；眉标+主标动态化（单人"看看，是不是你？"）；系列只有 1 张时按单张渲染（修单张九宫格"左圆角右直角"错乱）；「模板 vs 成片」弃用 lastSeries 暂存（换路径会张冠李戴），改按 result.series_id 查 catalog 取标题+首模板封面，对比块"你的脸"改"你的成片"；充值卡按用户拍板改 **quotaLeft（免费余+付费余）≤0 才显示**。仅前端改动（result 页 js/wxml/wxss/json），**需微信开发者工具上传后生效**。两条均已回复标 done
 - 2026-08-12 **抖音小程序版暂停**（用户决定）：备案约需 2 个月，期间不再逐批同步抖音前端；备案通过后把最新版一次性整体迁移。后端 `/api/dy/*` 通道保持现状不动
 - 2026-08-12 反馈 #41-#45 处理完毕
 

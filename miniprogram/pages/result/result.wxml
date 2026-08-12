@@ -1,7 +1,7 @@
 <view class="page">
   <view class="hero">
-    <view class="eyebrow">免费第一张 · 礼成</view>
-    <view class="h1 serif">看看，是不是你们？</view>
+    <view class="eyebrow">{{eyebrow}}</view>
+    <view class="h1 serif">{{headline}}</view>
   </view>
 
   <!-- 整组九宫格结果 -->
@@ -40,7 +40,7 @@
           <image src="{{templateCover}}" mode="aspectFill" />
         </view>
         <view class="ba-cell">
-          <view class="lab">你的脸</view>
+          <view class="lab">你的成片</view>
           <image src="{{photos[0]}}" mode="aspectFill" />
         </view>
       </view>
@@ -61,7 +61,8 @@
     <button class="btn ghost revise-btn" bindtap="revise">不满意？提意见重生成</button>
   </block>
 
-  <view class="upcard card">
+  <!-- 充值卡：免费+付费额度都用完才出现（反馈 #46） -->
+  <view class="upcard card" wx:if="{{quotaLeft <= 0}}">
     <view class="uptitle serif">想要更多？</view>
     <view class="opt" bindtap="buyPer">
       <view><b>4 元/张</b><view class="sub">按张付费，喜欢再要</view></view>

@@ -87,11 +87,47 @@ Page({
       return;
     }
     wx.showActionSheet({
-      itemList: ['保存到相册', '生成分享海报', '删除这张图'],
+      itemList: ['保存到相册', '生成分享海报', '提意见重生成', '删除这张图'],
       success: (r) => {
         if (r.tapIndex === 0) this.saveImg(item.url);
         else if (r.tapIndex === 1) this.makePoster(item.url);
-        else if (r.tapIndex === 2) this.delPhoto(item.key);
+        else if (r.tapIndex === 2) this.revisePhoto(item.key);
+        else if (r.tapIndex === 3) this.delPhoto(item.key);
+      },
+    });
+  },
+
+  // 提意见重生成（与结果页同一链路：/api/mp/revise，每单免费 3 次）
+  revisePhoto(key) {
+    if (!key) {
+      wx.showToast({ title: '这张照片暂不支持修改', icon: 'none' });
+      return;
+    }
+    wx.showModal({
+      title: '哪里不满意？',
+      placeholderText: '比如：去掉眼镜、背景亮一点',
+      editable: true,
+      confirmText: '重新生成',
+      success: (r) => {
+        if (!r.confirm) return;
+        const instruction = (r.content || '').trim();
+        if (!instruction) {
+          wx.showToast({ title: '写一句修改意见哦', icon: 'none' });
+          return;
+        }
+        app.req('/api/mp/revise', 'POST', {
+          order_no: app.globalData.order.order_no, target: 'photo',
+          base_key: key, instruction,
+        }).then(() => {
+          app.askSubscribe();
+          wx.showModal({
+            title: '已开始重新生成',
+            content: '大约 1 分钟，新照片会出现在相册最前面。',
+            showCancel: false,
+          });
+        }).catch(err => {
+          wx.showModal({ title: '提示', content: err.message, showCancel: false });
+        });
       },
     });
   },
