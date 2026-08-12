@@ -236,6 +236,36 @@ Page({
     this.setData({ phase: 'pick', photo: '', anchorKey: '' });
   },
 
+  // 不满意 → 提修改意见重生成（反馈 #41/#45：每单免费 3 次，后端 /api/mp/revise 控制）
+  revise() {
+    wx.showModal({
+      title: '哪里不满意？',
+      placeholderText: '比如：腮红淡一点、眼睛再还原一些',
+      editable: true,
+      confirmText: '重新生成',
+      success: (r) => {
+        if (!r.confirm) return;
+        const instruction = (r.content || '').trim();
+        if (!instruction) {
+          wx.showToast({ title: '写一句修改意见哦', icon: 'none' });
+          return;
+        }
+        const order = app.globalData.order;
+        app.req('/api/mp/revise', 'POST', {
+          order_no: order.order_no, target: 'makeup',
+          role: this.data.role, instruction,
+        }).then(() => {
+          app.askSubscribe();
+          this.setData({ phase: 'waiting', photo: '', anchorKey: '' });
+          this.startTips();
+          this.poll();
+        }).catch(e => {
+          wx.showModal({ title: '提示', content: e.message, showCancel: false });
+        });
+      },
+    });
+  },
+
   onUnload() {
     clearInterval(this.poller);
     clearInterval(this.timer);

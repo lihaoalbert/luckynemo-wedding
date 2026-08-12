@@ -5,6 +5,8 @@
 .ph { padding: 120rpx 40rpx; text-align: center; color: var(--ink-soft); font-size: 26rpx; }
 .row { display: flex; gap: 20rpx; margin-top: 28rpx; }
 .row .btn { flex: 1; }
+.hint { margin-top: 16rpx; text-align: center; color: var(--ink-soft); font-size: 24rpx; }
+.revise-btn { margin-top: 20rpx; }
 .upcard { margin-top: 32rpx; }
 .uptitle { font-size: 32rpx; font-weight: 600; margin-bottom: 16rpx; }
 .opt {

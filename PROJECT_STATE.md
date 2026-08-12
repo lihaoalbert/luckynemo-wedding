@@ -1,6 +1,6 @@
 # 徐大恩（LuckyNemo）项目状态存档
 
-> 最后更新：2026-08-11
+> 最后更新：2026-08-12
 > 恢复方式：把这个文件给 Kimi 看，或直接说"继续 LuckyNemo 项目"
 > 记录机制：见根目录 `AGENTS.md`——会话中状态有变化就当更新本文件，文末追加更新日志
 
@@ -112,6 +112,11 @@
 - `server/`（后端本地副本，ECS /opt/luckynemo/server 为生产）
 
 ## 更新日志
+
+- 2026-08-12 **抖音小程序版暂停**（用户决定）：备案约需 2 个月，期间不再逐批同步抖音前端；备案通过后把最新版一次性整体迁移。后端 `/api/dy/*` 通道保持现状不动
+- 2026-08-12 反馈 #41-#45 处理完毕
+
+- 2026-08-12 反馈 #41-#45 处理完毕（未处理清零，均为 8-12 上午 S23T/BMSR 两订单）：①**#44 实锤修复（发型被模板替换：刘海变板寸）**——根因 template_photo/run_template_series 提示词"只换五官其余全保模板"未排除发型；按用户拍板「默认始终保留本人发型」，worker 三处提示词加发型锁定（template_photo/template_series "发型发色保持本人参考图样式不采用模板发型"、build_photo_prompt lock 与 duo_photo 加"发型发色"）；②**#41/#45「不满意→提意见→重生成」入口上线**——后端新增 `POST /api/mp/revise`（target=makeup 在最近定妆配方追加修正指令重建 makeup_photo，同 chat regenerate_makeup 逻辑；target=photo 以指定/最新成片为底建 edit_photo，base_key 限本单 results/ 前缀防越权），**每单免费 3 次**（mp_orders 新列 revise_used，SQLite _migrate + db_compat MYSQL_SCHEMA/ALTERS 双路，超出扣正常免费/付费额度）；前端 makeup 页 done 态加「不满意？提意见重生成」按钮（showModal editable 收集意见→revise→回等待页轮询）、result 页单张加按钮 + 九宫格长按某张 ActionSheet 重生成（结果需 oss_key，fresh_result_urls 本就透传）。本地 SQLite 六场景测试全过（含 403/付费兜底/跨单拒绝），ECS 已同步 app.py/mp_worker.py/db_compat.py 两服务 active，MySQL 冒烟 200+列已建+清理 ✓；③#42/#43（不像本人）回复说明锁定改进+三视图建议；#43 新主题（东京街头/游艇/海岛）记入模卡上新计划（模版组）。5 条均已回复标 done。**前端需微信开发者工具上传后生效；抖音版已整体暂停（备案约 2 个月，通过后一次性迁移最新版），不再逐批同步**
 
 - 2026-08-11 **小程序前端 v1.1.4 全量发布**，一次性带出 08-07 以来全部积压：v4 同款大片三新页面+首页重构、me 页改版、照片二级页、三视图入口、P0 五项、订单中心页（pages/orders）、反馈 #31-33/#37/#38 前端修复、chat 多轮+入口卡片+生成完成提醒+订阅消息、高级定制默认入口隐藏。**真机回归清单：①发图对话识图 ②操作入口点按不自动跳 ③发起生成弹订阅→完成后收服务通知→点击进相册 ④iOS 现网支付一笔（正式版才能测）⑤订单中心/相册老照片显示（重签修复）⑥solo 订单上传伴侣照片→给 TA 定妆**
 - 2026-08-11 反馈 #40（发图被乱理解 + 操作自动执行）两修复：①chat 发图先过 VLM 识图（`_vlm_describe_images`，MiniMax 多模态，OSS 签名 URL 拉图转 base64，失败静默降级为仅标注数量）描述注入 M3 上下文，实测 7.3s 准确识别界面截图；②**动作不再自动执行/自动跳页**：chat.js `runChatAction` 只留无副作用动作（update_selection/set_mode/show_*/delete_assets/custom_moka），navigate/生成类动作改挂气泡入口卡片/按钮（`replaceLast(text, action)` + ACTION_BTN_TEXT，onAction 接管 generate_photo/edit_photo/duo_photo 的 pendingJob 跳转）；系统提示加【确认再执行】（消耗额度/不可逆操作意图为推测时先复述确认）+【图片意图】结合 VLM 描述判断。抖音版 chat.js 同步。服务端已部署 ECS active；**前端需微信/抖音开发者工具上传后生效**；反馈已回复标 done

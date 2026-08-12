@@ -99,6 +99,7 @@
     <view class="hint">点开可看大图</view>
     <view class="dock">
       <button class="btn" bindtap="next">满意，继续 →</button>
+      <button class="btn ghost" bindtap="revise">不满意？提意见重生成</button>
       <button class="btn ghost" bindtap="repick">换一款妆容</button>
     </view>
   </view>

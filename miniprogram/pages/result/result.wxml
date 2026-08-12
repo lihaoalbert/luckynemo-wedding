@@ -7,12 +7,13 @@
   <!-- 整组九宫格结果 -->
   <block wx:if="{{photos.length}}">
     <view class="nine">
-      <image wx:for="{{photos}}" wx:key="*this" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="previewOne" />
+      <image wx:for="{{photos}}" wx:key="*this" src="{{item}}" mode="aspectFill" data-url="{{item}}" data-key="{{photoKeys[index]}}" bindtap="previewOne" bindlongpress="reviseOne" />
     </view>
     <view class="row">
       <button class="btn ghost" bindtap="saveAll">全部存到相册</button>
       <button class="btn ghost">分享给朋友</button>
     </view>
+    <view class="hint">长按某张可提意见重生成（每单免费 3 次）</view>
 
     <!-- 朋友圈 mock -->
     <view class="mm card">
@@ -57,6 +58,7 @@
       <button class="btn ghost" bindtap="save">存到相册</button>
       <button class="btn ghost">分享给朋友</button>
     </view>
+    <button class="btn ghost revise-btn" bindtap="revise">不满意？提意见重生成</button>
   </block>
 
   <view class="upcard card">

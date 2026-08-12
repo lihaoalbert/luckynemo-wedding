@@ -176,6 +176,9 @@ def _migrate() -> None:
     # 裂变奖励标记：受邀订单首次生成成功后给邀请人 +1 张免费额度（只奖一次）
     if "ref_rewarded" not in cols:
         conn.execute("ALTER TABLE mp_orders ADD COLUMN ref_rewarded INTEGER DEFAULT 0")
+    # 免费修订次数（反馈 #41/#45：不满意可提意见重生成，每单免费 3 次）
+    if "revise_used" not in cols:
+        conn.execute("ALTER TABLE mp_orders ADD COLUMN revise_used INTEGER NOT NULL DEFAULT 0")
     # 设备表：协同创作（新娘/新郎两台手机同一订单）
     conn.execute(
         "CREATE TABLE IF NOT EXISTS mp_devices("
@@ -1047,6 +1050,15 @@ class MpJobIn(BaseModel):
     payload: dict = Field(default_factory=dict)
 
 
+class MpReviseIn(BaseModel):
+    """不满意重生成（反馈 #41/#45）：带修改意见重建定妆照/成片修图任务。"""
+    order_no: str = Field(min_length=1, max_length=50)
+    target: str = Field(min_length=1, max_length=10)      # makeup=改定妆照 / photo=改成片
+    instruction: str = Field(min_length=1, max_length=200)
+    role: str = Field(default="A", max_length=4)          # makeup 目标角色（A=本人/B=伴侣）
+    base_key: str = Field(default="", max_length=200)     # photo 目标：要改的成片 oss_key（缺省=最新成片）
+
+
 class MpSubscribeIn(BaseModel):
     order_no: str = Field(min_length=1, max_length=50)
     open_token: str = Field(min_length=6, max_length=120)
@@ -1210,7 +1222,7 @@ def _mp_recompute_auth(conn: sqlite3.Connection, order_no: str) -> bool:
 
 def _mp_get_order(conn: sqlite3.Connection, order_no: str) -> dict | None:
     row = conn.execute(
-        "SELECT order_no,open_token,status,auth_ok,free_used,paid_count,selection_json,created_at,updated_at,asset_group_id,byted_token,auth_url,mode,share_token,free_quota"
+        "SELECT order_no,open_token,status,auth_ok,free_used,paid_count,selection_json,created_at,updated_at,asset_group_id,byted_token,auth_url,mode,share_token,free_quota,revise_used"
         " FROM mp_orders WHERE order_no=?", (order_no,),
     ).fetchone()
     if not row:
@@ -1223,6 +1235,7 @@ def _mp_get_order(conn: sqlite3.Connection, order_no: str) -> dict | None:
         "byted_token": row[10] or "", "auth_url": row[11] or "",
         "mode": row[12] or "",
         "share_token": row[13] or "", "free_quota": row[14] if row[14] is not None else 1,
+        "revise_used": row[15] or 0,
         "members": _mp_members(conn, order_no),
     }
 
@@ -1844,6 +1857,80 @@ def mp_job_create(body: MpJobIn) -> JSONResponse:
         # 照片此时应已传完，同步登记到认证服务真人素材组（文档第 3 步，失败不挡任务）
         _ifocus_sync_assets(conn, body.order_no)
         return JSONResponse({"ok": True, "status": "queued"})
+    finally:
+        conn.close()
+
+
+#: 每单免费修订次数（反馈 #41/#45：不满意可提修改意见重生成；超出后扣正常免费/付费额度）
+MP_FREE_REVISE = 3
+
+
+@app.post("/api/mp/revise")
+def mp_revise(body: MpReviseIn) -> JSONResponse:
+    """不满意重生成：带修改意见重建定妆照（makeup）或成片修图（photo）任务。
+    每单免费 3 次（mp_orders.revise_used 计数），超出后扣正常免费/付费额度。"""
+    if body.target not in ("makeup", "photo"):
+        raise HTTPException(status_code=400, detail="target 仅支持 makeup/photo")
+    instruction = body.instruction.strip()
+    if not instruction:
+        raise HTTPException(status_code=400, detail="请填写修改意见")
+    conn = _db()
+    try:
+        order = _mp_get_order(conn, body.order_no)
+        if not order:
+            raise HTTPException(status_code=404, detail="订单不存在")
+        if body.target == "makeup":
+            role = "B" if body.role == "B" else "A"
+            # 最近一条该角色的定妆任务，在其配方上追加修正指令（与 chat regenerate_makeup 同逻辑）
+            rows = conn.execute(
+                "SELECT payload_json FROM mp_jobs WHERE order_no=? AND kind='makeup_photo'"
+                " ORDER BY id DESC LIMIT 20", (body.order_no,)).fetchall()
+            base = None
+            for (pj,) in rows:
+                p = json.loads(pj) if pj else {}
+                if p.get("role", "A") == role:
+                    base = p
+                    break
+            if not base:
+                raise HTTPException(status_code=400, detail="还没有定妆照可修改，请先生成定妆照")
+            kind = "makeup_photo"
+            payload = {**base, "makeup_prompt":
+                       (base.get("makeup_prompt", "") +
+                        f"\n追加修正要求：{instruction}（在原配方基础上只改这一点，其余保持不变）")}
+        else:
+            base_key = body.base_key.strip()
+            if base_key:
+                # 只允许修改本单自己的成片（OSS results 前缀）
+                if not base_key.startswith(f"results/{body.order_no}/"):
+                    raise HTTPException(status_code=400, detail="只能修改本订单生成的照片")
+            else:
+                row = conn.execute(
+                    "SELECT result_json FROM mp_jobs WHERE order_no=? AND status='done'"
+                    " AND kind IN ('free_photo','solo_photo','template_photo','edit_photo')"
+                    " ORDER BY id DESC LIMIT 1", (body.order_no,)).fetchone()
+                base_key = (json.loads(row[0]) or {}).get("oss_key", "") if row and row[0] else ""
+            if not base_key:
+                raise HTTPException(status_code=400, detail="还没有成片可修改，请先生成照片")
+            kind = "edit_photo"
+            payload = {"base_key": base_key, "instruction": instruction}
+        # 额度：每单免费修订 3 次优先，超出后扣正常免费/付费额度
+        revise_used = order["revise_used"]
+        free_left = max(0, MP_FREE_REVISE - revise_used)
+        if free_left > 0:
+            _mp_touch(conn, body.order_no, revise_used=revise_used + 1, status="generating")
+        elif (order["free_used"] or 0) < order["free_quota"]:
+            _mp_touch(conn, body.order_no, free_used=(order["free_used"] or 0) + 1, status="generating")
+        elif order["paid_count"] > 0:
+            _mp_touch(conn, body.order_no, paid_count=order["paid_count"] - 1, status="generating")
+        else:
+            raise HTTPException(status_code=403, detail="免费修改次数已用完，充值后可继续修改")
+        conn.execute(
+            "INSERT INTO mp_jobs(order_no,kind,payload_json,status,created_at,updated_at) VALUES(?,?,?,?,?,?)",
+            (body.order_no, kind, json.dumps(payload, ensure_ascii=False), "queued", _now(), _now()))
+        conn.commit()
+        log.info("mp revise order_no=%s target=%s kind=%s free_left=%d",
+                 body.order_no, body.target, kind, free_left - 1)
+        return JSONResponse({"ok": True, "kind": kind, "revise_free_left": max(0, free_left - 1)})
     finally:
         conn.close()
 

@@ -173,7 +173,8 @@ MYSQL_SCHEMA = [
        selection_json TEXT, created_at VARCHAR(40) NOT NULL, updated_at VARCHAR(40) NOT NULL,
        asset_group_id VARCHAR(64) DEFAULT '', byted_token VARCHAR(128) DEFAULT '',
        auth_url TEXT, mode VARCHAR(16) DEFAULT '', share_token VARCHAR(32) DEFAULT '',
-       ref VARCHAR(32) DEFAULT '', free_quota INT DEFAULT 1, ref_rewarded INT DEFAULT 0
+       ref VARCHAR(32) DEFAULT '', free_quota INT DEFAULT 1, ref_rewarded INT DEFAULT 0,
+       revise_used INT NOT NULL DEFAULT 0
        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
     """CREATE TABLE IF NOT EXISTS mp_jobs(
        id INT PRIMARY KEY AUTO_INCREMENT,
@@ -228,6 +229,7 @@ _ensured = False
 #: 老库补列（errno 1060=列已存在，忽略）；新库走 MYSQL_SCHEMA 已含这些列
 MYSQL_ALTERS = [
     "ALTER TABLE mp_pay_orders ADD COLUMN wechat_order_id VARCHAR(64) DEFAULT ''",
+    "ALTER TABLE mp_orders ADD COLUMN revise_used INT NOT NULL DEFAULT 0",
 ]
 
 
