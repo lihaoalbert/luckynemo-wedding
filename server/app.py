@@ -2528,7 +2528,7 @@ action 只能是以下之一：
 - "把这两张照片里的人生成一张合照/帮我俩合拍一张" → duo_photo（真人生成合照）；用户明确说"做模板/定制专属大片"才用 custom_moka，两者别混
 - "改一下刚出的图/去个眼镜/这张去掉XX" → edit_photo（改成片）；"改妆容/重新定妆" → regenerate_makeup（改定妆照），别混
 - "用这张修/做一张定妆照""修一张原始图作为定妆照" → makeup_photo（who 按对话判断，给对 makeup_id）
-- "把花絮做成片子/做一支预告片/剪成视频/素材能做什么" → storylab_trailer（素材理解为空时先引导上传视频）；用户问素材里有什么 → storylab_summary
+- "把花絮做成片子/做一支预告片/剪成视频/素材能做什么/做一个(搞笑/创意)视频/用照片做视频" → storylab_trailer（素材是照片也行：must_include 里记"使用聊天里的照片"；【素材理解】为空且用户没发图时先引导上传素材）；用户问素材里有什么 → storylab_summary。用户追问"什么时候能出片/现在就要"时诚实回答：视频生成能力即将开放，先把偏好记下，并给替代方案（"我可以先帮你用这两张照片出一组同款风格大片，要试试吗？"）
 - 【素材问答】用户问"我们有没有xx镜头/拍没拍到xx/素材里有没有xx"时，只能依据【素材理解】的逐段标签回答：**先在逐段 caption 里逐条核对**再作答——有的就指出来（哪一段、什么画面），没有的如实说"我理解的片段里还没发现，可能没拍到或还没被处理到"，**严禁编造**；用户描述的意象太泛时先反问确认（"你是指xx场景吗？"）。核对素材（与上面【素材理解】同一份）：
 {storylab}
   示例：用户问"有没有骑马" → 逐段标签里有"新郎骑马，新娘微笑跟随" → 应回答"有！有一段新郎骑马、新娘微笑跟随的画面"；用户问"有没有海边" → 所有 caption 都没有海边 → 回答"我理解的片段里还没发现海边的镜头，可能没拍到或还没被处理到"。**不许在标签里明明有相关内容时回答"没发现"。**
@@ -2545,7 +2545,9 @@ action 只能是以下之一：
 - 描述是 UI 截图、效果问题图，或用户带"你看这个/怎么回事" → 视为反馈素材，走意见反馈流程；
 - 描述与用户的说法对不上、或拿不准时，先问一句"这张图是反馈问题的截图，还是当拍摄底图？"，别擅自处理。
 
-【确认再执行】删除资产(delete_assets)、定制大片(custom_moka)、出定妆照(makeup_photo)、出片(generate_photo)、修图(edit_photo)、合照(duo_photo) 这类消耗额度或不可逆的操作：用户的指令若是明确直接的命令（"帮我生成/把这张删掉/用这张出片"）直接执行；若意图是你从图片或模糊表述中推测的，先用 none 复述你的理解请用户确认（"你是想…吗？"），确认后再执行。所有页面跳转类动作都以卡片/按钮入口的形式给用户自己点，不会自动进入页面——reply 里用"点下面的卡片"这种说法引导。"""
+【确认再执行】删除资产(delete_assets)、定制大片(custom_moka)、出定妆照(makeup_photo)、出片(generate_photo)、修图(edit_photo)、合照(duo_photo) 这类消耗额度或不可逆的操作：用户的指令若是明确直接的命令（"帮我生成/把这张删掉/用这张出片"）直接执行；若意图是你从图片或模糊表述中推测的，先用 none 复述你的理解请用户确认（"你是想…吗？"），确认后再执行。所有页面跳转类动作都以卡片/按钮入口的形式给用户自己点，不会自动进入页面——reply 里用"点下面的卡片"这种说法引导。
+
+【绝不重复确认】（反馈 #53：同一句话问三遍的死循环）：提问前先读对话历史——凡是历史里你已经问过、用户已经回答/肯定过（"是的/对/嗯/好"）的事项，禁止再问第二次，直接推进到执行或下一步说明。复述确认被用户肯定后的**下一轮**，必须输出 action 或明确的下一步（含能力边界的诚实说明），禁止输出又一个确认问句。如果你发现自己要生成的回复与历史中你上一轮的回复是同一个问句，立即停止，改为止损推进话术：复述已确认的需求 + 给出下一步（action 或"现在我能为你做的是…"）。"""
 
 
 
@@ -2760,6 +2762,21 @@ def _m3_chat(system: str, user: str) -> dict:
         raise
 
 
+#: storylab 5 个高杠杆问题的 canonical 问句（收集分支与收集中兜底共用）
+_STORYLAB_CANON_ASK = {
+    "tone": "想要什么情绪基调？比如：温情感人 / 欢乐搞笑 / 高级电影感",
+    "usage": "这片子主要在哪用？自己留念 / 发朋友圈 / 婚礼现场播",
+    "voice": "声音想怎么处理？保留现场原声 / 纯背景音乐 / 加一段旁白",
+    "must_include": "有没有一定要出现的画面或瞬间？（比如某个场景、某句话）",
+    "avoid": "有没有不想出现的内容？（比如宾客正脸、某段画面；没有就说没有）",
+}
+#: canonical 问句的匹配标记（按历史里最近一条助手消息识别"在问哪一问"）
+_STORYLAB_ASK_MARK = {
+    "tone": "情绪基调", "usage": "这片子主要在哪用", "voice": "声音想怎么处理",
+    "must_include": "一定要出现的画面", "avoid": "不想出现的内容",
+}
+
+
 @app.post("/api/mp/chat")
 def mp_chat(body: MpChatIn) -> JSONResponse:
     """自然语言对话：理解意图 → 回复 + 动作（跳转/改选择/重出定妆照）。"""
@@ -2780,6 +2797,16 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
         reply = str(result.get("reply") or "我在呢～")
         if ctx["storylab"]:
             reply = _mp_storylab_fact_check(conn, body.order_no, body.message, reply)
+        # 防死循环兜底（反馈 #53）：回复与历史中最近一条助手消息完全相同时，强制换成止损话术
+        last_ai = ""
+        for _h in reversed(body.history[-12:]):
+            if _h.startswith("助手："):
+                last_ai = _h[len("助手："):].strip()
+                break
+        if last_ai and reply.strip() and reply.strip() == last_ai:
+            log.warning("mp chat 重复回复兜底 order_no=%s", body.order_no)
+            reply = ("刚刚我卡壳把同一句话说重复了，抱歉～你上一条的意思我已经明白了，"
+                     "我们接着往下进行，还有什么想补充的吗？")
         action = result.get("action") if isinstance(result.get("action"), dict) else {"type": "none"}
         atype = action.get("type", "none")
 
@@ -3057,8 +3084,8 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
                                    "desc": f"{summary['total']} 段已理解，高光 {desc}"}}
 
         elif atype == "storylab_trailer":
-            # storylab 预告片需求收集：5 个高杠杆问题逐轮收集，合并进 mp_orders.storylab_prefs；
-            # 集齐后落库 + 确认卡片。v1 不做真实生成，不许假报生成。
+            # storylab 预告片需求收集：fields 合并进 mp_orders.storylab_prefs；
+            # 问句驱动/完成卡片统一由下方服务端状态机负责（反馈 #53：M3 对收集协议执行不稳）
             PREF_KEYS = ("tone", "usage", "voice", "must_include", "avoid")
             row = conn.execute("SELECT storylab_prefs FROM mp_orders WHERE order_no=?",
                                (body.order_no,)).fetchone()
@@ -3067,16 +3094,7 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
             for k in PREF_KEYS:
                 if isinstance(fields.get(k), str) and fields[k].strip():
                     prefs[k] = fields[k].strip()[:200]
-            missing = [k for k in PREF_KEYS if not prefs.get(k)]
             _mp_touch(conn, body.order_no, storylab_prefs=json.dumps(prefs, ensure_ascii=False))
-            log.info("mp chat storylab_trailer order_no=%s prefs=%s missing=%s",
-                     body.order_no, list(prefs), missing)
-            action = {"type": "storylab_trailer", "fields": prefs, "missing": missing}
-            if not missing:
-                reply += "\n\n已经帮你把预告片偏好记好啦 ✅ 生成能力即将开放，到时候会第一时间通知你。"
-                action["card"] = {"img": "https://luckynemo.ibi.ren/moka/templates/mk005.png",
-                                  "title": "预告片偏好已记录",
-                                  "desc": f"{prefs.get('tone', '')} · 必含：{prefs.get('must_include', '')[:20]}"}
 
         elif atype == "edit_photo":
             # 成片局部修图：取最新成片做底图 + 用户修改指令，交给前端走 generating 页
@@ -3109,6 +3127,48 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
             else:
                 action = {"type": "duo_photo", "images": images,
                           "note": str(action.get("note") or "")[:100]}
+
+        # ---- storylab 收集状态机（反馈 #53 终案：M3 对收集协议执行不稳——复读问句、
+        # 分类漂移、该填不填——收集流整体改为服务端驱动，M3 只负责意图入口与非收集对话）----
+        PREF_KEYS5 = ("tone", "usage", "voice", "must_include", "avoid")
+        row = conn.execute("SELECT storylab_prefs FROM mp_orders WHERE order_no=?",
+                           (body.order_no,)).fetchone()
+        started = bool(row and row[0])  # 非空串即已进入收集（哪怕还是 {}）
+        prefs5 = json.loads(row[0]) if started else {}
+        done5 = bool(prefs5.get("_done"))
+        missing5 = [k for k in PREF_KEYS5 if not prefs5.get(k)]
+        msg5 = (body.message or "").strip()
+        bare_yes = msg5 in ("是的", "对", "嗯", "好", "好呀", "好的", "可以", "嗯嗯", "要", "想做")
+        noop5 = msg5 in ("没有", "没", "无", "没有啦", "木有", "都可以", "随便", "没啥", "没有了", "你定")
+        cancel5 = msg5 in ("算了", "不用了", "不想做了", "先不做", "以后再说", "取消", "先这样")
+        vid_re = re.compile(r"(做|出|剪|弄|搞|生成|拍).{0,8}(视频|片子|短片|预告片|微电影)"
+                            r"|(视频|片子|短片|预告片|微电影).{0,8}(做|出|剪|弄|搞|生成)")
+        start5 = bool(vid_re.search(msg5)) and not started and atype != "storylab_trailer"
+        if done5:
+            pass  # 收集已完结，交回 M3 正常对话
+        elif cancel5 and started:
+            prefs5["_paused"] = 1
+            _mp_touch(conn, body.order_no, storylab_prefs=json.dumps(prefs5, ensure_ascii=False))
+            reply = "好，先帮你记着，想做的时候随时跟我说～"
+            action = {"type": "none"}
+        elif start5 or (started and missing5 and atype in ("none", "storylab_trailer")):
+            if not bare_yes and msg5 and not start5 and missing5:
+                prefs5[missing5[0]] = "无" if noop5 else msg5[:200]
+                _mp_touch(conn, body.order_no, storylab_prefs=json.dumps(prefs5, ensure_ascii=False))
+                missing5 = [k for k in PREF_KEYS5 if not prefs5.get(k)]
+            action = {"type": "storylab_trailer", "fields": prefs5, "missing": missing5}
+            if missing5:
+                head5 = "好呀，我们可以一起把素材做成一支短片～" if (start5 or not prefs5) else "记下了～"
+                reply = f"{head5}{_STORYLAB_CANON_ASK[missing5[0]]}"
+            else:
+                prefs5["_done"] = 1
+                _mp_touch(conn, body.order_no, storylab_prefs=json.dumps(prefs5, ensure_ascii=False))
+                reply = "全部记好啦 ✅ 预告片偏好已记录，生成能力即将开放，到时候第一时间通知你。"
+                action["card"] = {"img": "https://luckynemo.ibi.ren/moka/templates/mk005.png",
+                                  "title": "预告片偏好已记录",
+                                  "desc": f"{prefs5.get('tone', '')} · 必含：{prefs5.get('must_include', '')[:20]}"}
+                log.info("mp chat storylab 收单 order_no=%s prefs=%s",
+                         body.order_no, list(prefs5))
 
         return JSONResponse({"ok": True, "reply": reply, "action": action})
     finally:
