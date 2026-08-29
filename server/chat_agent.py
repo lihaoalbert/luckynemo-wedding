@@ -204,6 +204,12 @@ def _collection_step(conn, order_no: str, message: str, atype: str, deps) -> dic
     noop = msg in _NOOP5
     cancel = msg in _CANCEL5
     start = bool(_VID_RE.search(msg)) and (not started or paused)
+    restart = bool(_VID_RE.search(msg)) and done  # 已完成后再做视频 → 重置开新一轮（换方案重拍）
+    if restart:
+        prefs = {}
+        missing = list(PREF_KEYS5)
+        done = False
+        started = True
     touch = deps["touch"]
     if done:
         return None  # 收集已完结，交回正常对话
@@ -212,21 +218,21 @@ def _collection_step(conn, order_no: str, message: str, atype: str, deps) -> dic
         touch(conn, order_no, storylab_prefs=json.dumps(prefs, ensure_ascii=False))
         return {"reply": "好嘞，先帮你摁下暂停键～想剪的时候喊我一声就行！",
                 "action": {"type": "none"}, "clear_pending": True}
-    if start:
+    if start or restart:
         prefs.pop("_paused", None)
-        # 启动即落库（started=True），后续答案才有记录落点——等价旧链路里
+        # 启动/重启即落库（started=True），后续答案才有记录落点——等价旧链路里
         # M3 storylab_trailer 动作合并 fields 先落库、状态机再接管引导的作用
         touch(conn, order_no, storylab_prefs=json.dumps(prefs, ensure_ascii=False))
-    if start or (started and not paused and missing
-                 and atype in ("none", "storylab_trailer")):
-        if not bare_yes and msg and not start and missing:
+    if start or restart or (started and not paused and missing
+                            and atype in ("none", "storylab_trailer")):
+        if not bare_yes and msg and not start and not restart and missing:
             prefs[missing[0]] = "无" if noop else msg[:200]
             touch(conn, order_no, storylab_prefs=json.dumps(prefs, ensure_ascii=False))
             missing = [k for k in PREF_KEYS5 if not prefs.get(k)]
         action = {"type": "storylab_trailer", "fields": dict(prefs), "missing": missing}
         if missing:
             answered = _storylab_answered(prefs)
-            head = _STORYLAB_START_ACK if (start or not prefs) else _storylab_ack(answered)
+            head = _STORYLAB_START_ACK if (start or restart or not prefs) else _storylab_ack(answered)
             return {"reply": head + _storylab_ask(missing[0], answered),
                     "action": action, "clear_pending": True}
         prefs["_done"] = 1
