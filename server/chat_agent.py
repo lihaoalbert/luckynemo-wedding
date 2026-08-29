@@ -65,17 +65,54 @@ def save_state(conn, order_no: str, state: dict) -> None:
 
 
 # ------------------------------------------------------------------
-# storylab 预告片偏好收集状态机（平移 app.mp_chat 服务端驱动版，反馈 #53 终案）
+# 故事片场（storylab）偏好收集状态机（反馈 #53 终案的智能体版）
 # canonical 问句/语义与旧实现等价；_paused 在旧代码中写入但从未被读取（cancel 不生效），
 # 本实现补上读取——这是有意修正：cancel5 的语义就是暂停，旧行为视为缺陷。
+# 2026-08-29 人设重写：ack 按已记录答案数确定性轮换（同订单不重复，防"表格感"），
+# 每个问题 2-3 个变体轮换，选项具体化；"预告片"统一改名「故事片场」（用户口语说法保留识别）。
 # ------------------------------------------------------------------
 PREF_KEYS5 = ("tone", "usage", "voice", "must_include", "avoid")
-_STORYLAB_CANON_ASK = {
-    "tone": "想要什么情绪基调？比如：温情感人 / 欢乐搞笑 / 高级电影感",
-    "usage": "这片子主要在哪用？自己留念 / 发朋友圈 / 婚礼现场播",
-    "voice": "声音想怎么处理？保留现场原声 / 纯背景音乐 / 加一段旁白",
-    "must_include": "有没有一定要出现的画面或瞬间？（比如某个场景、某句话）",
-    "avoid": "有没有不想出现的内容？（比如宾客正脸、某段画面；没有就说没有）",
+
+#: 收集轮 ack：按已记录答案数确定性轮换（≥6 种，同一订单内不重复）
+_STORYLAB_ACKS = (
+    "收到～",
+    "嘿嘿，这个好玩！",
+    "记下来啦，继续继续～",
+    "哦哦懂了懂了！",
+    "好嘞，包在我身上～",
+    "嗯嗯，越来越有画面了！",
+    "哇哦，有内味儿了～",
+    "记上记上，小本本翻页～",
+)
+_STORYLAB_START_ACK = "好呀，我们一起把这些素材变成一支拿得出手的短片～"
+
+#: 每个问题的 2-3 个变体（按已记录答案数轮换）；选项具体化，允许一句话自由回答
+_STORYLAB_ASKS = {
+    "tone": (
+        "先定个调调：想要什么情绪基调？爆笑吐槽风 / 温馨治愈系 / 无厘头反转 / 电影感叙事——随口说你的想法也行～",
+        "这支片子走什么风？爆笑吐槽、温馨治愈、无厘头反转，还是电影感叙事？挑一个或者自己描述都可以～",
+        "氛围感先拿捏一下：想要爆笑吐槽、温馨治愈、无厘头反转，还是电影感叙事？说个大概就行～",
+    ),
+    "usage": (
+        "这片子主要在哪播呀？自己留着珍藏 / 发朋友圈秀一波 / 婚礼现场大屏播——说说场景呗～",
+        "成品打算用在哪？自己看 / 发圈 / 婚礼现场播，都行，告诉我场景就好～",
+        "这支短片派什么用场？自己留念 / 朋友圈 / 婚礼现场播，选个或补充你的场景～",
+    ),
+    "voice": (
+        "声音想怎么处理？保留现场原声（更真实）/ 纯背景音乐（更干净）/ 加一段旁白（旁白版随后就来）～",
+        "声音这块儿呢？现场原声保留 / 纯 BGM / 加旁白，选一个呗～",
+        "配乐和声音怎么搞？保留现场原声 / 纯背景音乐 / 加一段旁白（旁白版随后就来）～",
+    ),
+    "must_include": (
+        "有没有一定要出现的画面或瞬间？比如某个场景、某句傻话、某个表情——没有就说没有～",
+        "哪些画面必须拥有姓名？某个场景/某句话/某个瞬间，说说看；没有就说没有～",
+        "有没有非放不可的名场面？场景、台词、表情都算；没有就说没有～",
+    ),
+    "avoid": (
+        "有没有不想出现的内容？比如宾客正脸、某段黑历史画面——没有就说没有，不碍事～",
+        "禁区说一下？不想露脸的、想剪掉的画面，都可以讲；没有就说没有～",
+        "有没有要避开的内容？比如谁的正脸、哪段尴尬画面——没有就说没有～",
+    ),
 }
 _STORYLAB_ASK_MARK = {
     "tone": "情绪基调", "usage": "这片子主要在哪用", "voice": "声音想怎么处理",
@@ -109,12 +146,52 @@ def _is_decline(msg: str) -> bool:
     return any(msg.startswith(w) for w in _DECLINE) or msg in _CANCEL5
 
 
+def _storylab_answered(prefs: dict) -> int:
+    """已记录答案数（确定性轮换的序号源）。"""
+    return sum(1 for k in PREF_KEYS5 if prefs.get(k))
+
+
+def _storylab_ack(answered: int) -> str:
+    return _STORYLAB_ACKS[min(answered, len(_STORYLAB_ACKS) - 1)]
+
+
+def _storylab_ask(key: str, answered: int) -> str:
+    variants = _STORYLAB_ASKS[key]
+    return variants[answered % len(variants)]
+
+
+def enqueue_storylab_film(conn, order_no: str, deps) -> bool:
+    """幂等创建「故事片场」短片任务（prefs 收单时调用；旧路径复用本函数）。
+
+    该订单已有 queued/running/done 的 storylab_film 则不重复建。返回是否新建。"""
+    exists = conn.execute(
+        "SELECT 1 FROM mp_jobs WHERE order_no=? AND kind='storylab_film'"
+        " AND status IN ('queued','running','done') LIMIT 1", (order_no,)).fetchone()
+    if exists:
+        return False
+    row = conn.execute("SELECT storylab_prefs FROM mp_orders WHERE order_no=?",
+                       (order_no,)).fetchone()
+    try:
+        prefs = json.loads(row[0]) if row and row[0] else {}
+    except Exception:  # noqa: BLE001
+        prefs = {}
+    conn.execute(
+        "INSERT INTO mp_jobs(order_no,kind,payload_json,status,created_at,updated_at)"
+        " VALUES(?,?,?,?,?,?)",
+        (order_no, "storylab_film",
+         json.dumps({"order_no": order_no, "prefs": prefs}, ensure_ascii=False),
+         "queued", deps["now"](), deps["now"]()))
+    conn.commit()
+    deps["log"].info("chat_agent storylab_film 任务已建 order_no=%s", order_no)
+    return True
+
+
 def _collection_step(conn, order_no: str, message: str, atype: str, deps) -> dict | None:
     """确定性收集步：返回 {"reply","action"} 覆盖 agent 输出；None 表示不介入。
 
     与旧 mp_chat 尾块等价：仅在最终 action 为 none/storylab_trailer 时接管（开始/续问），
     或消息命中视频意图且未开始（或已暂停）时启动。用户消息默认记为当前缺失项的答案
-    （bare_yes 不记，noop 记"无"）。"""
+    （bare_yes 不记，noop 记"无"）。收单（_done）时幂等创建 storylab_film 真出片任务。"""
     row = conn.execute("SELECT storylab_prefs FROM mp_orders WHERE order_no=?",
                        (order_no,)).fetchone()
     started = bool(row and row[0])  # 非空串即已进入收集（哪怕还是 {}）
@@ -133,7 +210,7 @@ def _collection_step(conn, order_no: str, message: str, atype: str, deps) -> dic
     if cancel and started and not paused:
         prefs["_paused"] = 1
         touch(conn, order_no, storylab_prefs=json.dumps(prefs, ensure_ascii=False))
-        return {"reply": "好，先帮你记着，想做的时候随时跟我说～",
+        return {"reply": "好嘞，先帮你摁下暂停键～想剪的时候喊我一声就行！",
                 "action": {"type": "none"}, "clear_pending": True}
     if start:
         prefs.pop("_paused", None)
@@ -148,19 +225,21 @@ def _collection_step(conn, order_no: str, message: str, atype: str, deps) -> dic
             missing = [k for k in PREF_KEYS5 if not prefs.get(k)]
         action = {"type": "storylab_trailer", "fields": dict(prefs), "missing": missing}
         if missing:
-            head = ("好呀，我们可以一起把素材做成一支短片～" if (start or not prefs)
-                    else "记下了～")
-            return {"reply": head + _STORYLAB_CANON_ASK[missing[0]],
+            answered = _storylab_answered(prefs)
+            head = _STORYLAB_START_ACK if (start or not prefs) else _storylab_ack(answered)
+            return {"reply": head + _storylab_ask(missing[0], answered),
                     "action": action, "clear_pending": True}
         prefs["_done"] = 1
         touch(conn, order_no, storylab_prefs=json.dumps(prefs, ensure_ascii=False))
-        action["card"] = {"img": _PREFS_CARD_IMG, "title": "预告片偏好已记录",
+        enqueue_storylab_film(conn, order_no, deps)
+        action["card"] = {"img": _PREFS_CARD_IMG, "title": "故事片场偏好已记录",
                           "desc": "{} · 必含：{}".format(prefs.get("tone", ""),
                                                      prefs.get("must_include", "")[:20])}
         log.info("chat_agent storylab 收单 order_no=%s prefs=%s", order_no, list(prefs))
-        return {"reply": "全部记好啦 ✅ 预告片偏好已记录，生成能力即将开放，"
-                         "到时候第一时间通知你。",
-                "action": action, "clear_pending": True}
+        reply = "齐活！你的「故事片场」开机准备完成🎬 我这就开剪，好了第一时间喊你来看！"
+        if "旁白" in str(prefs.get("voice", "")):
+            reply += "（旁白版随后就来，先给你无旁白版）"
+        return {"reply": reply, "action": action, "clear_pending": True}
     return None
 
 
@@ -263,10 +342,13 @@ def build_tool_specs() -> list:
         _spec("material_ask", "素材问答：用户问“有没有xx镜头/拍没拍到xx“时，先调本工具检索相关片段标签，"
               "再基于返回的 caption 作答——只许依据返回内容，严禁编造。",
               {"question": {"type": "string"}}, ["question"]),
-        _spec("collect_prefs", "预告片偏好收集：查当前收集状态（已开始/缺哪几项/是否完成），"
-              "或登记用户刚回答的一项。视频生成需求相关时用。",
+        _spec("collect_prefs", "「故事片场」短片偏好收集：查当前收集状态（已开始/缺哪几项/是否完成），"
+              "或登记用户刚回答的一项。用户想把花絮做成短片时用。",
               {"key": {"type": "string", "enum": list(PREF_KEYS5)},
                "value": {"type": "string"}}),
+        _spec("get_storylab_film", "查「故事片场」短片任务的状态与成片链接（排队中/制作中/已完成）。"
+              "用户问“短片剪好了吗/我的片子呢/视频好了吗“时用；完成后给用户查看入口。",
+              {}),
         _spec("update_selection", "修改用户的拍摄选择（套装/场景/动作/妆容/身高备注等，只能用资产库里的值；"
               "身高是自由文本，如“新郎183cm新娘165cm“）。",
               {"fields": {"type": "object",
@@ -517,7 +599,33 @@ def _tool_collect_prefs(ctx, args) -> dict:
     missing = [k for k in PREF_KEYS5 if not prefs.get(k)]
     return {"ok": True, "started": started, "done": bool(prefs.get("_done")),
             "paused": bool(prefs.get("_paused")), "prefs": prefs, "missing": missing,
-            "next_question": _STORYLAB_CANON_ASK[missing[0]] if missing else ""}
+            "next_question": _STORYLAB_ASKS[missing[0]][0] if missing else ""}
+
+
+def _tool_get_storylab_film(ctx, args) -> dict:
+    """查「故事片场」短片任务：状态 + 成片链接（done 时直接给查看入口）。"""
+    conn, order_no, deps = ctx["conn"], ctx["order_no"], ctx["deps"]
+    row = conn.execute(
+        "SELECT status, result_json FROM mp_jobs WHERE order_no=?"
+        " AND kind='storylab_film' ORDER BY id DESC LIMIT 1", (order_no,)).fetchone()
+    if not row:
+        return {"ok": False, "reason": "no_job", "note": "还没有故事片场短片任务"}
+    status, rj = row[0], row[1]
+    if status == "done" and rj:
+        res = json.loads(rj) or {}
+        url = deps["signed_url"](res["oss_key"], expire=7 * 86400) \
+            if res.get("oss_key") else res.get("url", "")
+        if url:
+            return {"ok": True, "status": "done", "duration": res.get("duration"),
+                    "_final": True,
+                    "final_reply": "剪好啦～你的故事片场大片在此，快看！",
+                    "action": {"type": "show_result", "photos": [url]}}
+        return {"ok": True, "status": "done", "note": "成片链接缺失，请查 job 结果"}
+    if status == "failed":
+        return {"ok": True, "status": "failed",
+                "note": "故事片场短片剪失败了，团队会排查，也可以让客服跟进"}
+    return {"ok": True, "status": status,
+            "note": "故事片场短片" + ("排队中" if status == "queued" else "制作中")}
 
 
 def _tool_update_selection(ctx, args) -> dict:
@@ -641,6 +749,7 @@ READ_TOOLS = {
     "material_summary": _tool_material_summary,
     "material_ask": _tool_material_ask,
     "collect_prefs": _tool_collect_prefs,
+    "get_storylab_film": _tool_get_storylab_film,
 }
 
 #: LLM 绕过工具、直接按旧协议在 action 里发的类型 → 路由回工具执行
@@ -937,17 +1046,18 @@ CHECK_FAIL_MSG = {"no_image": "我还没收到图片哦，点输入框旁边的 
 # ------------------------------------------------------------------
 # 人格层 system prompt
 # ------------------------------------------------------------------
-PERSONA_SYS = """你是「徐大恩 LuckyNemo」小程序的创作小助手，花名"小恩"。
-人格：热情、具体、说人话。多用订单事实和素材标签说话（"你们的素材里有一段新郎骑马"），
-不说"好的，我明白了""请问您是希望"这类正确的废话；用户着急/失望时先安抚一句再办事。
-回复 ≤80 字，口语化，可以偶尔用～和 emoji。
+PERSONA_SYS = """你是「徐大恩 LuckyNemo」小程序的创作小助手，花名"小恩"——机灵热心、
+有点小臭屁的片场小能手：活泼、自信、偶尔耍宝（幽默必须原创，绝不借用任何现有卡通
+角色的名字和台词），但一问起正事立刻专业——引导清晰、一次只问一个点、选项给具体。
+多用订单事实和素材标签说话（"你们的素材里有一段新郎骑马"）。用户着急/失望时先安抚一句再办事。
+回复 ≤80 字，口语化，可以用"嘿嘿/哦哦/哇哦"这类小语气词和 emoji。
 
 【输出纪律】只输出一个 JSON 对象，不要 markdown 代码块，不要 <think> 思维过程。
 要么输出最终回复 {"final_reply": "对用户说的话", "action": {...}}，
 要么调用一个工具（需要信息时用工具查，不要编）。action 只能是工具返回里给的形态或 {"type": "none"}。
 
-【句式纪律】同一订单内，同一个问句/客套句式不许用第二次：
-"好的，我明白了""请问您是希望""还有其他需要帮助的吗"这类说过就换说法。
+【花样纪律】每轮的确认语/开场白必须换花样：同一订单内"收到～""好嘞"这类 ack 不许用
+第二次；确认类问句（"你是想…吗"）同一订单也不许重复问。宁可具体、不可模板。
 
 【按钮纪律】答应用户做的事必须落成工具调用或 action，禁止只说不做（反馈 #41）；
 让用户"点下面卡片"时 action 必须带对应入口。
@@ -969,16 +1079,17 @@ PERSONA_SYS = """你是「徐大恩 LuckyNemo」小程序的创作小助手，�
 【few-shot 2·推测意图先确认】
 用户：（发了婚纱照范例）想要这样的
 → 调 custom_moka(description="参考我发的图：韩式极简婚纱照，室内纯色背景", confirm=false)，
-final_reply："想做一张这种韩式极简风格的专属大片对吗？回我"好"就开工～"
+final_reply："想做一张这种韩式极简风的专属大片对吧？回我「好」就开工～"
 
-【few-shot 3·多轮任务全程】
+【few-shot 3·多轮任务全程（「故事片场」收集流）】
 用户：帮我们把花絮剪成视频
-→ 调 collect_prefs 查状态 → final_reply 按服务端给出的下一个问题问（一次只问一个）
+→ 服务端状态机会接管提问（每问一个，ack 换花样）；你只需把问题用活泼口吻问出口
 用户：温情感人的，婚礼现场播
-→ 服务端状态机会记录这两项并给下一问；你只需把问题自然地问出口
+→ 服务端记录并给下一问；你换个 ack 再问下一个
 用户：没有 / 都可以
-→ noop 语义照实记"无"，继续下一问，直到 5 项集齐
-（收集中的问句由服务端 canonical 驱动，严禁自己改写或一次问多个）
+→ noop 语义照实记"无"，继续下一问
+集齐后服务端自动收单并开剪，你负责欢呼："齐活！你的「故事片场」开机准备完成🎬"
+（收集中的问句由服务端驱动，严禁自己改写或一次问多个）
 
 【素材问答纪律】回答"有没有 xx 镜头"必须先调 material_ask，只依据返回的 caption 作答：
 有就指出哪段，没有就如实说"我理解的片段里还没发现"，严禁编造（漏报也算编造）。
@@ -987,12 +1098,11 @@ final_reply："想做一张这种韩式极简风格的专属大片对吗？回�
 描述是人物照片+用户说明是谁/说做底图 → save_chat_images（严禁只回"已收到"）；
 描述是范例图+用户说想要这样的 → custom_moka；UI 截图+用户问"你看这个" → 走反馈流程。
 
-【反馈流程】用户报 bug/提想法：先调 submit_feedback 之前的追问把细节问清，
-整理成一句话问"我帮你把这条反馈提交给团队吗？"，用户同意（好/提交/嗯）再
-submit_feedback(confirm=false→用户确认后执行)。
+【反馈流程】用户报 bug/提想法：先把细节问清，整理成一句话问"我帮你把这条反馈
+提交给团队吗？"，用户同意（好/提交/嗯）再 submit_feedback(confirm=false→确认后执行)。
 
 【状态与事件】下面给你的是本订单事实、会话状态和刚发生的事件（生成完成等）。
-事件只注入一次，用户问起进度/成片时主动报喜并引导查看。"""
+事件只注入一次，用户问起进度/成片时主动报喜并引导查看（成片用 get_storylab_film 查）。"""
 
 
 def build_system_prompt(conn, order_no, body, deps, state, events, storylab_text) -> str:
@@ -1079,6 +1189,22 @@ def run(conn, body, deps) -> dict:
                     "action": {"type": "none"}}
         state["pending_confirm"] = None  # 用户改口：清掉提案，走正常理解
 
+    # ---- 0.4) 视频意图直启「故事片场」收集（确定性状态机，省一次 LLM 调用） ----
+    if msg and _VID_RE.search(msg):
+        row0 = conn.execute("SELECT storylab_prefs FROM mp_orders WHERE order_no=?",
+                            (order_no,)).fetchone()
+        started0, paused0 = bool(row0 and row0[0]), False
+        if started0:
+            try:
+                paused0 = bool(json.loads(row0[0]).get("_paused"))
+            except Exception:  # noqa: BLE001
+                paused0 = False
+        if not started0 or paused0:
+            step = _collection_step(conn, order_no, msg, "none", deps)
+            if step:
+                save_state(conn, order_no, state)
+                return {"reply": step["reply"], "action": step["action"]}
+
     # ---- 0.5) storylab 收集中：纯答案速记通道（确定性状态机，省 LLM 调用） ----
     if msg:
         row = conn.execute("SELECT storylab_prefs FROM mp_orders WHERE order_no=?",
@@ -1122,6 +1248,22 @@ def run(conn, body, deps) -> dict:
                                 order_no, rounds)
             break
         if "final_reply" in dec:
+            cand_reply = str(dec.get("final_reply") or "")
+            cand_action = dec.get("action") if isinstance(dec.get("action"), dict) else {}
+            # 承诺一致性防线（反馈 #41）：话术答应了做事却没有任何动作/提案/待确认 → 追问一轮
+            promised = re.search(
+                r"(这就|马上|稍等|正在|立刻|这就去).{0,14}"
+                r"(出片|生成|定妆|修图|合拍|定制|开剪|删除|提交|保存|办)", cand_reply)
+            if promised and not proposed and not state.get("pending_confirm") \
+                    and pending_action is None and not cand_action.get("type") \
+                    and rounds < MAX_ROUNDS:
+                deps["log"].warning("chat_agent 承诺未落地（反馈#41）order_no=%s round=%d，追问一轮",
+                                    order_no, rounds)
+                msgs.append({"role": "user", "content":
+                             "[系统] 你的回复承诺了要执行操作，但本轮没有任何动作落地。"
+                             "请立即调用对应工具（用户是明令时 confirm=true），"
+                             "或修改 final_reply 不承诺做不到的事。"})
+                continue
             final = {"final_reply": dec.get("final_reply") or "", "action": dec.get("action")}
             break
         tool, args = dec.get("tool") or "", dec.get("args") or {}

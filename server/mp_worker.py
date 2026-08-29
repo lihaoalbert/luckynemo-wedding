@@ -851,6 +851,142 @@ def run_storylab_ingest(job_id: int, order_no: str, payload: dict) -> None:
     log(f"job#{job_id} storylab_ingest 完成：打标 {ok} 段，失败 {err} 段，超限跳过 {skipped} 段")
 
 
+def _suggest_window(duration: float, window: str) -> dict:
+    """高光窗口 "a-b" → 建议入出点；没有则素材中段。"""
+    try:
+        a, b = window.split("-")
+        ia, ib = float(a), float(b)
+        if 0 <= ia < ib <= duration + 0.5:
+            return {"in": ia, "out": min(ib, duration)}
+    except Exception:  # noqa: BLE001
+        pass
+    start = max(0.0, duration / 2 - 1.5)
+    return {"in": start, "out": min(duration, start + 3.0)}
+
+
+def _m3_storyboard_film(segs: list, prefs: dict) -> list:
+    """1 次 M3 调用：素材标签 + 偏好 → 镜表（≤12 镜，竖屏，真实为主，0 生成帧）。"""
+    if not MINIMAX_KEY:
+        raise RuntimeError("未配置 MINIMAX_API_KEY，无法生成分镜")
+    model = ENV.get("MINIMAX_LLM_MODEL", "MiniMax-M3")
+    system = (
+        "你是短片剪辑分镜师。根据给定的真实素材片段（caption/时长/高光窗口/建议入出点）"
+        "和用户偏好，输出竖屏短片的镜表 JSON。只输出 JSON（无 markdown 代码块）。\n"
+        '格式：{"shots":[{"oss_key":"...","in":秒,"out":秒,"note":"一句话画面说明"}...]}\n'
+        "规则：≤12 镜；优先采用 suggested 入出点（用户高光窗口），可小幅调整但必须在片段时长内；"
+        "每镜 1.5-8 秒；按叙事排序（开场→发展→高潮→收尾）；遵守用户偏好"
+        "（情绪基调定节奏、必含画面优先安排、禁区画面避开）；只用给定 oss_key；竖屏 9:16 构图思维。")
+    user = json.dumps({"prefs": {k: v for k, v in prefs.items() if not k.startswith("_")},
+                       "segments": segs}, ensure_ascii=False)
+    r = requests.post(f"{MINIMAX_BASE}/chat/completions",
+                      headers={"Authorization": f"Bearer {MINIMAX_KEY}"},
+                      json={"model": model, "max_tokens": 8000, "temperature": 0.5,
+                            "messages": [{"role": "system", "content": system},
+                                         {"role": "user", "content": user}]},
+                      timeout=180)
+    text = r.json()["choices"][0]["message"]["content"]
+    text = re.sub(r"<think>[\s\S]*?</think>", "", text or "")  # M3 思维链剥除
+    text = re.sub(r"```(?:json)?", "", text).strip()
+    m = re.search(r"\{[\s\S]*\}", text)
+    if not m:
+        raise RuntimeError("M3 分镜输出无法解析")
+    blob = m.group(0)
+    data = None
+    try:
+        data = json.loads(blob)
+    except Exception:  # noqa: BLE001
+        try:
+            data, _ = json.JSONDecoder().raw_decode(blob)
+        except Exception:  # noqa: BLE001
+            # 尾部截断修复：补闭合；再不行逐镜提取完整 shot 对象
+            trimmed = re.sub(r",\s*$", "", blob)
+            for suffix in ("]}", "}", "]"):
+                try:
+                    data = json.loads(trimmed + suffix)
+                    break
+                except Exception:  # noqa: BLE001
+                    continue
+            if data is None:
+                shots_raw = re.findall(r"\{[^{}]*\"oss_key\"[^{}]*\}", blob)
+                if shots_raw:
+                    data = {"shots": [json.loads(s) for s in shots_raw]}
+    shots = (data or {}).get("shots") or []
+    shots = [s for s in shots if isinstance(s, dict) and s.get("oss_key")]
+    if not shots:
+        raise RuntimeError("M3 分镜输出空镜表")
+    return shots[:12]
+
+
+def run_storylab_film(job_id: int, order_no: str, payload: dict) -> None:
+    """「故事片场」短片：素材标签 → M3 分镜（1 次）→ ffmpeg/PIL 组装（0 生成调用）。
+
+    交付 results/{order_no}/storylab_film_{ts}.mp4；<3 段可用素材直接报错误。
+    voice=加旁白 的偏好 v1 不执行（BGM+原声），由 chat 话术说明"旁白版随后就来"。
+    """
+    import storylab_film as sf
+    conn = db()
+    rows = conn.execute(
+        "SELECT oss_key, filename, duration, highlight, highlight_window, tags_json"
+        " FROM mp_storylab_tags WHERE order_no=? AND status='ok' ORDER BY highlight DESC",
+        (order_no,)).fetchall()
+    prow = conn.execute("SELECT storylab_prefs FROM mp_orders WHERE order_no=?",
+                        (order_no,)).fetchone()
+    conn.close()
+    if len(rows) < 3:
+        raise RuntimeError(f"故事片场素材不足（已理解 {len(rows)} 段 < 3 段），多传几段视频花絮再来")
+    prefs = json.loads(prow[0]) if prow and prow[0] else {}
+    work = TMP / f"film_{order_no}"
+    work.mkdir(parents=True, exist_ok=True)
+    try:
+        bgm = oss_get("assets/storylab/bgm.mp3", work / "bgm.mp3")
+        font = oss_get("assets/storylab/font.ttc", work / "font.ttc")
+        segs, materials = [], {}
+        for key, fn, dur, hl, win, tj in rows[:12]:
+            local = oss_get(key, work / (fn or Path(key).name))
+            t = json.loads(tj) if tj else {}
+            materials[key] = local
+            segs.append({"oss_key": key, "caption": t.get("caption", ""),
+                         "duration": dur or 0, "highlight": hl or 0,
+                         "highlight_window": win or "",
+                         "suggested": _suggest_window(dur or 0, win or "")})
+        log(f"job#{job_id} storylab_film 素材 {len(segs)} 段，M3 分镜中...")
+        shots = _m3_storyboard_film(segs, prefs)
+        shots = [s for s in shots if s["oss_key"] in materials]
+        if len(shots) < 2:
+            raise RuntimeError("M3 镜表与素材对不上（可用镜 < 2），请重试")
+        subtitles = sf.pick_subtitles(str(prefs.get("tone", "")), len(shots))
+        out = work / "storylab_film.mp4"
+        meta = sf.assemble(shots, materials, bgm, font, work / "intermediates", out,
+                           subtitles)
+        key = f"results/{order_no}/storylab_film_{time.strftime('%Y%m%d_%H%M%S')}.mp4"
+        url = oss_put_url(key, out.read_bytes(), "video/mp4")
+        conn = db()
+        conn.execute("UPDATE mp_jobs SET status='done', result_json=?, updated_at=datetime('now') WHERE id=?",
+                     (json.dumps({"url": url, "oss_key": key, "duration": meta["duration"],
+                                  "shots": meta["shots"], "width": meta["width"],
+                                  "height": meta["height"]}, ensure_ascii=False), job_id))
+        conn.execute("UPDATE mp_orders SET status='done', updated_at=datetime('now') WHERE order_no=?",
+                     (order_no,))
+        conn.commit()
+        conn.close()
+        log(f"job#{job_id} storylab_film 完成 -> {key}（{meta['duration']:.1f}s，{meta['shots']} 镜）")
+        meta["local"] = str(out)
+        meta["oss_key"] = key
+        return meta
+    finally:
+        if not payload.get("keep_local"):
+            try:
+                for f in work.glob("*"):
+                    if f.is_file():
+                        f.unlink()
+                inter = work / "intermediates"
+                if inter.is_dir():
+                    for f in inter.glob("*"):
+                        f.unlink()
+            except OSError:
+                pass
+
+
 def _now_iso() -> str:
     import datetime as _dt
     return _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
@@ -1082,6 +1218,9 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
         return
     if kind == "storylab_ingest":
         run_storylab_ingest(job_id, order_no, payload)
+        return
+    if kind == "storylab_film":
+        run_storylab_film(job_id, order_no, payload)
         return
     result = None
     anchor_imgs: list = []  # 本任务实际使用的人物锚点图（供裁脸换脸做身份参考）
@@ -1395,6 +1534,8 @@ def _push_chat_event(order_no: str, kind: str) -> None:
         label = PHOTO_KIND_LABEL.get(kind, "")
         if kind == "storylab_ingest":
             label = "素材理解"
+        if kind == "storylab_film":
+            label = "故事片场短片"
         text = f"「{label or kind}」任务已完成，结果已入相册"
         now = _now_iso()
         conn = db()

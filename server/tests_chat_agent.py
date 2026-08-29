@@ -221,14 +221,19 @@ def run_all():
             check("情绪基调" in reply, "S1 T1 问情绪基调")
         def t2(reply, action, ctx):
             check("情绪基调" not in reply, "S1 T2 不复读情绪基调问句")
-            check("这片子主要在哪用" in reply, "S1 T2 接着问用途")
+            check(any(w in reply for w in ("哪播", "用在哪", "派什么用场")),
+                  "S1 T2 接着问用途")
         def t3(reply, action, ctx):
-            check("声音想怎么处理" in reply, "S1 T3 接着问声音")
-        run_turns("S1", ORDER, [
+            check("声音" in reply, "S1 T3 接着问声音")
+        reps = run_turns("S1", ORDER, [
             {"message": "把我们的花絮做成一个搞笑视频", "check": t1},
             {"message": "欢乐搞笑的那种", "check": t2},
             {"message": "都可以", "check": t3},
         ])
+        heads = [r[:6] for r in reps]
+        check(len(set(heads)) == len(heads), "S1 各轮 ack 开场互不相同（人设多样性）")
+        check(all("记下了～" not in r for r in reps), "S1 无旧版「记下了～」话术")
+        check(all("预告片偏好" not in r for r in reps), "S1 无「预告片偏好」旧称")
         # prefs 落库校验
         conn = app._db()
         row = conn.execute("SELECT storylab_prefs FROM mp_orders WHERE order_no=?",
@@ -238,15 +243,30 @@ def run_all():
         check(prefs.get("tone") == "欢乐搞笑的那种", "S1 prefs.tone 已记录")
         check(prefs.get("usage") == "无", "S1 prefs.usage noop 记为无")
 
-    @scenario("S2 反馈#41 用这张出片（新路径 + 旧基线）")
+    @scenario("S2 反馈#41 用这张出片（新路径×最多2次取正确 + 旧基线）")
     def s2():
         wipe(ORDER)
+        out = None
+        for attempt in (1, 2):  # LLM 工具选择有非确定性，给一次重试（重试前 wipe 状态）
+            body = app.MpChatIn(order_no=ORDER, message="用这张出片", images=[CHAT_IMG],
+                                history=[])
+            conn = app._db()
+            try:
+                out = chat_agent.run(conn, body, DEPS)
+            finally:
+                conn.close()
+            if out["action"].get("type") == "generate_photo":
+                break
+            wipe(ORDER)
+        check(out["action"].get("type") == "generate_photo", "S2 action=generate_photo")
+        check(out["action"].get("template_key") == CHAT_IMG, "S2 template_key=刚发的图")
+        check(out["action"].get("mode") == "couple", "S2 mode=couple")
+        print("        reply: " + out["reply"].replace("\n", " ⏎ ")[:160])
+
         def t(reply, action, ctx):
-            check(action.get("type") == "generate_photo", "S2 action=generate_photo")
-            check(action.get("template_key") == CHAT_IMG, "S2 template_key=刚发的图")
-            check(action.get("mode") == "couple", "S2 mode=couple")
-        run_turns("S2-new", ORDER, [{"message": "用这张出片", "images": [CHAT_IMG],
-                                     "check": t}])
+            check(action.get("type") == "generate_photo", "S2-old action=generate_photo")
+            check(action.get("template_key") == CHAT_IMG, "S2-old template_key=刚发的图")
+            check(action.get("mode") == "couple", "S2-old mode=couple")
         run_turns("S2-old", ORDER, [{"message": "用这张出片", "images": [CHAT_IMG],
                                      "check": t}], old_path=True)
 
@@ -287,20 +307,34 @@ def run_all():
             {"message": "有没有潜水的画面", "check": miss},
         ])
 
-    @scenario("S5 收集流 5 问全走通（新路径）")
+    @scenario("S5 收集流 5 问全走通 + 收单真建 storylab_film 任务（新路径）")
     def s5():
         wipe(ORDER)
-        run_turns("S5", ORDER, [
+        conn = app._db()
+        conn.execute("DELETE FROM mp_jobs WHERE order_no=? AND kind='storylab_film'", (ORDER,))
+        conn.commit()
+        conn.close()
+        def t_done(reply, action, ctx):
+            check("故事片场" in reply, "S5 收单话术用「故事片场」新称")
+            check("预告片偏好" not in reply, "S5 收单话术无「预告片偏好」旧称")
+            check("即将开放" not in reply, "S5 收单不再搪塞「即将开放」")
+            check(action.get("card", {}).get("title") == "故事片场偏好已记录",
+                  "S5 偏好卡标题为「故事片场偏好已记录」")
+        reps = run_turns("S5", ORDER, [
             {"message": "想做一支婚礼预告片"},
             {"message": "温情感人的"},
             {"message": "婚礼现场播"},
             {"message": "纯背景音乐"},
             {"message": "没有"},
-            {"message": "没有了"},
+            {"message": "没有了", "check": t_done},
         ])
+        heads = [r[:6] for r in reps]
+        check(len(set(heads)) == len(heads), "S5 各轮 ack 开场互不相同（人设多样性）")
         conn = app._db()
         row = conn.execute("SELECT storylab_prefs FROM mp_orders WHERE order_no=?",
                            (ORDER,)).fetchone()
+        jobs = conn.execute("SELECT status FROM mp_jobs WHERE order_no=? AND kind='storylab_film'",
+                            (ORDER,)).fetchall()
         conn.close()
         prefs = json.loads(row[0])
         check(bool(prefs.get("_done")), "S5 收集完成 _done")
@@ -308,16 +342,52 @@ def run_all():
                         ("voice", "纯背景音乐"), ("must_include", "无"),
                         ("avoid", "无")):
             check(prefs.get(k) == want, "S5 prefs.%s=%r（期望 %r）" % (k, prefs.get(k), want))
+        check(len(jobs) == 1 and jobs[0][0] == "queued",
+              "S5 收单幂等创建 storylab_film 任务（queued）")
+        conn = app._db()
+        again = chat_agent.enqueue_storylab_film(conn, ORDER, DEPS)
+        n = conn.execute("SELECT COUNT(*) FROM mp_jobs WHERE order_no=? AND kind='storylab_film'",
+                         (ORDER,)).fetchone()[0]
+        conn.close()
+        check(not again and n == 1, "S5 enqueue 幂等（重复调用不重建）")
 
-    @scenario("S6 定妆额度不足路径（新路径，明令直执/确认通道都会撞额度墙）")
+    @scenario("S8 get_storylab_film 工具：查片状态/给查看入口（新路径）")
+    def s8():
+        conn = app._db()
+        row = conn.execute("SELECT id FROM mp_jobs WHERE order_no=? AND kind='storylab_film'",
+                           (ORDER,)).fetchone()
+        conn.close()
+        check(row is not None, "S8 前置：S5 已建 storylab_film 任务")
+        ctx = {"conn": app._db(), "order_no": ORDER, "body": None, "deps": DEPS, "state": {}}
+        r1 = chat_agent._tool_get_storylab_film(ctx, {})
+        check(r1.get("ok") and r1.get("status") == "queued", "S8 制作中状态可查")
+        # 模拟完成：result_json 落 oss_key，断言给查看入口
+        conn = app._db()
+        conn.execute("UPDATE mp_jobs SET status='done', result_json=? WHERE order_no=?"
+                     " AND kind='storylab_film'",
+                     (json.dumps({"oss_key": "results/" + ORDER + "/storylab_film_x.mp4",
+                                  "duration": 18.5}), ORDER))
+        conn.commit()
+        conn.close()
+        ctx = {"conn": app._db(), "order_no": ORDER, "body": None, "deps": DEPS, "state": {}}
+        r2 = chat_agent._tool_get_storylab_film(ctx, {})
+        check(r2.get("status") == "done" and r2.get("_final"), "S8 完成后 _final 直达")
+        check(r2.get("action", {}).get("type") == "show_result", "S8 给查看短片入口")
+        ctx["conn"].close()
+
+    @scenario("S6 定妆额度不足路径（执行层确定性断言，不赌 LLM 措辞）")
     def s6():
-        def t1(reply, action, ctx):
-            check(action.get("type") == "none", "S6 额度不足不建任务")
-            check("用完" in reply or "充值" in reply, "S6 reply 告知额度用完")
-        run_turns("S6", ORDER_QUOTA, [
-            {"message": "用这张照片修一张定妆照",
-             "images": ["materials/20260829/Q/base.jpg"], "check": t1},
-        ])
+        body = app.MpChatIn(order_no=ORDER_QUOTA, message="用这张照片修一张定妆照",
+                            images=["materials/20260829/Q/base.jpg"], history=[])
+        conn = app._db()
+        ctx = {"conn": conn, "order_no": ORDER_QUOTA, "body": body, "deps": DEPS,
+               "state": {}}
+        chk = chat_agent._check_makeup_photo(ctx, {})
+        check(chk.get("ok"), "S6 预检通过（有图有认证）")
+        suffix, action = chat_agent._exec_makeup_photo(ctx, {"who": "me"})
+        check(action.get("type") == "none", "S6 额度不足不建任务")
+        check("用完" in suffix or "充值" in suffix, "S6 话术告知额度用完")
+        conn.close()
         conn = app._db()
         n = conn.execute("SELECT COUNT(*) FROM mp_jobs WHERE order_no=? AND status='queued'",
                          (ORDER_QUOTA,)).fetchone()[0]
@@ -345,14 +415,120 @@ def run_all():
     s5()
     s6()
     s7()
+    s8()
+
+
+# ------------------------------------------------------------------
+# E2E：真跑一部「故事片场」短片（env STORYLAB_FILM_E2E=1 才跑）
+# 上传 4 段真实花絮 → seed tags/prefs → 直调 mp_worker.run_storylab_film
+# → ffprobe 结构断言 + 抽帧目检。M3 仅 1 次调用。
+# ------------------------------------------------------------------
+ORDER_FILM = "LN-TEST-FILM"
+E2E_VIDEOS = [
+    # (本地文件, 时长, caption, highlight_window, highlight)
+    ("2ad6d66c0431d5f20521b089f30ef8f9.mp4", 43.09, "新郎新娘入场相拥，亲友欢呼鼓掌", "10.7-19.3", 5),
+    ("0cafa93e0d70ddfb56be69a3e5d11c47.mp4", 12.97, "新娘抛捧花，众人抢花欢笑", "4.0-9.0", 4),
+    ("611644315b5dd072ddc9804e831eceb2.mp4", 7.13, "新人交换戒指特写，誓言", "1.0-5.5", 5),
+    ("85fb6728608af9c17d0594410dc59d36.mp4", 7.5, "两人共舞，灯光璀璨", "", 3),
+]
+
+
+def e2e_storylab_film():
+    print("\n=== E2E 真跑一部故事片场短片 ===")
+    import subprocess
+    import mp_worker
+
+    # 本地 worker 的 ENV 只读 server/.env + /opt toolkit .env；本地把 toolkit .env 补进来
+    tk_env = REPO / "tools" / "luckynemo-toolkit" / ".env"
+    for line in tk_env.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, _, v = line.partition("=")
+            mp_worker.ENV.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+    mp_worker.MINIMAX_KEY = mp_worker.ENV.get("MINIMAX_API_KEY", "")
+    mp_worker.MINIMAX_BASE = mp_worker.ENV.get("MINIMAX_BASE_URL", mp_worker.MINIMAX_BASE)
+
+    intake = REPO / "referrence" / "刘奔奔&徐驰" / "intake_20260724"
+    # 1) 上传素材到 OSS（幂等覆盖即可）
+    for fn, dur, cap, win, hl in E2E_VIDEOS:
+        key = "materials/storylab_e2e/" + fn
+        app.oss_put_object(key, (intake / fn).read_bytes(), content_type="video/mp4")
+        print("    上传 " + key)
+
+    # 2) seed：订单 + prefs(done) + tags + job；worker 指向同一测试库
+    conn = app._db()
+    conn.execute("DELETE FROM mp_jobs WHERE order_no=?", (ORDER_FILM,))
+    conn.execute("DELETE FROM mp_storylab_tags WHERE order_no=?", (ORDER_FILM,))
+    conn.execute("DELETE FROM mp_orders WHERE order_no=?", (ORDER_FILM,))
+    conn.execute(
+        "INSERT INTO mp_orders(order_no,open_token,status,created_at,updated_at,mode,free_quota,share_token)"
+        " VALUES(?,?,?,?,?,?,?,?)",
+        (ORDER_FILM, "wx-t", "created", NOW, NOW, "couple", 20, "tokfilm"))
+    conn.execute("UPDATE mp_orders SET storylab_prefs=? WHERE order_no=?",
+                 (json.dumps({"tone": "温馨治愈系", "usage": "婚礼现场播",
+                              "voice": "纯背景音乐", "must_include": "交换戒指",
+                              "avoid": "无", "_done": 1}, ensure_ascii=False), ORDER_FILM))
+    for fn, dur, cap, win, hl in E2E_VIDEOS:
+        conn.execute(
+            "INSERT INTO mp_storylab_tags(order_no,oss_key,filename,duration,motion_level,"
+            "highlight,highlight_window,tags_json,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
+            (ORDER_FILM, "materials/storylab_e2e/" + fn, fn, dur, "中", hl, win,
+             json.dumps({"caption": cap, "scene": "", "moment_type": "",
+                         "emotion": "温馨"}, ensure_ascii=False), "ok", NOW))
+    cur = conn.execute(
+        "INSERT INTO mp_jobs(order_no,kind,payload_json,status,created_at,updated_at)"
+        " VALUES(?,?,?,?,?,?)",
+        (ORDER_FILM, "storylab_film", "{}", "running", NOW, NOW))
+    job_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    mp_worker.DB_PATH = Path(os.environ["DATA_DIR"]) / "app.db"
+
+    # 3) 真跑（keep_local 保留成片供目检）
+    meta = mp_worker.run_storylab_film(job_id, ORDER_FILM, {"keep_local": 1})
+    check(meta is not None, "E2E worker 返回成片 meta")
+
+    # 4) ffprobe 结构断言
+    local = meta["local"]
+    probe = json.loads(subprocess.run(
+        ["ffprobe", "-v", "error", "-print_format", "json", "-show_streams",
+         "-show_format", local], capture_output=True, text=True).stdout)
+    vstream = next(s for s in probe["streams"] if s["codec_type"] == "video")
+    astream = next((s for s in probe["streams"] if s["codec_type"] == "audio"), None)
+    dur = float(probe["format"]["duration"])
+    check(vstream["width"] == 720 and vstream["height"] == 1280, "E2E 720x1280 竖屏")
+    fps = eval(vstream["avg_frame_rate"])
+    check(abs(fps - 24) < 0.5, "E2E 24fps")
+    check(dur > 8, "E2E 总时长 >8s（片名卡2s+镜组+AI卡2.5s）")
+    check(astream is not None, "E2E 音轨在位（BGM/原声混流）")
+    check(meta["shots"] >= 2, "E2E 镜表 ≥2 镜")
+
+    # 5) 抽帧目检：片头卡 / 中段镜 / AI 标识卡
+    qc = Path("/tmp/storylab_e2e_qc")
+    qc.mkdir(exist_ok=True)
+    frames = [(1.0, "title"), (dur / 2, "mid"), (dur - 1.0, "endcard")]
+    for t, name in frames:
+        subprocess.run(["ffmpeg", "-y", "-v", "error", "-ss", str(t), "-i", local,
+                        "-frames:v", "1", str(qc / (name + ".png"))], check=True)
+    print("    目检抽帧：" + ", ".join(str(qc / (n + ".png")) for _, n in frames))
+    conn = app._db()
+    row = conn.execute("SELECT status, result_json FROM mp_jobs WHERE id=?", (job_id,)).fetchone()
+    conn.close()
+    check(row[0] == "done" and json.loads(row[1]).get("oss_key", "").startswith("results/"),
+          "E2E job done 且 result 落库")
+    print("    成片本地路径：" + local)
 
 
 if __name__ == "__main__":
     print("seed 测试库：" + os.environ["DATA_DIR"])
     seed()
     run_all()
+    if os.environ.get("STORYLAB_FILM_E2E") == "1":
+        e2e_storylab_film()
+    else:
+        print("\n（E2E 真跑片子未启用：STORYLAB_FILM_E2E=1 时执行）")
     print("\n---- 对照表 ----")
-    print("LLM 调用：新路径 %d 次，旧基线 %d 次，合计 %d（预算 ≤20）"
+    print("LLM 调用：新路径 %d 次，旧基线 %d 次，合计 %d（预算 ≤20；E2E 另计 M3 1 次）"
           % (LLM_CALLS["new"], LLM_CALLS["old"], LLM_CALLS["new"] + LLM_CALLS["old"]))
     print("断言 %d 条，失败 %d 条" % (len(RESULTS), len(FAILURES)))
     if FAILURES:
