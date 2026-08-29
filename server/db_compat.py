@@ -222,6 +222,16 @@ MYSQL_SCHEMA = [
        openid VARCHAR(64) NOT NULL, series_id VARCHAR(64) NOT NULL,
        created_at VARCHAR(40) NOT NULL,
        PRIMARY KEY(openid, series_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
+    # storylab 素材理解打标结果（worker storylab_ingest 任务写入，chat 开场钩子数据源）
+    """CREATE TABLE IF NOT EXISTS mp_storylab_tags(
+       id INT PRIMARY KEY AUTO_INCREMENT,
+       order_no VARCHAR(64) NOT NULL, oss_key VARCHAR(255) NOT NULL,
+       filename VARCHAR(255) DEFAULT '', duration REAL DEFAULT 0,
+       motion_level VARCHAR(8) DEFAULT '', highlight INT DEFAULT 0,
+       highlight_window VARCHAR(32) DEFAULT '',
+       tags_json TEXT, status VARCHAR(16) NOT NULL DEFAULT 'ok',
+       error TEXT, created_at VARCHAR(40) NOT NULL,
+       INDEX idx_sl_order (order_no)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
 ]
 
 _ensured = False
@@ -230,6 +240,8 @@ _ensured = False
 MYSQL_ALTERS = [
     "ALTER TABLE mp_pay_orders ADD COLUMN wechat_order_id VARCHAR(64) DEFAULT ''",
     "ALTER TABLE mp_orders ADD COLUMN revise_used INT NOT NULL DEFAULT 0",
+    # storylab 预告片偏好收集结果（chat storylab_trailer 动作落库，JSON 文本）
+    "ALTER TABLE mp_orders ADD COLUMN storylab_prefs TEXT",
 ]
 
 
