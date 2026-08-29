@@ -244,6 +244,21 @@ def _migrate() -> None:
         "openid TEXT NOT NULL, series_id TEXT NOT NULL, created_at TEXT NOT NULL,"
         "PRIMARY KEY(openid, series_id))"
     )
+    # storylab 素材理解打标结果（worker storylab_ingest 任务写入，2026-08-29）
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS mp_storylab_tags("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "order_no TEXT NOT NULL, oss_key TEXT NOT NULL,"
+        "filename TEXT DEFAULT '', duration REAL DEFAULT 0,"
+        "motion_level TEXT DEFAULT '', highlight INTEGER DEFAULT 0,"
+        "highlight_window TEXT DEFAULT '',"
+        "tags_json TEXT, status TEXT NOT NULL DEFAULT 'ok',"
+        "error TEXT, created_at TEXT NOT NULL)"
+    )
+    # storylab 预告片偏好（chat storylab_trailer 需求收集结果，JSON 文本）
+    mo_cols = [r[1] for r in conn.execute("PRAGMA table_info(mp_orders)")]
+    if "storylab_prefs" not in mo_cols:
+        conn.execute("ALTER TABLE mp_orders ADD COLUMN storylab_prefs TEXT DEFAULT ''")
     conn.commit()
     # 存量订单迁移：已认证通过的订单视为成员 A 已认证
     for row in conn.execute(
@@ -533,16 +548,45 @@ def upload_sign(body: UploadSignIn) -> JSONResponse:
     signed = oss_post_signature(key, body.content_type)
     slot = body.slot if body.slot in ("front", "left", "right", "body") else ""
     conn = _db()
+    storylab_queued = False
     try:
         conn.execute(
             "INSERT INTO uploads(contact,filename,oss_key,size,content_type,created_at,slot) VALUES(?,?,?,?,?,?,?)",
             (who, body.filename, key, body.size, body.content_type, _now(), slot),
         )
         conn.commit()
+        # storylab：视频素材登记且属于小程序订单 → 幂等触发素材理解任务（天然幂等：
+        # 已有 tags 行或 queued/running 任务时不重复；worker 逐段也按 tags 表去重）
+        if body.content_type.startswith("video/"):
+            try:
+                storylab_queued = _storylab_maybe_queue(conn, who)
+            except Exception as e:  # noqa: BLE001 - 触发失败不影响上传本身
+                log.warning("storylab 触发失败 who=%s: %s", who, e)
     finally:
         conn.close()
     log.info("upload signed who=%s key=%s size=%d slot=%s", who, key, body.size, slot)
-    return JSONResponse({"ok": True, "key": key, **signed})
+    return JSONResponse({"ok": True, "key": key, **signed,
+                         **({"storylab_queued": True} if storylab_queued else {})})
+
+
+def _storylab_maybe_queue(conn: sqlite3.Connection, order_no: str) -> bool:
+    """订单有新视频登记时幂等触发 storylab_ingest 素材理解任务。返回是否触发。"""
+    if not conn.execute("SELECT 1 FROM mp_orders WHERE order_no=?", (order_no,)).fetchone():
+        return False
+    if conn.execute("SELECT 1 FROM mp_storylab_tags WHERE order_no=? LIMIT 1", (order_no,)).fetchone():
+        return False
+    running = conn.execute(
+        "SELECT 1 FROM mp_jobs WHERE order_no=? AND kind='storylab_ingest'"
+        " AND status IN ('queued','running') LIMIT 1", (order_no,)).fetchone()
+    if running:
+        return False
+    conn.execute(
+        "INSERT INTO mp_jobs(order_no,kind,payload_json,status,created_at,updated_at) VALUES(?,?,?,?,?,?)",
+        (order_no, "storylab_ingest", json.dumps({"order_no": order_no}, ensure_ascii=False),
+         "queued", _now(), _now()))
+    conn.commit()
+    log.info("storylab_ingest queued order_no=%s", order_no)
+    return True
 
 
 class FaceSheetAutoIn(BaseModel):
@@ -2449,6 +2493,9 @@ _MP_CHAT_SYS = """你是「徐大恩 LuckyNemo」小程序的 AI 小助手，语
 【可选资产】
 {assets}
 
+【素材理解】（storylab：订单视频花絮的自动理解结果。有内容时本节生效；为空表示本单还没有已理解的视频素材，忽略本节与相关动作，用户想做片子时引导先上传视频花絮）
+{storylab}
+
 【输出要求】只输出 JSON，不要 markdown 代码块：
 {{"reply": "对用户说的话", "action": {{...}}}}
 action 只能是以下之一：
@@ -2465,6 +2512,8 @@ action 只能是以下之一：
 - {{"type": "custom_moka", "description": "用户真实需求的完整描述", "mode": "couple或solo_f或solo_m"}} 定制专属大片：**只有用户明确说要"做模板/定制专属大片"才用**。description 必须写用户的真实需求（把多轮补充合并进来，范例图需求就写清"参考我发的图"+用户补充，严禁照抄示例占位文字）；mode 按画面人数推断：双人=couple、女生单人=solo_f、男生单人=solo_m，推断不出先用 none 问一句
 - {{"type": "generate_photo", "mode": "couple或solo_f或solo_m", "note": "用户的调整要求（可空）"}} 直接出片：用户说"用这张出片/帮我生成/用最新定妆照出一张"时用，系统会把用户刚发的图（或最近发的图/专属大片）当模板 + 用最新定妆照一键同款出图。用户从来没发过图时先别用，引导 TA 发图或去挑同款大片
 - {{"type": "duo_photo", "note": "合照场景/氛围要求（可空）"}} 生成双人合照：用户发两个人的照片（两张单人照或一张现成合照），说"把照片里的人生成一张合照/帮我们俩合拍一张"时用，系统用照片里的真人直接生成两人亲密合照
+- {{"type": "storylab_summary"}} 素材摘要卡：**仅当【素材理解】有内容时可用**。用户问"你们从我的素材里找到了什么/有什么镜头/高光时刻"时**必须回复+此 action 一起给**（reply 里说发现了什么，卡片是摘要入口），严禁只在 reply 里罗列却不给卡片；也可在用户刚传完视频素材后主动展示
+- {{"type": "storylab_trailer", "fields": {{"tone": "情绪基调", "usage": "用途与隐私", "voice": "声音处理", "must_include": "必含时刻", "avoid": "禁区"}}}} 预告片需求收集：用户表达"把花絮做成片子/做一支预告片/剪成视频"时用（【素材理解】为空时先引导上传视频花絮）。**一次只问一个问题**（5 个高杠杆问题：①想要什么情绪基调 ②用途与隐私（自己留念/发朋友圈/婚礼现场播）③声音（保留现场原声/加背景音乐/要不要旁白）④必含的时刻 ⑤禁区（不想出现的画面）），用户答了什么就在 fields 带什么（没答的留空字符串），严禁一次问完全部；对话历史里已有的答案直接带上，不重复问；信息在对话里已经足够时直接补齐全部 fields。每轮用户答完后，若 5 项未集齐，必须接着问下一个没答的问题（对照对话确认哪些已答），不许只确认收到却不追问。5 项未齐时严禁输出任何"已记录/即将开放"类完成话术；5 项集齐后也不要自己输出这类字样（系统会自动补确认与卡片），且严禁承诺出片时间
 - {{"type": "edit_photo", "instruction": "去掉眼镜"}} 修改已生成的成片：用户对刚出的图提局部修改（去眼镜/换个表情/背景亮一点/去掉某个东西）时用，instruction 是具体修改点。注意：这是改"成片"，不是改定妆照——用户说改妆容/重新定妆才用 regenerate_makeup
 - {{"type": "none"}} 纯回答
 
@@ -2479,6 +2528,11 @@ action 只能是以下之一：
 - "把这两张照片里的人生成一张合照/帮我俩合拍一张" → duo_photo（真人生成合照）；用户明确说"做模板/定制专属大片"才用 custom_moka，两者别混
 - "改一下刚出的图/去个眼镜/这张去掉XX" → edit_photo（改成片）；"改妆容/重新定妆" → regenerate_makeup（改定妆照），别混
 - "用这张修/做一张定妆照""修一张原始图作为定妆照" → makeup_photo（who 按对话判断，给对 makeup_id）
+- "把花絮做成片子/做一支预告片/剪成视频/素材能做什么" → storylab_trailer（素材理解为空时先引导上传视频）；用户问素材里有什么 → storylab_summary
+- 【素材问答】用户问"我们有没有xx镜头/拍没拍到xx/素材里有没有xx"时，只能依据【素材理解】的逐段标签回答：**先在逐段 caption 里逐条核对**再作答——有的就指出来（哪一段、什么画面），没有的如实说"我理解的片段里还没发现，可能没拍到或还没被处理到"，**严禁编造**；用户描述的意象太泛时先反问确认（"你是指xx场景吗？"）。核对素材（与上面【素材理解】同一份）：
+{storylab}
+  示例：用户问"有没有骑马" → 逐段标签里有"新郎骑马，新娘微笑跟随" → 应回答"有！有一段新郎骑马、新娘微笑跟随的画面"；用户问"有没有海边" → 所有 caption 都没有海边 → 回答"我理解的片段里还没发现海边的镜头，可能没拍到或还没被处理到"。**不许在标签里明明有相关内容时回答"没发现"。**
+- 【素材开场钩子】若【素材理解】有内容且用户问起素材/片子/预告片，先用一两句话自然带出发现（如"我从你们的视频里找到了 N 段高光，其中一段是…"），并给出 storylab_summary 卡片；用户已看过摘要后不必重复展示
 - 【禁止光说不给按钮】reply 里说"点这里/点下面"时，action 必须同时给对应按钮（navigate 或 generate_photo）；AI 答应在做的操作必须有 action 落地，绝不允许只回"好的，我明白了"却什么都不做
 
 【多轮对话】用户意图需要的信息不全时，先用 none 追问缺失的一项（语气温和、一次只问一个点），把用户多轮补充的信息合并起来后再执行对应 action；不要硬猜着执行，也不要重复追问历史对话里已经回答过的信息。
@@ -2493,6 +2547,89 @@ action 只能是以下之一：
 
 【确认再执行】删除资产(delete_assets)、定制大片(custom_moka)、出定妆照(makeup_photo)、出片(generate_photo)、修图(edit_photo)、合照(duo_photo) 这类消耗额度或不可逆的操作：用户的指令若是明确直接的命令（"帮我生成/把这张删掉/用这张出片"）直接执行；若意图是你从图片或模糊表述中推测的，先用 none 复述你的理解请用户确认（"你是想…吗？"），确认后再执行。所有页面跳转类动作都以卡片/按钮入口的形式给用户自己点，不会自动进入页面——reply 里用"点下面的卡片"这种说法引导。"""
 
+
+
+def _mp_storylab_summary(conn: sqlite3.Connection, order_no: str) -> dict | None:
+    """聚合 storylab 素材打标结果（chat 开场钩子与素材问答的数据层）。
+
+    返回 {total, moments, highlight4, tops, highlights}；无已打标素材返回 None。
+    """
+    rows = conn.execute(
+        "SELECT filename,duration,motion_level,highlight,highlight_window,tags_json"
+        " FROM mp_storylab_tags WHERE order_no=? AND status='ok'", (order_no,)).fetchall()
+    if not rows:
+        return None
+    segs = []
+    for fn, dur, ml, hl, win, tj in rows:
+        t = json.loads(tj) if tj else {}
+        segs.append({"filename": fn or "", "duration": dur or 0, "motion_level": ml or "",
+                     "highlight": hl or 0, "window": win or "",
+                     "caption": t.get("caption", ""), "moment_type": t.get("moment_type", ""),
+                     "emotion": t.get("emotion", ""), "scene": t.get("scene", ""),
+                     "quality": t.get("quality", ""),
+                     "roles": t.get("roles_hint", []) or []})
+    from collections import Counter
+    moments = dict(Counter(s["moment_type"] or "其他" for s in segs))
+    tops = sorted(segs, key=lambda s: (-("开场候选" in s["roles"]), -(s["highlight"] or 0)))[:2]
+    highlights = sorted(segs, key=lambda s: -(s["highlight"] or 0))[:5]
+    return {"total": len(segs), "moments": moments,
+            "highlight4": sum(1 for s in segs if (s["highlight"] or 0) >= 4),
+            "tops": tops, "highlights": highlights, "segs": segs}
+
+
+def _mp_storylab_summary_text(summary: dict) -> str:
+    """打标摘要 → system prompt 注入文本（聚合事实 + 逐段一行，输入瘦身只带关键列）。"""
+    lines = [
+        f"- 共理解 {summary['total']} 段视频花絮"
+        f"（时刻分布：{'、'.join(f'{k}{v}段' for k, v in summary['moments'].items()) or '暂无'}；"
+        f"高光(≥4分) {summary['highlight4']} 段）",
+    ]
+    for i, s in enumerate(summary["tops"], 1):
+        lines.append(f"- 开场候选{i}：{s['caption']}（{s['duration']:.0f}s，高光{s['highlight']}/5"
+                     f"{f'，高光窗口{s['window']}' if s['window'] else ''}）")
+    lines.append("- 逐段标签（时长/时刻类型/情绪/高光/画面），回答素材问题时必须先核对这些 caption：")
+    for s in sorted(summary["segs"], key=lambda x: -(x["highlight"] or 0)):
+        lines.append(f"  · {s['caption']} | {s['duration']:.0f}s | {s['moment_type']} | {s['emotion']}"
+                     f" | 高光{s['highlight']}/5 | {s['scene'][:30]}")
+    return "\n".join(lines)
+
+
+def _mp_storylab_fact_check(conn: sqlite3.Connection, order_no: str,
+                            message: str, reply: str) -> str:
+    """素材问答反编造兜底（v1）：回复声称"没发现/没找到"，但用户问的关键词
+    其实命中了标签 caption/scene 时，改判为事实回答。命中不了则维持原回复。
+
+    chat 模型（abab6.5s-chat）对长 system prompt 里标签的检索不稳定，靠这道
+    服务端核对守住"禁止编造（漏报也算）"的底线。
+    """
+    if not re.search(r"(没|未).{0,4}(发现|找到)|没有.*(镜头|画面|片段)", reply):
+        return reply
+    STOP = ("有没有", "有没有拍", "拍没拍到", "有没有拍到", "有没有录", "镜头", "片段",
+            "视频", "素材", "画面", "场景", "地方", "时候", "我们", "你们", "的", "了",
+            "吗", "呢", "呀", "啊", "哦", "和", "与", "及", "在", "里", "有", "没",
+            "不", "我", "你", "他", "她", "它", "个", "些", "啥", "什么", "哪个",
+            "那段", "那段", "拍", "到", "录", "滴", "哈")
+    text = message
+    for w in sorted(set(STOP), key=len, reverse=True):
+        text = text.replace(w, "|")
+    terms = [t for t in re.split(r"[^一-鿿]+", text) if len(t) >= 2]
+    if not terms:
+        return reply
+    rows = conn.execute(
+        "SELECT tags_json FROM mp_storylab_tags WHERE order_no=? AND status='ok'",
+        (order_no,)).fetchall()
+    hits: dict[str, list[str]] = {}
+    for tj in rows:
+        t = json.loads(tj[0]) if tj[0] else {}
+        blob = "".join(str(t.get(k, "")) for k in ("caption", "scene", "moment_type", "emotion"))
+        for term in terms:
+            if term in blob:
+                hits.setdefault(term, []).append(str(t.get("caption", "")))
+    if not hits:
+        return reply
+    parts = [f"有的呀～我看到的片段里有：{'；'.join(cs[:2])}（关键词「{term}」）"
+             for term, cs in hits.items()]
+    return "这个我再仔细核对了一下标签库：" + "。".join(parts) + "。刚才说没发现是我看漏了，抱歉～"
 
 
 def _mp_chat_context(conn: sqlite3.Connection, order_no: str) -> tuple[dict, dict, dict | None]:
@@ -2537,7 +2674,10 @@ def _mp_chat_context(conn: sqlite3.Connection, order_no: str) -> tuple[dict, dic
         f"- 动作(双人)：{'、'.join(p for g in MP_POSES.values() for p in g)}",
         f"- 动作(单人)：{'、'.join(p for g in MP_POSES_SOLO.values() for p in g)}",
     ])
-    return order, {"state": state_text, "assets": assets_text}, makeup_job
+    storylab_summary = _mp_storylab_summary(conn, order_no)
+    storylab_text = _mp_storylab_summary_text(storylab_summary) if storylab_summary else ""
+    return order, {"state": state_text, "assets": assets_text,
+                   "storylab": storylab_text}, makeup_job
 
 
 def _vlm_describe_images(keys: list[str]) -> str:
@@ -2618,7 +2758,8 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
         order, ctx, makeup_job = _mp_chat_context(conn, body.order_no)
         dialog = "\n".join(body.history[-12:]) or "（本轮刚开始）"
         try:
-            result = _m3_chat(_MP_CHAT_SYS.format(state=ctx["state"], assets=ctx["assets"], dialog=dialog),
+            result = _m3_chat(_MP_CHAT_SYS.format(state=ctx["state"], assets=ctx["assets"],
+                                                  storylab=ctx["storylab"], dialog=dialog),
                               _mp_chat_user_text(body))
         except HTTPException:
             raise
@@ -2627,6 +2768,8 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
             return JSONResponse({"ok": True, "reply": "我刚才走神了一下，你再说一次好吗？",
                                  "action": {"type": "none"}})
         reply = str(result.get("reply") or "我在呢～")
+        if ctx["storylab"]:
+            reply = _mp_storylab_fact_check(conn, body.order_no, body.message, reply)
         action = result.get("action") if isinstance(result.get("action"), dict) else {"type": "none"}
         atype = action.get("type", "none")
 
@@ -2886,6 +3029,44 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
                           "anchor_key": anchors.get("A", ""),
                           "anchor_key_b": anchors.get("B", "") if couple else "",
                           "note": str(action.get("note") or "")[:100]}
+
+        elif atype == "storylab_summary":
+            # storylab 素材摘要卡：高光镜头列表 + "想做一支预告片吗"入口（kind=storylab_trailer）
+            summary = _mp_storylab_summary(conn, body.order_no)
+            if not summary:
+                action = {"type": "none"}
+                reply = "你们的视频素材还在理解中，或还没有上传视频花絮——传几段我就能帮你找找里面的高光时刻～"
+            else:
+                tops = summary["highlights"][:3]
+                desc = "、".join(s["caption"] for s in tops if s["caption"]) or "详见对话里的逐段标签"
+                reply = ("我从你们的视频素材里找到了这些高光时刻：\n" +
+                         "\n".join(f"· {s['caption']}（高光{s['highlight']}/5）" for s in tops))
+                action = {"type": "storylab_summary", "kind": "storylab_trailer",
+                          "card": {"img": "https://luckynemo.ibi.ren/moka/templates/mk005.png",
+                                   "title": "素材摘要",
+                                   "desc": f"{summary['total']} 段已理解，高光 {desc}"}}
+
+        elif atype == "storylab_trailer":
+            # storylab 预告片需求收集：5 个高杠杆问题逐轮收集，合并进 mp_orders.storylab_prefs；
+            # 集齐后落库 + 确认卡片。v1 不做真实生成，不许假报生成。
+            PREF_KEYS = ("tone", "usage", "voice", "must_include", "avoid")
+            row = conn.execute("SELECT storylab_prefs FROM mp_orders WHERE order_no=?",
+                               (body.order_no,)).fetchone()
+            prefs = json.loads(row[0]) if row and row[0] else {}
+            fields = action.get("fields") or {}
+            for k in PREF_KEYS:
+                if isinstance(fields.get(k), str) and fields[k].strip():
+                    prefs[k] = fields[k].strip()[:200]
+            missing = [k for k in PREF_KEYS if not prefs.get(k)]
+            _mp_touch(conn, body.order_no, storylab_prefs=json.dumps(prefs, ensure_ascii=False))
+            log.info("mp chat storylab_trailer order_no=%s prefs=%s missing=%s",
+                     body.order_no, list(prefs), missing)
+            action = {"type": "storylab_trailer", "fields": prefs, "missing": missing}
+            if not missing:
+                reply += "\n\n已经帮你把预告片偏好记好啦 ✅ 生成能力即将开放，到时候会第一时间通知你。"
+                action["card"] = {"img": "https://luckynemo.ibi.ren/moka/templates/mk005.png",
+                                  "title": "预告片偏好已记录",
+                                  "desc": f"{prefs.get('tone', '')} · 必含：{prefs.get('must_include', '')[:20]}"}
 
         elif atype == "edit_photo":
             # 成片局部修图：取最新成片做底图 + 用户修改指令，交给前端走 generating 页

@@ -551,6 +551,132 @@ def run_face_sheet(job_id: int, order_no: str, payload: dict) -> None:
     log(f"job#{job_id} face_sheet 完成 角色 {role} -> {key}")
 
 
+# ---------------- storylab 素材理解（VLM 打标，storylab 组 2026-08-29） ----------------
+#: 每单最多打标段数 / 单段时长上限（超限跳过并记日志）
+STORYLAB_MAX_SEGMENTS = 20
+STORYLAB_MAX_DURATION = 60
+
+
+def _storylab_mod():
+    """惰性导入 luckynemo-toolkit 的 storylab_ingest 打标模块。
+
+    mp_worker 本身不依赖 toolkit 包（仅复用其 .env 凭据），这里按序找 toolkit 根：
+    TOOLKIT_DIR 环境变量 → ECS 固定路径 → 仓库本地路径。
+    """
+    for p in (ENV.get("TOOLKIT_DIR", ""), "/opt/luckynemo/toolkit",
+              str(SERVER_DIR.parent / "tools" / "luckynemo-toolkit")):
+        if p and Path(p).is_dir() and p not in sys.path:
+            sys.path.insert(0, p)
+    import luckynemo.storylab_ingest as si
+    return si
+
+
+def run_storylab_ingest(job_id: int, order_no: str, payload: dict) -> None:
+    """素材理解：订单上传的视频（uploads 表 video/*）逐段 VLM 打标 → mp_storylab_tags。
+
+    复用 storylab_ingest 的探测/抽帧/本地 motion/音峰/VLM 打标函数（P4 模块，
+    奔奔 15 段实测与人工剪辑师 3/3 黄金镜头一致）。限额每单 20 段、单段 ≤60s；
+    单段失败重试 1 次再标 error 不阻塞整单；已打标过的段自动跳过（幂等，可重跑补新素材）。
+    """
+    si = _storylab_mod()
+    conn = db()
+    rows = conn.execute(
+        "SELECT oss_key, filename FROM uploads"
+        " WHERE contact IN (?, ?) AND content_type LIKE 'video/%'"
+        " ORDER BY id LIMIT ?", (order_no, f"{order_no}-B", STORYLAB_MAX_SEGMENTS + 20)).fetchall()
+    conn.close()
+    if not rows:
+        raise RuntimeError("订单没有已登记的视频素材（uploads 表无 video/* 记录）")
+    work = TMP / f"storylab_{order_no}"
+    work.mkdir(exist_ok=True)
+    api_key = MINIMAX_KEY
+    if not api_key:
+        raise RuntimeError("未配置 MINIMAX_API_KEY，无法做素材理解打标")
+    vlm_model = ENV.get("STORYLAB_VLM_MODEL", si.DEFAULT_VLM_MODEL)
+    ok = err = skipped = 0
+    done_keys = []
+    conn = db()
+    done_keys = [r[0] for r in conn.execute(
+        "SELECT oss_key FROM mp_storylab_tags WHERE order_no=?", (order_no,)).fetchall()]
+    conn.close()
+    for key, filename in rows:
+        if len(done_keys) >= STORYLAB_MAX_SEGMENTS:
+            log(f"job#{job_id} storylab 已达每单 {STORYLAB_MAX_SEGMENTS} 段上限，其余跳过")
+            break
+        if key in done_keys:
+            continue
+        suffix = Path(filename or key).suffix or ".mp4"
+        local = work / f"{len(done_keys):02d}{suffix}"
+        try:
+            oss_get(key, local)
+            probe = si.probe_video(local)
+            if probe["duration"] > STORYLAB_MAX_DURATION:
+                log(f"job#{job_id} storylab 跳过 {filename or key}："
+                    f"{probe['duration']:.0f}s 超过单段 {STORYLAB_MAX_DURATION}s 上限")
+                skipped += 1
+                continue
+            frames, timestamps = si.extract_frames(local, probe, work / "frames")
+            m_score = si.motion_score(local)
+            m_level = si.motion_level(m_score)
+            peaks = si.audio_peaks(local) if probe["has_audio"] else []
+            log(f"job#{job_id} storylab 打标 {filename or key}（{probe['duration']:.0f}s，运动{m_level}）")
+            tags, last_err = None, ""
+            for attempt in range(1, si.TAG_MAX_ATTEMPTS + 1):
+                try:
+                    tags = si.normalize_tags(
+                        si.vlm_tag_segment(frames, timestamps, probe, m_level, peaks,
+                                           api_key, vlm_model),
+                        probe["duration"])
+                    break
+                except Exception as e:  # noqa: BLE001
+                    last_err = str(e)[:200]
+                    log(f"  VLM 失败（第 {attempt}/{si.TAG_MAX_ATTEMPTS} 次）：{last_err}")
+                    if attempt < si.TAG_MAX_ATTEMPTS:
+                        time.sleep(3)
+            conn = db()
+            if tags:
+                win = tags.get("highlight_window")
+                conn.execute(
+                    "INSERT INTO mp_storylab_tags(order_no,oss_key,filename,duration,motion_level,"
+                    "highlight,highlight_window,tags_json,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                    (order_no, key, filename or Path(key).name, probe["duration"], m_level,
+                     tags.get("highlight", 0),
+                     f"{win[0]}-{win[1]}" if win else "",
+                     json.dumps(tags, ensure_ascii=False), "ok", _now_iso()))
+                ok += 1
+                done_keys.append(key)
+            else:
+                conn.execute(
+                    "INSERT INTO mp_storylab_tags(order_no,oss_key,filename,duration,status,error,created_at)"
+                    " VALUES(?,?,?,?,?,?,?)",
+                    (order_no, key, filename or Path(key).name,
+                     probe["duration"], "error", last_err, _now_iso()))
+                err += 1
+                done_keys.append(key)
+            conn.commit()
+            conn.close()
+        except Exception as e:  # noqa: BLE001 - 单段异常不阻塞整单
+            err += 1
+            log(f"job#{job_id} storylab 段处理失败 {filename or key}: {str(e)[:200]}")
+        finally:
+            try:
+                local.unlink(missing_ok=True)
+            except OSError:
+                pass
+    conn = db()
+    conn.execute("UPDATE mp_jobs SET status='done', result_json=?, updated_at=datetime('now') WHERE id=?",
+                 (json.dumps({"segments": ok + err, "ok": ok, "error": err, "skipped_long": skipped},
+                             ensure_ascii=False), job_id))
+    conn.commit()
+    conn.close()
+    log(f"job#{job_id} storylab_ingest 完成：打标 {ok} 段，失败 {err} 段，超限跳过 {skipped} 段")
+
+
+def _now_iso() -> str:
+    import datetime as _dt
+    return _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
+
+
 # ---------------- Vidu 参考生图（定妆照优先通道） ----------------
 VIDU_BASE = "https://api.vidu.cn/ent/v2"
 
@@ -774,6 +900,9 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
         return
     if kind == "face_sheet":
         run_face_sheet(job_id, order_no, payload)
+        return
+    if kind == "storylab_ingest":
+        run_storylab_ingest(job_id, order_no, payload)
         return
     result = None
     if kind == "edit_photo":

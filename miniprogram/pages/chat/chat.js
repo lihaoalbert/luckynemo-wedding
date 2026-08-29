@@ -324,6 +324,12 @@ Page({
       this.useDiyMoka(action);
       return;
     }
+    // storylab：摘要卡「想做一支预告片吗」→ 代用户发出预告片意图，进入需求收集对话
+    if (action.kind === 'storylab_trailer') {
+      this.setData({ inputValue: '我想把这些花絮做成一支预告片' });
+      this.sendChat();
+      return;
+    }
     // 生成类动作入口（反馈 #40：用户点击才执行）
     if (action.type === 'generate_photo' && action.template_key) {
       app.globalData.pendingJob = {
