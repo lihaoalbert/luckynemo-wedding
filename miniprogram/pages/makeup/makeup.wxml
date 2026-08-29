@@ -45,7 +45,8 @@
         <view class="check" wx:if="{{makeupId === item.id}}">✓</view>
       </view>
     </view>
-    <view class="engine-row">
+    <!-- 引擎选择只在多引擎时显示（当前固定 Seedream，Vidu 已隐藏） -->
+    <view class="engine-row" wx:if="{{engines.length > 1}}">
       <view class="engine-label">生图引擎</view>
       <view class="engine-item {{engine === e.key ? 'active' : ''}}" wx:for="{{engines}}" wx:for-item="e" wx:key="key" data-key="{{e.key}}" bindtap="pickEngine">
         {{e.label}}<text class="engine-hint">{{e.hint}}</text>

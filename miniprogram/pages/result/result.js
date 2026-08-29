@@ -24,8 +24,13 @@ Page({
     app.req('/api/mp/order/' + order.order_no).then(res => {
       const o = res.order || {};
       const quotaLeft = Math.max(0, (o.free_quota || 0) - (o.free_used || 0)) + (o.paid_count || 0);
-      const seriesJob = (res.jobs || []).find(j =>
-        j.kind === 'template_series' && j.result && j.result.urls && j.result.urls.length);
+      // 取最新一条可展示任务（jobs 按时间倒序）：修图重生成(edit_photo)完成后必须展示新图，
+      // 不能被更早的系列组图压下去（反馈 #48/#51 跳转发现在结果页还是旧图）
+      const latest = (res.jobs || []).find(j =>
+        (j.kind === 'template_series' && j.result && j.result.urls && j.result.urls.length) ||
+        ((j.kind === 'free_photo' || j.kind === 'solo_photo' || j.kind === 'template_photo'
+          || j.kind === 'edit_photo') && j.result && j.result.url));
+      const seriesJob = latest && latest.kind === 'template_series' ? latest : null;
       // 整组（≥2 张）走九宫格；只有 1 张的系列结果按单张渲染（反馈 #46：单张九宫格布局错乱）
       if (seriesJob && seriesJob.result.urls.length > 1) {
         const urls = seriesJob.result.urls;
@@ -41,10 +46,7 @@ Page({
         this.loadSeriesInfo(seriesJob.result.series_id || '');
         return;
       }
-      const single = seriesJob
-        ? { result: seriesJob.result.urls[0] }
-        : (res.jobs || []).find(j =>
-            (j.kind === 'free_photo' || j.kind === 'solo_photo' || j.kind === 'template_photo') && j.result && j.result.url);
+      const single = seriesJob ? { result: seriesJob.result.urls[0] } : latest;
       this.setData({ quotaLeft, eyebrow: '成片 · 礼成', headline });
       if (single) this.setData({ photo: single.result.url, photoKey: single.result.oss_key || '' });
       wx.setNavigationBarTitleText({ title: solo ? '你的成片' : '你们的成片' });
@@ -89,16 +91,12 @@ Page({
           order_no: this.data.order.order_no, target: 'photo',
           base_key: baseKey, instruction,
         }).then(() => {
-          app.askSubscribe();
-          wx.showModal({
-            title: '已开始重新生成',
-            content: '大约 1 分钟，完成后到「相册」查看；接受订阅的话会收到服务通知。',
-            confirmText: '去相册',
-            cancelText: '留在这',
-            success: (m) => {
-              if (m.confirm) wx.navigateTo({ url: '/pages/photos/photos' });
-            },
-          });
+          // 反馈 #48/#51：改跳生成中页（进度动画+轮询，完成后自动进结果页），不再只弹静态提示
+          app.globalData.pendingJob = {
+            kind: 'edit_photo', submitted: true,
+            payload: { base_key: baseKey, instruction },
+          };
+          wx.navigateTo({ url: '/pages/generating/generating' });
         }).catch(err => {
           wx.showModal({ title: '提示', content: err.message, showCancel: false });
         });

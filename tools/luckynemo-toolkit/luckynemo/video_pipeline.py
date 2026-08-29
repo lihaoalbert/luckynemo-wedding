@@ -214,8 +214,10 @@ def validate_storyboard(data: dict) -> list[str]:
                 errors.append(f"{where}.id 重复：{shot_id}")
             seen_ids.add(shot_id)
         duration = shot.get("duration")
-        if isinstance(duration, int) and not ark.VIDEO_DURATION_RANGE[0] <= duration <= ark.VIDEO_DURATION_RANGE[1]:
-            errors.append(f"{where}.duration={duration} 超出 {ark.VIDEO_DURATION_RANGE[0]}-{ark.VIDEO_DURATION_RANGE[1]} 秒")
+        # 分镜层只做宽校验（2.0 系 4-15s / 2.5 4-30s / -1=2.5 模型自动）；
+        # 具体模型的合法性由 ark.create_video_task 调用前按模型拦截
+        if isinstance(duration, int) and not (duration == -1 or 4 <= duration <= 30):
+            errors.append(f"{where}.duration={duration} 非法（2.0 系 4-15s / 2.5 4-30s / -1=模型自动）")
     errors.extend(validate_assets_block(data))
     return errors
 
@@ -622,6 +624,15 @@ def _run_seedance(args: argparse.Namespace, *, model: str, label: str) -> int:
     client = _build_client(args)
     if is_minimax:
         model = config.get_model("MINIMAX_VIDEO_MODEL", minimax_client.VIDEO_MODEL)
+    # 【2.5】全局参考视频/音频（每镜附加）与单镜时长覆盖（auto → -1 模型自动）
+    ref_videos = _load_ref_images(getattr(args, "ref_videos", None))
+    ref_audios = _load_ref_images(getattr(args, "ref_audios", None))
+    duration_override = getattr(args, "duration", None)
+    if isinstance(duration_override, str) and duration_override.strip():
+        duration_override = -1 if duration_override.strip() == "auto" else int(duration_override)
+    else:
+        duration_override = None
+    task_type = getattr(args, "task_type", None)
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     mode = getattr(args, "mode", "r2v")
@@ -692,6 +703,7 @@ def _run_seedance(args: argparse.Namespace, *, model: str, label: str) -> int:
             references = None
             prompt = apply_video_constraints(shot["video_prompt"])
         print(f"镜头 {shot['id']:02d}（{shot['duration']}s，{label}）：{shot['video_prompt'][:30]}...")
+        shot_duration = duration_override if duration_override is not None else shot["duration"]
         try:
             if is_minimax:
                 task_id = client.create_video_task(
@@ -699,7 +711,7 @@ def _run_seedance(args: argparse.Namespace, *, model: str, label: str) -> int:
                     text=prompt,
                     first_frame=first_frame,
                     reference_images=references,
-                    duration=shot["duration"],
+                    duration=shot_duration,
                     resolution=_MINIMAX_RESOLUTION.get(args.resolution, "768P"),
                     ratio=args.ratio,
                 )
@@ -710,7 +722,10 @@ def _run_seedance(args: argparse.Namespace, *, model: str, label: str) -> int:
                     text=prompt,
                     first_frame=first_frame,
                     reference_images=references,
-                    duration=shot["duration"],
+                    reference_videos=ref_videos or None,
+                    reference_audios=ref_audios or None,
+                    task_type=task_type,
+                    duration=shot_duration,
                     resolution=args.resolution,
                     ratio=args.ratio,
                     generate_audio=False,  # 配音单独做（豆包 TTS），可控性更高
@@ -735,12 +750,15 @@ def _run_seedance(args: argparse.Namespace, *, model: str, label: str) -> int:
 def cmd_draft(args: argparse.Namespace) -> int:
     """用 Mini 模型出草稿（约 0.5 元/秒，仅 720p），确认后再用 final 出定稿。"""
     args.resolution = "720p"  # Mini 仅支持 720p
-    return _run_seedance(args, model=config.get_model("SEEDANCE_MODEL_DRAFT", ark.SEEDANCE_2_MINI), label="Mini 草稿")
+    model = getattr(args, "model", None) or config.get_model("SEEDANCE_MODEL_DRAFT", ark.SEEDANCE_2_MINI)
+    return _run_seedance(args, model=model, label="Mini 草稿")
 
 
 def cmd_final(args: argparse.Namespace) -> int:
-    """用标准版出定稿（约 0.95 元/秒）。"""
-    return _run_seedance(args, model=config.get_model("SEEDANCE_MODEL_FINAL", ark.SEEDANCE_2_STD), label="标准版定稿")
+    """用标准版出定稿（约 0.95 元/秒）；--model 可切 2.5（礼物片定稿，仅 720p）。"""
+    model = getattr(args, "model", None) or config.get_model("SEEDANCE_MODEL_FINAL", ark.SEEDANCE_2_STD)
+    label = "2.5 定稿" if model == ark.SEEDANCE_2_5 else "标准版定稿"
+    return _run_seedance(args, model=model, label=label)
 
 
 #: 构图参考（layouts）剪影转换提示词（2026-08-06 实验定稿：剪影版胜出线稿版）
@@ -879,8 +897,18 @@ def build_parser() -> argparse.ArgumentParser:
                          help="分类资产清单 refs_manifest.json（assets 子命令产出；r2v 模式必填）")
     p_draft.add_argument("--frames", default=None, help="首帧目录（frames 子命令的输出；仅 i2v 模式）")
     p_draft.add_argument("--out", required=True, help="片段输出目录")
-    p_draft.add_argument("--ratio", default="16:9", choices=["16:9", "9:16", "1:1", "4:3", "3:4"],
-                         help="画面比例（默认 16:9；竖屏婚照电影用 9:16）")
+    p_draft.add_argument("--ratio", default="16:9", choices=["16:9", "9:16", "1:1", "4:3", "3:4", "adaptive"],
+                         help="画面比例（默认 16:9；竖屏婚照电影用 9:16；adaptive 仅 2.5 edit/extend）")
+    p_draft.add_argument("--model", default=None,
+                         help="模型覆盖（如 doubao-seedance-2-5-260628；默认走 SEEDANCE_MODEL_DRAFT 环境变量）")
+    p_draft.add_argument("--ref-videos", dest="ref_videos", default=None,
+                         help="【2.5】参考视频，逗号分隔公网 URL 或 asset://（每镜附加；本地片先传 OSS/素材库）")
+    p_draft.add_argument("--ref-audios", dest="ref_audios", default=None,
+                         help="【2.5】参考音频，逗号分隔公网 URL 或 asset://（每镜附加）")
+    p_draft.add_argument("--task-type", dest="task_type", default=None, choices=["edit", "extend"],
+                         help="【2.5】视频编辑/延长（需 --ratio adaptive；edit 还需 --duration auto）")
+    p_draft.add_argument("--duration", default=None,
+                         help="覆盖分镜单镜时长（秒；或 auto=模型自动，仅 2.5）")
     p_draft.add_argument("--assets", default=None,
                          help="首帧入库映射 assets_registry.json（仅 i2v 模式，asset:// 首帧过反 Deepfake）")
     p_draft.add_argument("--char-refs", dest="char_refs", default=None,
@@ -902,8 +930,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_final.add_argument("--resolution", default="720p", choices=["480p", "720p", "1080p", "4K"],
                          help="分辨率（默认 720p；4K 仅标准版；MiniMax 自动映射 768P/2K）")
     p_final.add_argument("--out", required=True, help="片段输出目录")
-    p_final.add_argument("--ratio", default="16:9", choices=["16:9", "9:16", "1:1", "4:3", "3:4"],
-                         help="画面比例（默认 16:9；竖屏婚照电影用 9:16）")
+    p_final.add_argument("--ratio", default="16:9", choices=["16:9", "9:16", "1:1", "4:3", "3:4", "adaptive"],
+                         help="画面比例（默认 16:9；竖屏婚照电影用 9:16；adaptive 仅 2.5 edit/extend）")
+    p_final.add_argument("--model", default=None,
+                         help="模型覆盖（如礼物片定稿 doubao-seedance-2-5-260628；默认走 SEEDANCE_MODEL_FINAL 环境变量）")
+    p_final.add_argument("--ref-videos", dest="ref_videos", default=None,
+                         help="【2.5】参考视频，逗号分隔公网 URL 或 asset://（每镜附加；本地片先传 OSS/素材库）")
+    p_final.add_argument("--ref-audios", dest="ref_audios", default=None,
+                         help="【2.5】参考音频，逗号分隔公网 URL 或 asset://（每镜附加）")
+    p_final.add_argument("--task-type", dest="task_type", default=None, choices=["edit", "extend"],
+                         help="【2.5】视频编辑/延长（需 --ratio adaptive；edit 还需 --duration auto）")
+    p_final.add_argument("--duration", default=None,
+                         help="覆盖分镜单镜时长（秒；或 auto=模型自动，仅 2.5）")
     p_final.add_argument("--assets", default=None,
                          help="首帧入库映射 assets_registry.json（仅 i2v 模式，asset:// 首帧过反 Deepfake）")
     p_final.add_argument("--char-refs", dest="char_refs", default=None,

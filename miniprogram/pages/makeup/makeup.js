@@ -13,10 +13,9 @@ Page({
     gender: 'female',  // 当前 Tab：female / male
     makeupId: '',
     expandedId: '',    // 展开妆容说明的卡片
-    engine: 'seedream', // 生图引擎（内测可选）
+    engine: 'seedream', // 生图引擎固定 Seedream（2026-08-22 起 Vidu 隐藏：保脸优先）
     engines: [
       { key: 'seedream', label: '火山', hint: '最像本人' },
-      { key: 'vidu', label: 'Vidu', hint: '妆效精致' },
     ],
     hairstyles: [],   // 发型库（按性别过滤）
     hairstyleId: '',  // 选中的发型（可空=保持原发型）
@@ -93,9 +92,7 @@ Page({
     // 「原图直出版」排最前（用户要求：最不容易不像本人的选项给最大曝光）
     makeup.sort((a, b) => ((b.spec && b.spec.use_original) ? 1 : 0) - ((a.spec && a.spec.use_original) ? 1 : 0));
     const hairstyles = this.data.allHairstyles.filter(h => (h.gender || 'female') === gender);
-    // MiniMax 男妆保真弱：显示但标不推荐（避免用户以为功能缺失）
-    const engines = this.data.engines;
-    this.setData({ gender, makeup, hairstyles, makeupId: '', hairstyleId: '', engines });
+    this.setData({ gender, makeup, hairstyles, makeupId: '', hairstyleId: '' });
   },
 
   switchTab(e) {
@@ -198,7 +195,9 @@ Page({
   saveSelection() {
     const m = this.data.makeup.find(x => x.id === this.data.makeupId) || {};
     const selection = app.globalData.selection || {};
-    if (this.data.role === 'B') {
+    // 锚点归属跟底照相册（baseRole）走，与任务 role 一致——
+    // 否则在 A 页面选伴侣底照定妆时，伴侣定妆照会被写进本人锚点位（反馈 #50 根因）
+    if (this.data.baseRole === 'B') {
       selection.makeup_name_b = m.name;
       selection.anchor_key_b = this.data.anchorKey;
     } else {

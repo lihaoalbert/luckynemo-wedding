@@ -65,11 +65,24 @@ SEEDANCE_2_STD = "doubao-seedance-2-0-260128"
 SEEDANCE_2_FAST = "doubao-seedance-2-0-fast-260128"
 #: Seedance 2.0 Mini：仅 720p，≈0.5 元/秒。草稿用（ID 经 KidsAI 项目实测确认）
 SEEDANCE_2_MINI = "doubao-seedance-2-0-mini-260615"
+#: Seedance 2.5：2026-08-12 ifocus 通道开放（1001 项目已验证，doubao-seedance-2-5-260628）。
+#: 仅 720p；时长 ≤30s（duration=-1 模型自动）；全能参考 50 槽（30 图+10 视频+10 音频）；
+#: 新增 reference_video / reference_audio 角色与 omni_reference_task_type（edit/extend）
+SEEDANCE_2_5 = "doubao-seedance-2-5-260628"
 
 DEFAULT_BASE_URL = "https://ark.cn-beijing.volces.com"
 
-#: 视频单条时长合法范围（秒）
+#: 视频单条时长合法范围（秒）；2.5 上限 30s 且支持 -1（模型自动时长）
 VIDEO_DURATION_RANGE = (4, 15)
+VIDEO_DURATION_RANGE_2_5 = (4, 30)
+
+#: 全能参考槽位上限（图片/视频/音频）：2.0 系按 9/3/3，2.5 按 30/10/10（1001 项目文档核实）
+REF_LIMITS_2_0 = (9, 3, 3)
+REF_LIMITS_2_5 = (30, 10, 10)
+
+#: omni_reference_task_type=edit/extend 的 prompt 关键词（缺了会异步报错，调用前置为同步校验）
+TASK_EDIT_KEYWORDS = ("编辑", "增加", "删除", "修改", "替换", "改成")
+TASK_EXTEND_KEYWORDS = ("向前", "向后延长", "延续", "续写")
 
 
 class ArkAPIError(RuntimeError):
@@ -119,6 +132,16 @@ class ArkClient:
     def _img_url(self, value: str) -> str:
         """dry-run 下原样透传（不校验文件存在），真实调用时转 data URL。"""
         return value if self.dry_run else to_image_url(value)
+
+    @staticmethod
+    def _media_url(value: str, label: str) -> str:
+        """【2.5】参考视频/音频 URL 校验：仅公网 http(s) 或 asset://。
+
+        平台不支持本地文件 base64 内联（1001 项目实测），本地片先传 OSS 或入素材库。
+        """
+        if value.startswith(("http://", "https://", "asset://")):
+            return value
+        raise ValueError(f"[ark] {label}仅支持公网 URL 或 asset://（不支持本地文件），收到：{value}")
 
     def _log_dry_run(self, method: str, url: str, payload: Any) -> None:
         print(f"[dry-run] {method} {url}")
@@ -208,6 +231,9 @@ class ArkClient:
         first_frame: str | None = None,
         last_frame: str | None = None,
         reference_images: list[str] | None = None,
+        reference_videos: list[str] | None = None,
+        reference_audios: list[str] | None = None,
+        task_type: str | None = None,
         duration: int = 5,
         resolution: str = "720p",
         ratio: str = "16:9",
@@ -226,20 +252,54 @@ class ArkClient:
             未入库裸传会被反 Deepfake 按图概率拦截。
             【实测 2026-08-04】首尾帧与参考图互斥，同传会被 400 拒绝
             （first/last frame content cannot be mixed with reference media content）
-        :param duration: 4-15 秒整数
-        :param resolution: 480p/720p/1080p/4K（Mini 仅 720p，Fast 无 1080p）
+        :param reference_videos: 【2.5】参考视频（role=reference_video），仅公网 URL 或
+            asset://——不支持本地 base64，本地片先传 OSS/素材库
+        :param reference_audios: 【2.5】参考音频（role=reference_audio），同上
+        :param task_type: 【2.5】omni_reference_task_type：edit（视频编辑）/extend（视频延长）。
+            edit 需 ratio=adaptive + duration=-1 + prompt 含编辑类关键词；
+            extend 需 ratio=adaptive + prompt 含延长类关键词（1001 项目规范，缺了异步报错）
+        :param duration: 秒。2.0 系 4-15；2.5 为 4-30 或 -1（模型自动）
+        :param resolution: 480p/720p/1080p/4K（Mini 仅 720p，Fast 无 1080p，2.5 仅 480p/720p）
         :param generate_audio: 是否生成原生音频（默关闭，配音单独做可控性更高）
         :param watermark: 平台显式水印默认 false；交付标识由 delivery.py 兜底
         """
-        if not VIDEO_DURATION_RANGE[0] <= duration <= VIDEO_DURATION_RANGE[1]:
-            raise ValueError(f"duration 必须在 {VIDEO_DURATION_RANGE[0]}-{VIDEO_DURATION_RANGE[1]} 秒之间，收到 {duration}")
+        is_2_5 = model == SEEDANCE_2_5
+        dur_range = VIDEO_DURATION_RANGE_2_5 if is_2_5 else VIDEO_DURATION_RANGE
+        if duration == -1:
+            if not is_2_5:
+                raise ValueError("[ark] duration=-1（模型自动时长）仅 Seedance 2.5 支持")
+        elif not dur_range[0] <= duration <= dur_range[1]:
+            raise ValueError(f"duration 必须在 {dur_range[0]}-{dur_range[1]} 秒之间（-1=自动，仅 2.5），收到 {duration}")
         # 平台限制调用前校验（避免白烧一次请求）：
         # - 首尾帧与参考图互斥（2026-08-04 实测 400）
-        # - 参考图 ≤9 张（TODO(校准)：按官方"全能参考"上限，待文档核实）
-        if (first_frame or last_frame) and reference_images:
-            raise ValueError("[ark] 首尾帧与参考图互斥（平台实测 400），不能同传")
-        if reference_images and len(reference_images) > 9:
-            raise ValueError(f"[ark] 参考图最多 9 张，收到 {len(reference_images)} 张")
+        # - 参考槽位按模型分档：2.0 系 9 图/3 视频/3 音频，2.5 为 30/10/10
+        if (first_frame or last_frame) and (reference_images or reference_videos or reference_audios):
+            raise ValueError("[ark] 首尾帧与参考媒体互斥（平台实测 400），不能同传")
+        max_img, max_vid, max_aud = REF_LIMITS_2_5 if is_2_5 else REF_LIMITS_2_0
+        if reference_images and len(reference_images) > max_img:
+            raise ValueError(f"[ark] 参考图最多 {max_img} 张（{model}），收到 {len(reference_images)} 张")
+        if (reference_videos or reference_audios) and not is_2_5:
+            raise ValueError("[ark] reference_video/reference_audio 仅 Seedance 2.5 支持")
+        if reference_videos and len(reference_videos) > max_vid:
+            raise ValueError(f"[ark] 参考视频最多 {max_vid} 条，收到 {len(reference_videos)} 条")
+        if reference_audios and len(reference_audios) > max_aud:
+            raise ValueError(f"[ark] 参考音频最多 {max_aud} 条，收到 {len(reference_audios)} 条")
+        if is_2_5 and resolution not in ("480p", "720p"):
+            raise ValueError(f"[ark] Seedance 2.5 分辨率仅支持 480p/720p，收到 {resolution}")
+        if task_type:
+            if not is_2_5:
+                raise ValueError("[ark] omni_reference_task_type 仅 Seedance 2.5 支持")
+            if task_type not in ("edit", "extend"):
+                raise ValueError(f"[ark] task_type 仅支持 edit/extend，收到 {task_type}")
+            if ratio != "adaptive":
+                raise ValueError(f"[ark] task_type={task_type} 要求 ratio=adaptive，收到 {ratio}")
+            if task_type == "edit":
+                if duration != -1:
+                    raise ValueError("[ark] task_type=edit 要求 duration=-1（模型自动时长）")
+                if text and not any(k in text for k in TASK_EDIT_KEYWORDS):
+                    raise ValueError(f"[ark] task_type=edit 的 prompt 必须含编辑类关键词：{'/'.join(TASK_EDIT_KEYWORDS)}")
+            if task_type == "extend" and text and not any(k in text for k in TASK_EXTEND_KEYWORDS):
+                raise ValueError(f"[ark] task_type=extend 的 prompt 必须含延长类关键词：{'/'.join(TASK_EXTEND_KEYWORDS)}")
 
         content: list[dict[str, Any]] = []
         if text:
@@ -284,6 +344,23 @@ class ArkClient:
                     "role": "reference_image",
                 }
             )
+        # 【2.5】参考视频/音频：仅公网 URL 或 asset://（本地文件不支持 base64 内联）
+        for ref in reference_videos or []:
+            content.append(
+                {
+                    "type": "video_url",
+                    "video_url": {"url": self._media_url(ref, "参考视频")},
+                    "role": "reference_video",
+                }
+            )
+        for ref in reference_audios or []:
+            content.append(
+                {
+                    "type": "audio_url",
+                    "audio_url": {"url": self._media_url(ref, "参考音频")},
+                    "role": "reference_audio",
+                }
+            )
         payload: dict[str, Any] = {
             "model": model,
             "content": content,
@@ -294,22 +371,33 @@ class ArkClient:
             "generate_audio": generate_audio,
             "return_last_frame": return_last_frame,
         }
+        if task_type:
+            payload["omni_reference_task_type"] = task_type
         if callback_url:
             payload["callback_url"] = callback_url
         data = self._request("POST", "/api/v3/contents/generations/tasks", json_body=payload)
         if self.dry_run:
             return "dry-run-task-id"
-        task_id = data.get("id") or data.get("task_id")  # 已确认：响应顶层 id
+        # 已确认：直连方舟响应顶层 id；ifocus 路由可能包 data（与 get_task 同一差异）
+        task_obj = data["data"] if isinstance(data.get("data"), dict) else data
+        task_id = task_obj.get("id") or task_obj.get("task_id") or data.get("id") or data.get("task_id")
         if not task_id:
             raise ArkAPIError("创建视频任务成功但未返回任务 ID", body=json.dumps(data, ensure_ascii=False))
         return str(task_id)
 
     def get_task(self, task_id: str) -> dict:
-        """查询单个任务状态。"""
+        """查询单个任务状态。
+
+        ifocus 路由会把任务对象包在 ``data`` 字段里（与方舟直连不同，1001 项目实测），
+        这里统一解包，上层拿到的永远是任务本体。
+        """
         if self.dry_run:
             self._log_dry_run("GET", f"{self.base_url}/api/v3/contents/generations/tasks/{task_id}", None)
             return {"id": task_id, "status": "succeeded", "_dry_run": True}
-        return self._request("GET", f"/api/v3/contents/generations/tasks/{task_id}")
+        data = self._request("GET", f"/api/v3/contents/generations/tasks/{task_id}")
+        if isinstance(data.get("data"), dict) and ("status" in data["data"] or "content" in data["data"]):
+            return data["data"]
+        return data
 
     def poll_task(
         self,
@@ -339,9 +427,16 @@ class ArkClient:
 
     @staticmethod
     def extract_video_url(task: dict) -> str:
-        """从任务结果中取成片 URL（已确认：``content.video_url``，KidsAI 实测代码一致）。"""
+        """从任务结果中取成片 URL。
+
+        直连方舟为 ``content.video_url``；ifocus 路由需三级回退
+        ``content.video_url → video_url → result.video_url``（1001 项目实测差异点）。
+        """
+        if isinstance(task.get("data"), dict):  # 未过 get_task 解包的 ifocus 原始响应兜底
+            task = task["data"]
         content = task.get("content") or {}
-        url = content.get("video_url") or task.get("video_url")
+        result = task.get("result") or {}
+        url = content.get("video_url") or task.get("video_url") or result.get("video_url")
         if not url:
             raise ArkAPIError("任务成功但未找到成片 URL", body=json.dumps(task, ensure_ascii=False)[:2000])
         return str(url)
@@ -357,7 +452,11 @@ class ArkClient:
     # 下载（生成结果 URL 24 小时有效，需及时下载）
     # ------------------------------------------------------------------
     def download(self, url: str, dest: str | Path) -> Path:
-        """下载文件到本地，网络错误重试 3 次（指数退避）。"""
+        """下载文件到本地，网络错误重试 3 次（指数退避）。
+
+        注意不能用带 Bearer 头的 session：生成结果是对象存储签名 URL
+        （ifocus 走天翼云 S3，2026-08-13 实测），多带 Authorization 头会被 S3 判 400。
+        """
         dest_path = Path(dest)
         if self.dry_run:
             print(f"[dry-run] 下载 {url} -> {dest_path}（跳过，不落盘）")
@@ -366,7 +465,7 @@ class ArkClient:
         last_exc: Exception | None = None
         for attempt in range(1, self.max_retries + 1):
             try:
-                with self._session.get(url, stream=True, timeout=self.timeout) as resp:
+                with requests.get(url, stream=True, timeout=self.timeout) as resp:
                     if resp.status_code >= 400:
                         raise ArkAPIError(f"下载失败：{url}", status_code=resp.status_code, body=resp.text[:500])
                     with open(dest_path, "wb") as fh:

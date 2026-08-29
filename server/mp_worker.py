@@ -357,6 +357,7 @@ def run_template_series(job_id: int, order_no: str, payload: dict) -> None:
     if not variant_ids:
         raise RuntimeError(f"系列 {series_id} 没有可用模板")
     # 锚点规则与 template_photo 一致：定妆照优先，缺省回退原始上传照片
+    _check_anchor_pair(payload)
     photos = []
     if payload.get("anchor_key"):
         photos.append(oss_get(payload["anchor_key"], TMP / f"{order_no}_anchor.jpg"))
@@ -400,6 +401,9 @@ def run_template_series(job_id: int, order_no: str, payload: dict) -> None:
         log(f"job#{job_id} template_series {series_id} 第 {i}/{total} 张 {tid}")
         expect = "一男一女（情侣）" if payload.get("mode") == "couple" else "一位人物（与参考图同人）"
         img = seedream_qc(prompt, photos + [tpl], expect, job_id, f"series_{tid}")
+        # 裁脸换脸终案：photos 前 1-2 张为人物锚点（A/B），作换脸身份参考的一部分
+        img = face_swap_restore(order_no, img, job_id, f"series_{tid}",
+                                anchor_files=photos[:2] if has_b else photos[:1])
         key = f"results/{order_no}/{uuid.uuid4().hex[:8]}.jpg"
         url = oss_put_url(key, img, "image/jpeg")
         urls.append({"id": tid, "url": url, "oss_key": key})
@@ -502,6 +506,181 @@ def _face_sheet_refs(order_no: str, roles: list[str]) -> list[Path]:
         f = _latest_face_sheet(order_no, role)
         if f:
             refs.append(f)
+    return refs
+
+
+def _check_anchor_pair(payload: dict) -> None:
+    """情侣任务锚点校验：A/B 锚点绝不能是同一张图（反馈 #50 根因之一——
+    前端锚点错配曾把男方定妆照贴给新娘，新娘脸直接错）。发现即拒绝，不浪费额度。"""
+    a, b = payload.get("anchor_key"), payload.get("anchor_key_b")
+    if a and b and a == b:
+        raise RuntimeError("两个出镜人选了同一张定妆照，请回上一步重新选择各自的定妆照")
+
+
+def face_restore(order_no: str, gen: bytes, job_id: int, tag: str) -> bytes:
+    """【兜底通道】整图面部还原：脸部只占百余像素时模型往"标准美人脸"漂，效果弱于
+    face_swap_restore（裁脸换脸），仅在 OpenCV/YuNet 不可用时降级使用。
+    失败/无身份参考时静默返回原图（不挡交付）。"""
+    identity = _identity_refs(order_no)
+    if not identity:
+        log(f"job#{job_id} {tag} 无身份参考，跳过面部还原")
+        return gen
+    gen_file = TMP / f"{order_no}_facefix_{re.sub(r'[^A-Za-z0-9]', '_', tag)}.jpg"
+    gen_file.write_bytes(gen)
+    prompt = ("这是对图1照片的面部还原修图，不是重新生成：只重绘图1中人物的脸部五官与脸型，"
+              "使其与后附本人参考照片的长相高度一致——后附参考图是人物的本人真实照片，是长相的唯一权威，"
+              "宁可不那么好看也必须像本人，严禁美化成标准模板脸。"
+              "严格保持图1的构图、场景、服装、发型、光影、色调、姿势与其余一切完全不变，"
+              "修图痕迹自然无破绽，摄影级质感，无文字无水印")
+    try:
+        out = seedream(prompt, [gen_file] + identity)
+        log(f"job#{job_id} {tag} 面部还原完成（身份参考 {len(identity)} 张）")
+        return out
+    except Exception as e:
+        log(f"job#{job_id} {tag} 面部还原失败，交付一遍图：{str(e)[:200]}")
+        return gen
+
+
+# ---------------- 裁脸换脸贴回（2026-08-23 定稿，F5 终案实验验证） ----------------
+#: OpenCV YuNet 人脸检测模型（232KB，Apache-2.0，vendor 进库）
+YUNET_MODEL = SERVER_DIR / "models" / "face_detection_yunet_2023mar.onnx"
+
+
+def _yunet_detect(cv2, img):
+    """检出全部人脸 [(box, 5关键点)]，按面积从大到小。box=(x,y,w,h)。"""
+    det = cv2.FaceDetectorYN.create(str(YUNET_MODEL), "", (img.shape[1], img.shape[0]), 0.5)
+    _, faces = det.detect(img)
+    if faces is None:
+        return []
+    out = [(f[:4], f[4:14].reshape(5, 2).astype("float32")) for f in faces]
+    return sorted(out, key=lambda f: f[0][2] * f[0][3], reverse=True)
+
+
+def _face_mask(cv2, np, shape, box, feather=14):
+    """按人脸框生成竖椭圆羽化 mask：盖住脸与下颌，不吃头发与背景。"""
+    x, y, w, h = box
+    mask = np.zeros(shape[:2], np.uint8)
+    cv2.ellipse(mask, (int(x + w / 2), int(y + h * 0.62)),
+                (int(w * 0.62), int(h * 0.78)), 0, 0, 360, 255, -1)
+    return (cv2.GaussianBlur(mask, (0, 0), feather).astype("float32") / 255.0)[..., None]
+
+
+def _paste_swapped_face(cv2, np, base_img, box, swap_path: Path) -> None:
+    """把换脸 crop 按关键点相似变换对齐贴回 base_img 的 box 区域（就地修改）。"""
+    x0, y0, x1, y1 = box
+    crop = base_img[y0:y1, x0:x1].copy()
+    swap = cv2.imread(str(swap_path))
+    if swap is None:
+        raise RuntimeError(f"换脸结果读取失败 {swap_path}")
+    box_c, pts_c = _yunet_detect(cv2, crop)[0]
+    _, pts_s = _yunet_detect(cv2, swap)[0]
+    M, _ = cv2.estimateAffinePartial2D(pts_s, pts_c, method=cv2.LMEDS)
+    if M is None:
+        raise RuntimeError("关键点对齐失败")
+    warped = cv2.warpAffine(swap, M, (crop.shape[1], crop.shape[0]),
+                            flags=cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_REPLICATE)
+    # 颜色匹配：脸部区域均值/方差对齐原图光照，消除换脸图与场景的色温差
+    m = _face_mask(cv2, np, crop.shape, box_c, feather=4)[:, :, 0] > 0.5
+    for c in range(3):
+        src, dst = warped[:, :, c][m], crop[:, :, c][m]
+        warped[:, :, c] = np.clip(
+            (warped[:, :, c].astype("float32") - src.mean()) * (dst.std() / (src.std() + 1e-6))
+            + dst.mean(), 0, 255).astype(np.uint8)
+    mask = _face_mask(cv2, np, crop.shape, box_c)
+    base_img[y0:y1, x0:x1] = (warped * mask + crop * (1 - mask)).astype(np.uint8)
+
+
+#: 裁脸换脸提示词（F5 实验定稿）：参考图含双人时按性别对应本人
+FACE_SWAP_PROMPT = ("把图1中人物的脸部替换为后附参考照片中与图1人物同性别的那位本人的脸："
+                    "五官、脸型、皮肤质感严格向本人照片还原，宁可朴素也必须像本人，严禁美化成标准模板脸；"
+                    "保持图1的构图、姿势、发型轮廓、光影方向、背景与其余一切完全不变，"
+                    "换脸边缘自然融合无破绽，摄影级质感，无文字无水印")
+
+
+def face_swap_restore(order_no: str, gen: bytes, job_id: int, tag: str,
+                      anchor_files: list[Path] | None = None) -> bytes:
+    """终案面部工序（反馈 #52 及 8-23 对照实验）：整图一遍生成环境光影保真但小脸必漂，
+    本工序对每张人脸：检出人脸 → 裁脸放大（脸≥300px，模型注意力集中在脸部）→
+    Seedream 带本人参考换脸（identity 上限最高，实测远优于火山人像融合与整图还原）→
+    YuNet 5 关键点仿射对齐 + 颜色匹配 + 羽化贴回（环境一个像素不动）。
+    任一环节失败只影响该张脸（保留原脸），整体绝不挡交付；cv2/模型缺失降级 face_restore。"""
+    try:
+        import cv2
+        import numpy as np
+    except ImportError:
+        log(f"job#{job_id} {tag} OpenCV 不可用，降级整图面部还原")
+        return face_restore(order_no, gen, job_id, tag)
+    if not YUNET_MODEL.is_file():
+        log(f"job#{job_id} {tag} YuNet 模型缺失，降级整图面部还原")
+        return face_restore(order_no, gen, job_id, tag)
+    # 身份参考：本任务实际使用的锚点图 + 三视图/原照（去重，至多 4 张）
+    refs: list[Path] = []
+    for f in (anchor_files or []) + _identity_refs(order_no):
+        if f and f not in refs:
+            refs.append(f)
+    refs = refs[:4]
+    if not refs:
+        log(f"job#{job_id} {tag} 无身份参考，跳过裁脸换脸")
+        return gen
+    img = cv2.imdecode(np.frombuffer(gen, np.uint8), cv2.IMREAD_COLOR)
+    if img is None:
+        log(f"job#{job_id} {tag} 成片解码失败，交付一遍图")
+        return gen
+    faces = _yunet_detect(cv2, img)
+    if not faces:
+        log(f"job#{job_id} {tag} 未检出人脸，交付一遍图")
+        return gen
+    ih, iw = img.shape[:2]
+    swapped = 0
+    for fi, (box, _) in enumerate(faces[:2]):  # 至多处理 2 张脸（我们的场景至多双人）
+        x, y, w, h = [float(v) for v in box]
+        # 裁脸框：脸占约 1/2 宽度（带颈部与部分肩部上下文，换脸自然）
+        ex, ey = w * 1.0, h * 0.9
+        x0, y0 = max(0, int(x - ex)), max(0, int(y - ey))
+        x1, y1 = min(iw, int(x + w + ex)), min(ih, int(y + h + ey * 1.3))
+        crop = img[y0:y1, x0:x1].copy()
+        # 放大到脸 ≥300px（小火山/Seedream 都需要足够像素才保真）
+        scale = min(3.0, max(1.0, 340.0 / max(w, h)))
+        if scale > 1.01:
+            crop = cv2.resize(crop, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+        crop_file = TMP / f"{order_no}_fcrop_{re.sub(r'[^A-Za-z0-9]', '_', tag)}_{fi}.jpg"
+        swap_file = TMP / f"{order_no}_fswap_{re.sub(r'[^A-Za-z0-9]', '_', tag)}_{fi}.jpg"
+        try:
+            cv2.imwrite(str(crop_file), crop, [cv2.IMWRITE_JPEG_QUALITY, 95])
+            swap_file.write_bytes(seedream(FACE_SWAP_PROMPT, [crop_file] + refs))
+            _paste_swapped_face(cv2, np, img, (x0, y0, x1, y1), swap_file)
+            swapped += 1
+        except Exception as e:
+            log(f"job#{job_id} {tag} 第 {fi + 1} 张脸换脸失败，保留原脸：{str(e)[:160]}")
+    if swapped:
+        ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 95])
+        if ok:
+            log(f"job#{job_id} {tag} 裁脸换脸完成（{swapped}/{min(len(faces), 2)} 张脸）")
+            return buf.tobytes()
+    return gen
+
+
+def _identity_refs(order_no: str) -> list[Path]:
+    """修图链路的人物身份参考（反馈 #49/#50）：优先人脸三视图（真脸权威参考），
+    没有三视图则回退成员原始照片（正脸槽位优先，每角色 1 张，最多 2 张）。"""
+    refs = _face_sheet_refs(order_no, ["A", "B"])
+    if refs:
+        return refs
+    conn = db()
+    keys = []
+    for role in ("A", "B"):
+        contact = order_no if role == "A" else f"{order_no}-{role}"
+        row = conn.execute(
+            "SELECT oss_key FROM uploads WHERE contact=? AND content_type LIKE 'image/%'"
+            " ORDER BY (slot='front') DESC, id DESC LIMIT 1", (contact,)).fetchone()
+        if row:
+            keys.append((role, row[0]))
+    conn.close()
+    for i, (role, key) in enumerate(keys):
+        try:
+            refs.append(oss_get(key, TMP / f"{order_no}_{role}_identity{i}.jpg"))
+        except Exception as e:
+            log(f"身份参考下载失败 {key}: {e}")
     return refs
 
 
@@ -776,6 +955,7 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
         run_face_sheet(job_id, order_no, payload)
         return
     result = None
+    anchor_imgs: list = []  # 本任务实际使用的人物锚点图（供裁脸换脸做身份参考）
     if kind == "edit_photo":
         # 成片局部修图：以已生成的成片为底，按用户指令只改指定部分（去眼镜/调表情/改细节）
         base_key = payload.get("base_key")
@@ -788,18 +968,26 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
         prompt = (f"这是对图1照片的局部修图，不是重新生成：{instruction}。"
                   "严格保持人物五官、构图、场景、服装、光影、色调等其余部分完全不变，"
                   "只修改用户要求的部分，修图痕迹自然无破绽，摄影级质感，无文字无水印")
+        # 反馈 #49/#50：「不像本人」类修图若只送成片，模型没见过本人，永远修不像——
+        # 注入身份参考：优先人脸三视图（原始照片生成的权威长相），缺则回退本人原始照片
+        identity = _identity_refs(order_no)
+        if identity:
+            photos += identity
+            prompt += ("。紧随其后的参考图是图1中人物的本人真实照片（长相的权威参考）："
+                       "若修改意见涉及不像/五官/长相，必须把人物五官脸型向本人照片还原")
         # 反馈 #47：修改意见引用模板（"男生发型用模板里的"）时模板图必须传入，
-        # 否则模型无从得知模板内容——回溯底图来源任务，同款/系列成片带上对应模板作图2
+        # 否则模型无从得知模板内容——回溯底图来源任务，同款/系列成片带上对应模板
         tpl_ref = _template_ref_for_result(order_no, base_key)
         if tpl_ref:
             photos.append(tpl_ref)
-            prompt += "。图2是生成图1时使用的摄影模板，修改意见中提及「模板」的部分参照图2执行"
+            prompt += "。最后一张参考图是生成图1时使用的摄影模板，修改意见中提及「模板」的部分参照它执行"
     elif kind == "duo_photo":
         # 双人合照：参考图里的两个人（两张单人照或一张现成合照）生成一张亲密合照
         keys = (payload.get("photos") or [])[:2]
         if not keys:
             raise RuntimeError("合照任务缺人物照片")
         photos = [oss_get(k, TMP / f"{order_no}_duo_{i}.jpg") for i, k in enumerate(keys)]
+        anchor_imgs = list(photos)  # 双人合照的两个人物参考即锚点
         note = str(payload.get("note") or "").strip()
         # 人脸三视图注入（反馈 #26 侧脸不像）
         face_refs = _face_sheet_refs(order_no, ["A", "B"])
@@ -890,6 +1078,7 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
             result = seedream(prompt, photos)
     elif kind == "template_photo":
         # 一键同款：定妆照锚点（缺省时回退原始上传照片——定妆后台化）+ 模板图，只换人，其他保持模板
+        _check_anchor_pair(payload)
         photos = []
         if payload.get("anchor_key"):
             photos.append(oss_get(payload["anchor_key"], TMP / f"{order_no}_anchor.jpg"))
@@ -907,6 +1096,7 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
             raise RuntimeError("请先上传本人照片，再做一键同款")
         if payload.get("mode") == "couple" and not has_b:
             raise RuntimeError("情侣模板需要另一方也上传照片（协同创作邀请 TA，或在对话里发 TA 的照片）")
+        anchor_imgs = photos[:2] if has_b else photos[:1]
         tpl = None
         if payload.get("custom_template_key"):
             # DIY 定制模卡：从 OSS 取（custom_moka 任务的产物）
@@ -952,6 +1142,7 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
         else:
             photos = _anchor_or_photos(order_no, payload, job_id)
         # 人脸三视图注入（侧脸身份锚定，与 template_photo 一致）：插在人物锚点后、服装场景参考前
+        anchor_imgs = photos[:1]  # 单人：锚点（或回退原照）即身份参考
         face_refs = _face_sheet_refs(order_no, ["B"] if male_solo else ["A"])
         photos += face_refs
         extra, scene_txt = asset_refs(payload)
@@ -964,6 +1155,7 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
         bride = _anchor_or_photos(order_no, payload, job_id)
         groom = _anchor_or_photos_b(order_no, payload, job_id)
         photos = (bride[:1] + groom[:2]) if bride else groom
+        anchor_imgs = photos[:2]  # 新娘锚点 + 新郎锚点
         # 人脸三视图注入（侧脸身份锚定）：插在人物锚点后、服装场景参考前
         face_refs = _face_sheet_refs(order_no, ["A", "B"])
         photos += face_refs
@@ -984,6 +1176,9 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
         else:
             expect = "一男一女（情侣）"
         result = seedream_qc(prompt, photos, expect, job_id, kind)
+    # 裁脸换脸终案（2026-08-23）：真人出片类任务全量过；定妆照/修图链路本身带身份约束，跳过
+    if kind in ("template_photo", "duo_photo", "solo_photo", "free_photo", "paid_photo"):
+        result = face_swap_restore(order_no, result, job_id, kind, anchor_files=anchor_imgs)
     key = f"results/{order_no}/{uuid.uuid4().hex[:8]}.jpg"
     url = oss_put_url(key, result, "image/jpeg")
     conn = db()

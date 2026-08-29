@@ -24,6 +24,14 @@ Page({
     this.setData({ order, kind });
     // 订阅生成完成通知（接受后照片出炉会收到微信服务通知，点击进相册）
     app.askSubscribe();
+    // 观众模式（反馈 #48/#51）：任务已由 /api/mp/revise 创建，这里只播动画+轮询，
+    // 不再 POST 建任务（否则会重复扣额度）
+    if (pending && pending.submitted) {
+      this.setData({ phase: 'queued' });
+      this.startTips();
+      this.poll();
+      return;
+    }
     app.req('/api/mp/job', 'POST', {
       order_no: order.order_no,
       kind,

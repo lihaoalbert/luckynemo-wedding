@@ -1,6 +1,6 @@
 # 徐大恩（LuckyNemo）项目状态存档
 
-> 最后更新：2026-08-12
+> 最后更新：2026-08-28
 > 恢复方式：把这个文件给 Kimi 看，或直接说"继续 LuckyNemo 项目"
 > 记录机制：见根目录 `AGENTS.md`——会话中状态有变化就当更新本文件，文末追加更新日志
 
@@ -35,6 +35,7 @@
 | 能力 | 通道 | 状态 |
 |---|---|---|
 | 视频 | 火山 Seedance 2.0（新火山账号） | Mini（草稿）+ 标准版（定稿）均出片 ✓ |
+| 视频 | **Seedance 2.5**（`doubao-seedance-2-5-260628`） | 2026-08-12 接入 toolkit（ark.py 常量+ref视频/音频+edit/extend+30s/-1时长+50槽校验；video_pipeline 加 --model/--ref-videos/--ref-audios/--task-type/--duration）。**仅 720p**。通道实测：真人参考必须 asset:// 素材库（裸传被反 Deepfake 拦）；**ifocus 素材库 API 已通**（`luckynemo/ifocus_asset.py`，Bearer + `/api/ark?Action=`，文档 virtual-human-asset-api.md）；两通道素材库互相独立不跨库解析 |
 | 视频 | MiniMax-H3（V2 接口） | 已接入 video_pipeline `--provider minimax`（2026-08-04）；**账号侧阻塞：现有 TokenPlan/Credit 不支持 H3（错误 2013），需在 MiniMax 控制台开通/购买后校准** |
 | 图片 | 火山 Seedream 5.0 Pro（新账号） | 出图 ✓；真人参考图路径 ✓；`size` 用小写 2k。**MiniMax 生图线 2026-08-01 已下架（效果不好），图片统一走 Seedream** |
 | 脚本 | MiniMax M3 | 分镜生成 ✓（思维链已处理，单条 ≈0.1-0.2 元） |
@@ -93,15 +94,17 @@
 
 ## 五、待办清单（重启后接着干）
 
-1. **奔奔徐驰问卷回收** → 跑样品首单（最先做：克隆声音试听）
-2. OSS 控制台配生命周期：`materials/` `stories/` 前缀 30 天自动删（兑现"交付即删"）
-3. 清理测试数据：飞书 4 条"测试"记录（订单表 LN20260721-IHA/U6M/3DD 等、问卷表 2 条）、OSS 4 个测试对象、奔奔徐驰目录之外的 LN20260721-* 前缀
-4. /api/ 加限流/验证码（正式投放前）
-5. ArcFace 相似度阈值用真实单校准（insightface 可选装）
-6. MiniMax 音乐商用授权确认；lark-cli master key 曾短暂外露，介意可 config init 轮换
-7. luckynemo.com 切换启用（备案已完成，加 server block + 证书）+ 商标 41/45 类注册（市场调研遗留）
-8. 用户测试数据（查大师 LN20260721-U6M、大白&小李问卷）保留观察，别误删
-9. 多平台拓展阶段 0 前置项（见 `research/2026-08-多平台拓展调研与策略.md`）：交付图片补显式 AI 标识角标、退款/人脸授权/客服自查、"分享得加赠"改"邀请有礼"（微信裂变红线）。**算法备案已完成、luckynemo.com 域名备案已完成（2026-08-07 确认）**
+1. **观察裁脸换脸上线后表现**（8-23 上线）：①worker 日志"裁脸换脸完成 x/2"成功率与失败原因分布；②YuNet 检不出脸的侧脸/遮挡镜头会静默交付一遍图（像不像仍靠三视图锚定）；③双人"按性别对应"是否有换错人的个例
+2. **小程序前端发版**（积压 4 文件）：makeup.js/wxml（锚点 baseRole 修复+隐藏 Vidu）、generating.js（观众模式）、result.js/photos.js（revise 跳生成中页+按最新任务渲染）——微信开发者工具上传并提审
+3. **奔奔徐驰问卷回收** → 跑样品首单（最先做：克隆声音试听）
+4. OSS 控制台配生命周期：`materials/` `stories/` 前缀 30 天自动删（兑现"交付即删"）
+5. 清理测试数据：飞书 4 条"测试"记录（订单表 LN20260721-IHA/U6M/3DD 等、问卷表 2 条）、OSS 4 个测试对象、奔奔徐驰目录之外的 LN20260721-* 前缀
+6. /api/ 加限流/验证码（正式投放前）
+7. ArcFace 相似度阈值用真实单校准（insightface 可选装）
+8. MiniMax 音乐商用授权确认；lark-cli master key 曾短暂外露，介意可 config init 轮换
+9. luckynemo.com 切换启用（备案已完成，加 server block + 证书）+ 商标 41/45 类注册（市场调研遗留）
+10. 用户测试数据（查大师 LN20260721-U6M、大白&小李问卷）保留观察，别误删
+11. 多平台拓展阶段 0 前置项（见 `research/2026-08-多平台拓展调研与策略.md`）：交付图片补显式 AI 标识角标、退款/人脸授权/客服自查、"分享得加赠"改"邀请有礼"（微信裂变红线）。**算法备案已完成、luckynemo.com 域名备案已完成（2026-08-07 确认）**
 
 ## 六、关键文档
 
@@ -111,8 +114,38 @@
 - `tools/luckynemo-toolkit/README.md`（管线用法）
 - `server/`（后端本地副本，ECS /opt/luckynemo/server 为生产）
 
+## 六点五、战略支线：真实素材 × AI 创作（storylab，2026-08-28 发起）
+
+方向：真人实拍照片/视频（手机、GoPro）+ AI 创作 → 故事感更强的照片与视频。核心洞察：人们喜欢真实记录，但分享时不能完全真实，需要二次美化/组合出故事感/奇幻感。性质：长期战略支线，与婚礼主线并行，不占主线工程资源；**尚未立项实装**，方向文档 `research/2026-08-真实素材AI创作方向探索.md`（场景发散 A1-A8/B1-B7/C1-C4/D1-D3、产品形态三候选、技术探针 P1-P4、合规风险、MVP 切片建议、5 条待决策）。
+
+- 方向决策（2026-08-28 用户拍板）：**验证【短视频】优先**；支线挂在 LuckyNemo 小程序内（板块名待定）；素材上传在小程序内；授权书=勾选即授权；**首个验证单=「婚礼花絮→预告片」**（奔奔徐驰单 13 段花絮素材）；**视频规范采用 1001v2 项目 Seedance 2.5 口径**（`/Users/app/1001v2/standards/02` v2.0 + `03` 能力档案；关键实证：edit 通但必丢母版音轨/输出比例被输入锁定、extend 待探、人脸素材必走 ifocus asset://）
+- 方向决策（2026-08-29 追加）：**先做素材理解自动化（P4）作为基础**；产品形态定调"素材理解 → 最小需求收集 → 两个出口：一端直出短片、一端对话流共创"，互动设计框架（控制杆模型/六原则/5 个高杠杆问题最小需求集/三档控制杆）见方向文档 §十一
+- 技术探针（按序）：**P1 ✅（8-28，edit 对真实花絮可行）** → P2/P3（验证片阶段跳过，留待补）→ **P4 VLM 素材理解+推荐分镜 = 当前优先**；探针结果回写 1001v2 03 档案（跨项目实证共享约定）
+- 推荐验证过后第二切片：「真实照片 → 电影感故事九宫格」（template_series 高复用）
+- 若进入实装：按 AGENTS.md 拉 `storylab` 独立分支 + worktree（避开小程序组/视频组）
+- 合规要点：真人素材授权留痕产品化（比婚纱照线更敏感）；「补逝去亲人/合成他人」类功能列远期谨慎；未成年人规则前置设计
+
 ## 更新日志
 
+- 2026-08-29 **storylab 端到端验收通过：按 v2 机器分镜自动剪出预告片（已提交 d51b4f2）**：`films/benben-xuchi/_storylab_auto/`（assemble.py 纯 ffmpeg/PIL 0 生成调用）输入 storyboard_v2.json → 43.3s 成片，零人工介入；书挡首尾/入出点/4K 回切全部落地，片尾 AI 标识卡 2.5s 合规。对比人工版：结构同源（真实:AI=93%:7% 一致），评分 6.5 vs 7.5，**差距全在后期工艺层（节拍卡点/调速调色/黄金瞬间精度）而非选段决策层——选段（人工 40 分钟大头）已被证明可自动化**。产品化清单 8 项进 REPORT（worker 任务/BMG 节拍 librosa/字幕进分镜 schema/zoompan 调速/QC 自动化）。storylab 分支现领先 main 三个提交（f3c48c1 P4 / d0e5cd5 chat / d51b4f2 验收），均未部署
+- 2026-08-29 **storylab 素材理解接入 chat v1 完成并提交（d0e5cd5，P4 为 f3c48c1）**：worker 新任务 `storylab_ingest`（上传视频自动打标落 `mp_storylab_tags`，每单 ≤20 段/单段 ≤60s，幂等）；chat 三能力=开场摘要钩子（高光镜头聚合+摘要卡）/素材问答（`_mp_storylab_fact_check` 反漏报兜底）/预告片 5 问收集流（落 `mp_orders.storylab_prefs`，v1 不生成、明确告知"生成能力即将开放"）。本地 SQLite E2E 全过（真实 OSS+MiniMax，幂等/超限/问答改判/收集流均验证）。**跨组文件 app.py/mp_worker.py/db_compat.py/chat.js 最小侵入（+332 行），合并 main 前须群里同步 + 生产部署需确认 ECS venv 有 ffmpeg**。storylab 分支现领先 main 两个提交，均未部署
+- 2026-08-29 **storylab P4 v2 迭代完成（三短板修复）**：`storylab_ingest.py` 重写为 schema v2（10 帧时间戳打标+highlight_window 高光窗口估计、本地帧间差分 motion_score、RMS 音频能量峰值提示、moment_type 受控枚举归一、动感保底+1、分镜书挡约束+入点钳制/窗口平移后验层）。重跑 15 段：开场入点 32.0s→**6.4s**（人工 13.5s，方向修对、秒级精度待 v3 二轮细定位）、骑手段 空镜H3→欢庆H4、**书挡式首尾呼应成立**（后验层还抓到 LLM 口头复用 38-42.5s 实际照抄开场窗口的阳奉阴违并自动平移）、"独处"泛用 5 段→0 段。产物 `films/benben-xuchi/_storylab_p4/` v1/v2 并存（materials_v2/storyboard_v2/REPORT_v2）。**过程坑留档：M3 思维链会烧光 9000 token 输出预算致 JSON 截断（须 system prompt 输出纪律+素材瘦身），且 think 段里残缺 JSON 会污染 raw_decode（先剥 `<think>`）——其他组接 M3 出 JSON 直接用**。v3 方向：入选镜头 2fps 二轮细定位、ASR 语义、人脸聚类时刻聚合、motion 光流+题材双通道
+- 2026-08-29 **storylab 分支建立 + P4 素材理解自动化跑通（地基落地）**：`storylab` 分支 + worktree `/Users/app/LuckyNemo-Wedding-storylab`（从 main 8ca7729 拉，AGENTS.md 已登记 storylab 组与文件归属；.env 已拷贝，未提交未部署）。新模块 `tools/luckynemo-toolkit/luckynemo/storylab_ingest.py`（VLM 打标+推荐分镜 CLI，未动视频组文件）。拿奔奔 15 段花絮全量实跑：打标 15/15 零重试（2分43秒），产物 `films/benben-xuchi/_storylab_p4/`（materials.json 标签库/storyboard.json/REPORT.md）。**机器选段 vs 人工对照：黄金镜头 3/3 命中，共选 11/12 文件**——"机器预选+人工微调"成立，选段 40 分钟→个位数分钟。短板登记：入点/出点定位粗（caption 是整段描述）、静态抽帧低估运动镜头高光、"书挡式首尾复用"手法 LLM 未学到（v2 prompt 约束）。**注意：worktree 的 PROJECT_STATE.md 基于旧 main，与本文件有分叉，合并时人工对齐**
+- 2026-08-29 **storylab 决策：P4 素材理解自动化优先 + 互动设计框架定稿**：用户定"先做素材理解自动化（基础）"，产品形态定调"理解素材+收集基本需求后，一端直出短片、一端对话流共创"；互动设计框架（一条流水线两个出口的控制杆模型、六原则、5 个高杠杆问题最小需求集、三档控制杆 A 直出/B 轻确认/C 共创）已写入方向文档 §十一；P2/P3 探针留待补
+- 2026-08-29 **storylab 验证片「婚礼花絮→预告片」粗剪完成**：用户拍板跳过 P2/P3 直接做验证片（选项 2）。成片 `films/benben-xuchi/_storylab_trailer/trailer_roughcut.mp4`（50.46s/720x1280/24fps，13 真实+1 AI+片尾卡，真实:AI=89.6%:10.4%）；AI 镜头复用 P1 的 E2 烟花夜景，**本片 0 新增生成调用**；BGM 复用 bgm.mp3；片尾 AI 标识卡 3s。三段式：黄昏湖边钩子→准备/仪式/中式/骑马蒙太奇→真实收尾+AI 烟花翻转+片名卡。弃用 63f658db（全程 studio wonkyu+ 水印）。REPORT.md 含分镜表、成本、3 个审片问题、产品化启示（最大瓶颈=选段卡点人工 40 分钟，必须产品化为 P4 VLM 素材理解+推荐分镜）
+- 2026-08-28 **storylab P1 探针完成（真实花絮 edit 实测，结论=可行）**：Seedance 2.5 edit 对奔奔徐驰真实婚礼花絮（7s 竖屏 720x1280 母版，asset://asset-20260828234026-x8wdz，组 group-20260828234019-b8gnt）三变体（黄昏光线/夜晚烟花背景/背景虚化）全部一次通过、零拦截零重试；人物身份/姿态逐帧保持，无接缝无闪烁。复现 1001v2 边界：输出必丢母版音轨（3/3）、比例/时长被输入锁定（差 0.29s）；**新边界：输出固定 24fps 不继承母版 30fps**。3 次生成（用量 296,100 tokens/条），产物 `films/benben-xuchi/_storylab_p1/`（REPORT.md 有逐镜结果表与实证边界登记；films/ 已被 .gitignore 覆盖）
+- 2026-08-28 **storylab 方向五项决策拍板**：验证【短视频】优先；支线挂 LuckyNemo 小程序内（上传/授权勾选均在小程序内）；首个验证单=「婚礼花絮→预告片」（奔奔 13 段花絮素材）；视频规范改用 1001v2 项目 Seedance 2.5 口径（02 标准 v2.0 + 03 能力档案；关键实证=edit 丢母版音轨/输出比例被输入锁定/extend 待探）。方向文档 §七/§九/§十 已更新，探针 P1-P4 待跑
+- 2026-08-28 **开启战略支线「storylab」方向探索（未立项）**：真人实拍照片/视频 + AI 创作 → 故事感更强的照片与视频（真实打底、AI 加故事/奇幻感）。产出 `research/2026-08-真实素材AI创作方向探索.md`：场景发散（照片 8 类/视频 7 类/关系 4 类/玩法 3 类）、产品形态三候选、现有能力复用映射、技术探针 P1-P4、合规风险、验证路径与 5 项方向决策；状态已登记 §六点五
+- 2026-08-23 **裁脸换脸终案上线生产（worker face_swap_restore）**：8-23 F5 实验管线产品化——worker 新增 `face_swap_restore`（YuNet 检出人脸 → 裁脸放大≥300px → Seedream 带本人参考换脸（`FACE_SWAP_PROMPT`，双人按性别对应）→ 5 关键点仿射对齐+颜色匹配+羽化贴回），替换 template_photo/template_series/duo_photo/solo/free/paid 的全图 face_restore（保留为 cv2 缺失时的降级通道）；各分支新增 anchor_imgs 传递实际使用的锚点图作身份参考。YuNet 模型 vendor 至 `server/models/`（232KB，Apache-2.0）。本地真实 E2E（job#175 场景，2/2 张脸 ≈93s）：新郎新娘均明显更像本人且无接缝。**已部署 ECS：opencv-python-headless+numpy 装入生产 venv（cv2 5.0.0）、mp_worker.py+模型已同步、luckynemo-worker 重启 active、YuNet 空图检测冒烟通过。代价：每张出片 +1~2 次 Seedream 调用（双人 ≈+90s）**。实验产物 `films/benben-xuchi/_moka_identity_ab/`（F6_worker_e2e.jpg 为 worker 实跑结果）
+- 2026-08-23 **「不像本人」终案管线验证通过（裁脸换脸+关键点对齐贴回）**：围绕 AXEZ job#175（muh05 远景小脸）跑了 6 组对照实验（产物在 `films/benben-xuchi/_moka_identity_ab/`）：E1 模卡剪影参考 / E2 纯文字全新生成 / E3 剪影+模糊光影参考 / F1-F2 火山人像融合 2.0 / F3-F4 人像融合 3.6 / **F5 终案**。结论：①火山人像融合（2.0/3.6 都调通，3.6 需开通「图像生成大模型」产品、50400=鉴权/未开通，密钥已配本地 server/.env `VOLC_ACCESS_KEY/SECRET_KEY`）环境保真满分但小脸（<200px）identity 传递太弱，放大到 300px 也不够用，放弃；②**F5 终案 = 一遍整图全保真参考原模卡（环境光影 100 分）+ 裁脸放大 Seedream 换脸（identity 最强，swap_groom 新郎几乎本人）+ OpenCV YuNet 5 关键点相似变换对齐贴回（羽化椭圆 mask + 脸部区域颜色匹配，无接缝）**，两头都拿到满分。YuNet 模型 232KB（Apache 2.0，可 vendor 进库）；mediapipe 1.0.1 macOS 有 Metal 崩溃 bug 弃用。实验脚本 `/tmp/fb52_ab/align_paste.py`、火山融合测试 `server/test_volc_fusion.py`。**待：产品化进 worker（替换现有全图 face_restore），脸部→人归属判定（情侣双脸按性别/位置映射）**
+- 2026-08-22 **两遍制面部还原上线（反馈 #52 终案）**：#52（"我选原图做参考还是偏差好大"，AXEZ job#175 muh05）核查确认锚点/三视图注入均正常，漂移发生在一遍整图生成本身——拉图目检实锤：新娘圆脸被拉成瘦脸大眼、新郎方脸年轻十岁；全身远景脸部仅百余像素，模型往标准美人脸漂。A/B 实验：**Seedream 5.0 Pro 无 4K/3K 档位（探针 400，2K≈415 万像素即上限），一遍高分路线不成立**；两遍制（一遍整图 + 二遍以成片为图1、本人参考图随行只重绘脸部）实测脸部明显回归本人（构图/服装/场景不变，+46s/张）。worker 新增 `face_restore()`（身份参考复用 `_identity_refs`，失败/无参考静默回退一遍图），接入 template_photo/template_series/duo_photo/solo_photo/free|paid_photo 全量出片（定妆/修图/custom_moka 不接）。**代价：出片时间与生图成本翻倍（≈44s→≈90s/张，九宫格整组约 15 分钟）**。已同步 ECS、worker 重启 active，#52 已回复标 done
+- 2026-08-22 **反馈 #48-#51 处理完毕（未处理清零）**：#48/#51（提意见重生成无进度反馈、用户以为没在跑）——generating 页新增观众模式（pendingJob.submitted=true 时跳过 POST 建任务，只播动画+轮询，防重复扣额度），result/photos 两页 revise 成功后改跳生成中页；顺带修 result 页结构缺陷（edit_photo 结果不在展示类型里、系列组图永远压过更新的单张——改按最新任务渲染）。#49/#50（重生成依旧不像）= 8-22 edit_photo 身份参考修复的靶心案例，服务端已上线。4 条均已回复标 done。**前端 4 文件（generating/result/photos + 前批 makeup×2）需微信开发者工具上传后生效**
+- 2026-08-22 **「不像本人」专项修复（反馈 #42/#45/#49/#50 根因）**：①**edit_photo 修图链路注入身份参考**（实锤：此前修图只送成片底图，模型没见过本人，"女生不像我"类意见永远修不像——S23T job#167/168/170 全是这种死循环）——worker 新增 `_identity_refs`（优先人脸三视图，缺则正脸槽位优先的原始照片，A/B 各 1 张），修图提示词加"本人照片是长相权威参考"；②**定妆锚点错配修复**（实锤：makeup.js confirm 按 baseRole 提交任务、saveSelection 却按页面 role 写锚点，A 页面选伴侣底照定妆会把伴侣定妆照写进本人锚点位——S23T job#147 新娘新郎锚点同为男方定妆照 68c737f4）——saveSelection 改按 baseRole 写锚点；worker 新增 `_check_anchor_pair`，template_photo/template_series 的 A/B 锚点同图直接拒单不烧额度；③**定妆引擎固定 Seedream**：makeup 页隐藏 Vidu 选项（engines 只留 seedream，单引擎不渲染选择行）。本地验证：py_compile/node --check + _identity_refs/_check_anchor_pair 五场景单测全过。**mp_worker.py 已同步 ECS /opt/luckynemo、luckynemo-worker 重启 active（跨组文件，群里同步一声）；makeup.js/wxml 需微信开发者工具上传后生效**
+
+- 2026-08-14 **短片技术标准（Seedance 2.5 版）定稿**：`tools/luckynemo-toolkit/docs/short-film-tech-standard.md`——按字节官方《Seedance 2.5 提示词指南》制定并结合本项目实测：素材引用统一 `@图片N/@视频N/@音频N` 职责声明式（采用+不采用）；长镜优先阶段式（开始/事件/结束状态+【保持一致】），[0-10s] 分段只留节拍点；声音四符号（音乐/<>音效/{台词}/【字幕】）；edit/extend/首尾帧/多关键帧/宫格/白模/一键成片/无缝转场的使用纪律；情绪可观察化；提交前 10 条检查单；文字后期合成固化为红线。衔接口径表：三视图/四宫格/剪影 layouts/禁首尾帧默认 r2v 均保留。character-asset-standard §4 与 love-gift SOP 阶段 3 已指向新标准。另：奔奔剧本方向已定 **H《无人机替我说》**（女送男），6 镜草案已给用户，声音样本待收（建议语音备忘录新录 ≥10s）；待补资产：游轮甲板夜景四宫格、日常服形象卡变体（或沿用礼服，待用户定）
+- 2026-08-13 **一致性实验 5/5 全过 + ifocus 资产重登记**：c1 正面基线/c2 侧脸对视/c3 背影转身/c4 整理头纱（手接触脸）/c5 牵手走+笑（2.5 ifocus 通道+ifocus asset://）抽帧目检全过——c2/c4 全尺寸复核：新郎侧脸轮廓像本人、新娘侧脸不崩、手部无畸形。结论：**现有资产组合（形象卡+三视图+原照）在 2.5 各角度/双人互动下可靠，放行正式生成**。另修 ark.py 根治 bug：下载带 Bearer 头被 ifocus 天翼云 S3 判 400，已改净请求。资产按用户拍板换 1 年期 OSS 签名 URL 重登记（新 key 前缀 ark-assets-ifocus/，12 项全 Active，GetAsset 预览 200 实证，旧 12 项已删除，manifest 已更新为新 id——c1-c5 用的是旧 id 不影响结论）。实验片在 `films/benben-xuchi/_consistency_2.5/`
+- 2026-08-13 **人物资产卡标准 + 平台样例剧本 + 一致性实验启动**：①`tools/luckynemo-toolkit/docs/character-asset-standard.md`（三层资产结构/ifocus+直连双通道入库/参考图组装顺序/2.5 prompt 纪律/5 镜一致性实验闸门——先过实验再进正式生成）；②一致性实验 c1-c5（正面/侧脸对视/背影转身/整理头纱接触互动/牵手走+笑，2.5+ifocus 素材库）后台跑动中，结果抽帧目检；③平台 10 条样例剧本 `research/2026-08-视频礼物样例剧本10条.md`（脑洞+温暖，含送父母/伴侣/全家，父母辈虚拟模特资产待立）；④奔奔问卷找到：`production/刘奔奔&徐驰/story_intake.txt`（+v1 四方向 lovestory_routes.md、稳稳的幸福草稿），新需求=**女送男**（v1 方向偏男视角/互视，需重出）
+- 2026-08-12/13 **Seedance 2.5 接入 + ifocus 素材库 + film_admin 界面**（爱情礼物短片产品线启动，用户拍板：16:9 横屏 30-60s、克隆声音旁白+BGM、界面做本地工具）：①ark.py 加 SEEDANCE_2_5 常量与 2.5 全参数（reference_videos/audios、task_type edit/extend、duration -1/4-30s、ratio adaptive、50 槽校验、ifocus data 包裹与 video_url 三级回退）；video_pipeline draft/final 透传 --model/--ref-videos/--ref-audios/--task-type/--duration；分镜 validate 放宽到 4-30s/-1。②**通道实测结论**：ifocus 裸传真人参考图被反 Deepfake 拦（PrivacyInformation）；火山直连 2.5 + asset:// 素材库 T1 探针片成功且人物身份正常；发现 08-06 入库的形象卡/场景/道具曾被清库（组里只剩 4 项），已全部重传；**用户指定素材转 ifocus 素材库**——其 API 文档（/Users/lihao/Desktop/virtual-human-asset-api.md，`POST router.i-focusing.com/api/ark?Action=`，Bearer）已封装为 `luckynemo/ifocus_asset.py`，奔奔 12 项资产已全部入 ifocus 库并 Active（组 group-20260812235251-p67zm，ids 写入 refs_manifest.json 的 ifocus_asset_id 字段，asset_id 保留直连通道）。③**film_admin 本地管理界面建成**（`tools/luckynemo-toolkit/film_admin/`：FastAPI 8092 + 单页四区 + register_project.py，全部接口 curl 验证过，python-multipart 已装 server/.venv）。**④用户指令：资产库/剧本/分镜讨论认可前不生成视频**——_diag 矩阵已停（仅 T1 4s 探针已跑），待认可后续跑 d2-d6 + 奔奔测试单。⑤**奔奔项目已迁入 film_admin 体系**：`couples/刘奔奔&徐驰/film/` → `films/benben-xuchi/`（register_project.py --move，10 资产/17 镜分镜/9 产出物全登记无缺文件；films/ 已加 .gitignore；_diag 脚本路径已同步改）；服务启动：`cd tools/luckynemo-toolkit/film_admin && ../../server/.venv/bin/python film_admin.py` → http://127.0.0.1:8092
 - 2026-08-12 两个前端小需求（用户提出）：①相册页（pages/photos）长按照片的 ActionSheet 加「提意见重生成」（插在海报与删除之间，单张有效；系列组图整组格仍只有保存/删除，组内单张修改走结果页长按）——复用 /api/mp/revise，定妆照也走 target=photo 图像编辑；②定妆页（pages/makeup）妆造列表「原图直出版」（spec.use_original）排序置顶（applyGender 内稳定排序）。均纯前端，**需微信开发者工具上传后生效**
 - 2026-08-12 反馈 #46/#47 处理完毕（未处理清零，AXEZ 测试结果页+重生成）：①**#47 实锤修复（重生成"用模板里的发型"不生效）**——edit_photo 只送成片底图，模型看不到模板；worker 新增 `_template_ref_for_result` 回溯底图来源任务（template_photo 按 template_id/custom_template_key、template_series 按 urls 里 oss_key 匹配的变体 id），找到则模板图作图2参考传入+提示词"提及模板参照图2"，chat 和 revise 两条修图链路都受益；ECS 已同步重启，用 AXEZ 真实系列片回溯到 hyd06.png 冒烟通过。②**#46 结果页五连修**：标题不写死（result.json 默认"成片出炉"，js 按场景 setNavigationBarTitleText：系列"系列组图出炉"/单人"你的成片"）；眉标+主标动态化（单人"看看，是不是你？"）；系列只有 1 张时按单张渲染（修单张九宫格"左圆角右直角"错乱）；「模板 vs 成片」弃用 lastSeries 暂存（换路径会张冠李戴），改按 result.series_id 查 catalog 取标题+首模板封面，对比块"你的脸"改"你的成片"；充值卡按用户拍板改 **quotaLeft（免费余+付费余）≤0 才显示**。仅前端改动（result 页 js/wxml/wxss/json），**需微信开发者工具上传后生效**。两条均已回复标 done
 - 2026-08-12 **抖音小程序版暂停**（用户决定）：备案约需 2 个月，期间不再逐批同步抖音前端；备案通过后把最新版一次性整体迁移。后端 `/api/dy/*` 通道保持现状不动

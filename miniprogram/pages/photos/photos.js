@@ -119,12 +119,12 @@ Page({
           order_no: app.globalData.order.order_no, target: 'photo',
           base_key: key, instruction,
         }).then(() => {
-          app.askSubscribe();
-          wx.showModal({
-            title: '已开始重新生成',
-            content: '大约 1 分钟，新照片会出现在相册最前面。',
-            showCancel: false,
-          });
+          // 反馈 #48/#51：改跳生成中页（进度动画+轮询），不再只弹静态提示
+          app.globalData.pendingJob = {
+            kind: 'edit_photo', submitted: true,
+            payload: { base_key: key, instruction },
+          };
+          wx.navigateTo({ url: '/pages/generating/generating' });
         }).catch(err => {
           wx.showModal({ title: '提示', content: err.message, showCancel: false });
         });
