@@ -266,6 +266,16 @@ def _migrate() -> None:
         "order_no TEXT PRIMARY KEY,"
         "state_json TEXT, updated_at TEXT NOT NULL)"
     )
+    # P1 全量留痕：对话消息（user/assistant 成对，action 快照 + topic，30 天 TTL 清扫）
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS mp_chat_messages("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "order_no TEXT NOT NULL, role TEXT NOT NULL, text TEXT,"
+        "action_json TEXT, images_json TEXT, topic VARCHAR(32) DEFAULT 'chat',"
+        "created_at VARCHAR(40) NOT NULL)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_chat_msg_order ON mp_chat_messages(order_no, id)")
     conn.commit()
     # 存量订单迁移：已认证通过的订单视为成员 A 已认证
     for row in conn.execute(
@@ -2823,6 +2833,7 @@ def _mp_chat_agent_deps() -> dict:
         "site_dir": site,
         "now": _now,
         "log": log,
+        "db_factory": _db,
     }
 
 
@@ -2845,7 +2856,10 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
             raise
         except Exception as exc:  # noqa: BLE001 - 智能体路径整体兜底，不影响可用性
             log.warning("mp chat agent 失败：%s", exc)
-            return JSONResponse({"ok": True, "reply": "我刚才走神了一下，你再说一次好吗？",
+            _reply = "我刚才走神了一下，你再说一次好吗？"
+            chat_agent.record_chat_turn(conn, body.order_no, body, _reply,
+                                        {"type": "none"}, _MP_CHAT_AGENT_DEPS)
+            return JSONResponse({"ok": True, "reply": _reply,
                                  "action": {"type": "none"}})
         finally:
             conn.close()
@@ -2861,7 +2875,10 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
             raise
         except Exception as exc:
             log.warning("mp chat M3 失败：%s", exc)
-            return JSONResponse({"ok": True, "reply": "我刚才走神了一下，你再说一次好吗？",
+            _reply = "我刚才走神了一下，你再说一次好吗？"
+            chat_agent.record_chat_turn(conn, body.order_no, body, _reply,
+                                        {"type": "none"}, _MP_CHAT_AGENT_DEPS)
+            return JSONResponse({"ok": True, "reply": _reply,
                                  "action": {"type": "none"}})
         reply = str(result.get("reply") or "我在呢～")
         if ctx["storylab"]:
@@ -3243,7 +3260,63 @@ def mp_chat(body: MpChatIn) -> JSONResponse:
                 log.info("mp chat storylab 收单 order_no=%s prefs=%s",
                          body.order_no, list(prefs5))
 
+        # P1 全量留痕（旧路径；新路径在 chat_agent.run 出口已写）
+        chat_agent.record_chat_turn(conn, body.order_no, body, reply, action,
+                                    _MP_CHAT_AGENT_DEPS)
         return JSONResponse({"ok": True, "reply": reply, "action": action})
+    finally:
+        conn.close()
+
+
+@app.get("/api/mp/chat/history")
+def mp_chat_history(order_no: str, before_id: int = 0, limit: int = 20) -> JSONResponse:
+    """P1 历史回看：该订单消息倒序分页（before_id 游标），images 重签 24h。
+
+    返回 {items: [{id, role, text, action, images, topic, created_at}], has_more}。
+    action 是当时的快照——前端只许渲染查看类入口（navigate/show_result/show_uploads），
+    副作用类绝不重新执行。"""
+    conn = _db()
+    try:
+        lim = max(1, min(int(limit or 20), 50))
+        if before_id:
+            rows = conn.execute(
+                "SELECT id, role, text, action_json, images_json, topic, created_at"
+                " FROM mp_chat_messages WHERE order_no=? AND id<?"
+                " ORDER BY id DESC LIMIT ?", (order_no, before_id, lim)).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT id, role, text, action_json, images_json, topic, created_at"
+                " FROM mp_chat_messages WHERE order_no=?"
+                " ORDER BY id DESC LIMIT ?", (order_no, lim)).fetchall()
+        items = []
+        for r in rows:
+            imgs = json.loads(r[4]) if r[4] else []
+            items.append({
+                "id": r[0], "role": r[1], "text": r[2] or "",
+                "action": json.loads(r[3]) if r[3] else None,
+                "images": [oss_signed_get_url(k, expire=86400) for k in imgs],
+                "topic": r[5] or "", "created_at": r[6] or "",
+            })
+        return JSONResponse({"ok": True, "items": items, "has_more": len(items) == lim})
+    finally:
+        conn.close()
+
+
+@app.delete("/api/mp/chat/history")
+def mp_chat_history_delete(order_no: str) -> JSONResponse:
+    """P2 清除对话记录：删全部消息 + 重置 facts 的 dialog_summary/user_profile（保留其他 state）。"""
+    conn = _db()
+    try:
+        conn.execute("DELETE FROM mp_chat_messages WHERE order_no=?", (order_no,))
+        conn.commit()
+        state = chat_agent.load_state(conn, order_no)
+        facts = state.get("facts") or {}
+        facts["dialog_summary"] = ""
+        facts["user_profile"] = {}
+        state["facts"] = facts
+        chat_agent.save_state(conn, order_no, state)
+        log.info("mp chat 历史已清除 order_no=%s", order_no)
+        return JSONResponse({"ok": True, "deleted": True})
     finally:
         conn.close()
 

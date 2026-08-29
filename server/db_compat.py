@@ -237,6 +237,13 @@ MYSQL_SCHEMA = [
        order_no VARCHAR(64) PRIMARY KEY,
        state_json TEXT, updated_at VARCHAR(40) NOT NULL
        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
+    # P1 全量留痕：对话消息（action 快照 + topic 打标；30 天 TTL 由 worker 清扫）
+    """CREATE TABLE IF NOT EXISTS mp_chat_messages(
+       id INT PRIMARY KEY AUTO_INCREMENT,
+       order_no VARCHAR(64) NOT NULL, role VARCHAR(16) NOT NULL, text TEXT,
+       action_json TEXT, images_json TEXT, topic VARCHAR(32) DEFAULT 'chat',
+       created_at VARCHAR(40) NOT NULL,
+       INDEX idx_chat_msg_order (order_no, id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
 ]
 
 _ensured = False

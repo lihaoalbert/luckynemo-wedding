@@ -5,6 +5,7 @@
       <view class="h1 serif">不出门，<text class="accent">拍好婚纱照</text></view>
     </view>
     <view class="thread">
+      <view wx:if="{{hasMoreHist}}" class="hist-more" bindtap="loadEarlierHist">加载更早的消息 ↑</view>
       <block wx:for="{{messages}}" wx:key="index">
         <view class="msg-row {{item.role}}">
           <image class="avatar" wx:if="{{item.role === 'ai'}}" src="/assets/avatar.png" mode="aspectFill" />

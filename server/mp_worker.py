@@ -1597,12 +1597,53 @@ def fail_job(job_id: int, err: str) -> None:
     conn.close()
 
 
+#: 对话记录 TTL 清扫节拍（每 100 tick ≈ 8 分钟一次）
+_TTL_TICK = 0
+
+
+def _chat_ttl_sweep() -> None:
+    """对话记忆 TTL（30 天，交付即删承诺）：删旧消息 + 对应 facts 摘要/画像置空。
+
+    created_at 统一 UTC ISO 字符串（app._now / worker _now_iso 同格式），
+    Python 侧算好 cutoff 再比较，SQLite/MySQL 语法零差异。"""
+    try:
+        import datetime as _dt
+        cutoff = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=30)).isoformat(timespec="seconds")
+        conn = db()
+        conn.execute("DELETE FROM mp_chat_messages WHERE created_at < ?", (cutoff,))
+        rows = conn.execute("SELECT order_no, state_json FROM mp_chat_state WHERE updated_at < ?",
+                            (cutoff,)).fetchall()
+        swept = 0
+        for ono, sj in rows:
+            try:
+                state = json.loads(sj) if sj else {}
+            except Exception:  # noqa: BLE001
+                continue
+            facts = state.get("facts") or {}
+            if facts.get("dialog_summary") or facts.get("user_profile"):
+                facts["dialog_summary"] = ""
+                facts["user_profile"] = {}
+                state["facts"] = facts
+                conn.execute("UPDATE mp_chat_state SET state_json=?, updated_at=? WHERE order_no=?",
+                             (json.dumps(state, ensure_ascii=False), _now_iso(), ono))
+                swept += 1
+        conn.commit()
+        conn.close()
+        log(f"对话记忆 TTL 清扫完成（cutoff {cutoff[:10]}，facts 清理 {swept} 单）")
+    except Exception as e:  # noqa: BLE001
+        log(f"对话 TTL 清扫失败（忽略）：{e}")
+
+
 def main() -> None:
     if not _ark_channels():
         log("缺生图通道密钥（IFOCUS_API_KEY / ARK_API_KEY），退出")
         sys.exit(1)
     log("mp_worker 启动")
+    global _TTL_TICK
     while True:
+        _TTL_TICK += 1
+        if _TTL_TICK % 100 == 0:
+            _chat_ttl_sweep()
         try:
             conn = db()
             rows = list(conn.execute(

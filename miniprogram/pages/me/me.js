@@ -88,6 +88,22 @@ Page({
     wx.navigateTo({ url: '/pages/feedback/feedback' });
   },
 
+  // P2 对话记忆：清除这张单的全部聊天记录与对话记忆（成片/照片不受影响）
+  clearHistory() {
+    wx.showModal({
+      title: '清除对话记录？',
+      content: '会删除这张单的全部聊天记录和对话记忆，不影响你的成片与照片。',
+      confirmText: '清除',
+      confirmColor: '#c0736a',
+      success: (r) => {
+        if (!r.confirm) return;
+        app.req('/api/mp/chat/history', 'DELETE', { order_no: this.data.order.order_no })
+          .then(() => wx.showToast({ title: '已清除' }))
+          .catch((e) => wx.showToast({ title: (e && e.message) || '清除失败', icon: 'none' }));
+      },
+    });
+  },
+
   restart() {
     wx.showModal({
       title: '开启新订单？',

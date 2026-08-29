@@ -56,6 +56,7 @@ Page({
     inputValue: '',
     recording: false,
     pendingImages: [],  // 聊天里待发送的图片 [{path, key, status}]
+    hasMoreHist: false, // P1：还有更早的历史消息可加载
   },
 
   onLoad() {
@@ -163,6 +164,11 @@ Page({
   },
 
   resume(order) {
+    // P1 对话记忆：订单就绪即拉历史（每订单一次；向上翻有"加载更早"按钮）
+    if (this._histOrder !== order.order_no) {
+      this._histOrder = order.order_no;
+      this.loadHistory();
+    }
     // 防重复推送：模式+认证+进度状态没变就不重复发消息
     const needRoles = order.mode === 'couple' ? ['A', 'B'] : ['A'];
     const members = order.members || {};
@@ -295,6 +301,42 @@ Page({
       q.select('#scroll').scrollOffset();
       wx.pageScrollTo({ scrollTop: 99999, duration: 200 });
     }, 50);
+  },
+
+  // ---- P1 对话记忆：历史回看（服务端 mp_chat_messages，倒序分页） ----
+  loadHistory() {
+    const order = this.data.order;
+    if (!order || !order.order_no || this._histLoading) return;
+    this._histLoading = true;
+    app.req('/api/mp/chat/history', 'GET', {
+      order_no: order.order_no, before_id: this._histBefore || 0, limit: 20,
+    }).then(res => {
+      this._histLoading = false;
+      const items = (res.items || []).slice().reverse();  // 正序插入
+      if (!items.length) { this.setData({ hasMoreHist: false }); return; }
+      this._histBefore = items[0].id;
+      this.setData({
+        hasMoreHist: !!res.has_more,
+        messages: items.map(it => this._histToMessage(it)).concat(this.data.messages),
+      });
+    }).catch(() => { this._histLoading = false; });
+  },
+
+  loadEarlierHist() { this.loadHistory(); },
+
+  // 历史消息 → 气泡模型。红线：副作用 action（generate_photo/edit_photo/删除/反馈等）
+  // 绝不重新执行——只渲染查看类入口（navigate 按钮；show_result/show_uploads 直接附图）
+  _histToMessage(it) {
+    const msg = { role: it.role === 'user' ? 'me' : 'ai', text: it.text };
+    if (it.images && it.images.length) msg.images = it.images;
+    const a = it.action || {};
+    if (a.type === 'navigate' && a.page) {
+      msg.action = { text: '查看 →', type: 'navigate', page: a.page };
+    } else if ((a.type === 'show_result' || a.type === 'show_uploads')
+               && a.photos && a.photos.length) {
+      msg.images = (msg.images || []).concat(a.photos);
+    }
+    return msg;
   },
 
   onAction(e) {

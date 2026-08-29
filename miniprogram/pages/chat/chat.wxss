@@ -93,3 +93,9 @@
   position: relative; text-align: right; padding: 0 24rpx 20rpx;
   color: var(--accent, #c0736a); font-size: 32rpx; margin-top: -44rpx;
 }
+
+/* P1 对话记忆：加载更早历史 */
+.hist-more {
+  text-align: center; font-size: 24rpx; color: var(--ink-soft, #a89a90);
+  padding: 16rpx 0 8rpx;
+}

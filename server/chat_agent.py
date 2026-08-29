@@ -23,6 +23,7 @@ import json
 import logging
 import re
 import sqlite3
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 log = logging.getLogger("luckynemo.chat_agent")
@@ -62,6 +63,158 @@ def save_state(conn, order_no: str, state: dict) -> None:
         " updated_at=excluded.updated_at",
         (order_no, json.dumps(state, ensure_ascii=False), now))
     conn.commit()
+
+
+# ------------------------------------------------------------------
+# P1/P2/P3 对话记忆体系（2026-08-29 三期连做）
+# - 全量留痕：mp_chat_messages 每轮写 user+assistant 两行（含 action 快照/topic）
+# - 工作记忆：facts.dialog_summary 滚动摘要（每满 10 轮 user 消息后台更新）
+#   + facts.user_profile 长期事实（摘要时顺带提取 + remember_fact 工具直写）
+# - 可引用：topic 打标 + recall_past 工具（关键词+相对时间窗检索历史消息）
+# ------------------------------------------------------------------
+_CHAT_TOPIC_RULES = [
+    ("storylab", re.compile(r"视频|片子|短片|故事片场|预告片|花絮|剪辑|剪成|素材")),
+    ("makeup", re.compile(r"定妆|妆容|妆造|腮红|唇色|卧蚕|口红|素颜|hz\d+")),
+    ("moka", re.compile(r"模板|同款|系列|大片|模卡")),
+    ("photo_ops", re.compile(r"出片|生成|修图|合照|合拍|换背景|去掉|重出|拍一张")),
+    ("feedback", re.compile(r"反馈|bug|意见|建议|报错|不好用|怎么回事|模糊")),
+    ("prefs", re.compile(r"偏好|喜欢|记住|以后都|风格|身高|想要")),
+]
+TOPIC_NAMES = tuple(t for t, _ in _CHAT_TOPIC_RULES) + ("chat",)
+
+
+def chat_topic(text: str) -> str:
+    """P3 topic 轻量打标（正则分类，命中即返回；兜底 chat）。"""
+    for name, rule in _CHAT_TOPIC_RULES:
+        if rule.search(text or ""):
+            return name
+    return "chat"
+
+
+def record_chat_turn(conn, order_no: str, body, reply: str, action: dict, deps) -> None:
+    """P1 全量留痕：用户消息 + 助手回复（含 action 快照）同步落库。
+
+    失败只记日志绝不阻塞回复。写入后检查滚动摘要触发（每满 10 轮 user 消息）。"""
+    try:
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        text_u = (body.message or "")[:2000]
+        conn.execute(
+            "INSERT INTO mp_chat_messages(order_no,role,text,images_json,topic,created_at)"
+            " VALUES(?,?,?,?,?,?)",
+            (order_no, "user", text_u,
+             json.dumps(list(body.images or [])[:3], ensure_ascii=False),
+             chat_topic(text_u), now))
+        conn.execute(
+            "INSERT INTO mp_chat_messages(order_no,role,text,action_json,topic,created_at)"
+            " VALUES(?,?,?,?,?,?)",
+            (order_no, "assistant", (reply or "")[:2000],
+             json.dumps(action or {"type": "none"}, ensure_ascii=False),
+             chat_topic(text_u), now))
+        conn.commit()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("chat 留痕失败 order_no=%s: %s", order_no, exc)
+        return
+    _maybe_rollup(conn, order_no, deps)
+
+
+def load_recent_dialog(conn, order_no: str, body, rounds: int = 6) -> str:
+    """P1 对话上下文数据源：mp_chat_messages 最近 N 轮原文（用户+助手交替）。
+
+    DB 无记录时兜底 body.history。当前轮尚未写入，天然就是"之前的对话"。"""
+    try:
+        rows = conn.execute(
+            "SELECT role, text FROM mp_chat_messages WHERE order_no=?"
+            " ORDER BY id DESC LIMIT ?", (order_no, rounds * 2)).fetchall()
+        if rows:
+            lines = []
+            for role, text in reversed(rows):
+                lines.append(("用户" if role == "user" else "助手") + "：" + (text or ""))
+            return "\n".join(lines)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("chat 读取历史失败 order_no=%s: %s", order_no, exc)
+    return "\n".join(list(body.history or [])[-12:]) or "（本轮刚开始）"
+
+
+def _maybe_rollup(conn, order_no: str, deps) -> None:
+    """P2 滚动摘要触发：该订单 user 消息数每满 10 的倍数 → 后台线程更新摘要。"""
+    try:
+        n = conn.execute(
+            "SELECT COUNT(*) FROM mp_chat_messages WHERE order_no=? AND role='user'",
+            (order_no,)).fetchone()[0]
+        if n and n % 10 == 0:
+            import threading
+            threading.Thread(target=_rollup_bg, args=(order_no, deps),
+                             daemon=True).start()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("chat 摘要触发检查失败 order_no=%s: %s", order_no, exc)
+
+
+def _rollup_bg(order_no: str, deps) -> None:
+    """摘要线程：独立开连接（跨线程复用 sqlite 连接会炸）。"""
+    conn = None
+    try:
+        conn = deps["db_factory"]()
+        rollup_summary(conn, order_no, deps)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("chat 滚动摘要后台失败 order_no=%s: %s", order_no, exc)
+    finally:
+        try:
+            if conn:
+                conn.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def rollup_summary(conn, order_no: str, deps) -> bool:
+    """P2 滚动摘要：旧摘要 + 最近 10 轮 → 新摘要（≤300 字）+ 长期事实提取。
+
+    模型用便宜的 abab6.5s-chat（deps["llm"] 配置）；失败保留旧摘要。
+    返回是否更新成功。"""
+    try:
+        state = load_state(conn, order_no)
+        facts = state.setdefault("facts", {})
+        old_summary = str(facts.get("dialog_summary") or "")
+        rows = conn.execute(
+            "SELECT role, text FROM (SELECT role, text, id FROM mp_chat_messages"
+            " WHERE order_no=? ORDER BY id DESC LIMIT 20) ORDER BY id",
+            (order_no,)).fetchall()
+        dialog = "\n".join(
+            ("用户" if r[0] == "user" else "助手") + "：" + (r[1] or "") for r in rows)
+        system = (
+            "你是对话记录员。根据【旧摘要】和【最近对话】输出 JSON（无 markdown、无思维链）：\n"
+            '{"summary": "新摘要（≤300字，滚动更新：保留仍然重要的，融入新信息）", '
+            '"profile": [{"key": "简短key（如 heights/style_pref/avoid）", "value": "长期事实"}], '
+            '"profile_change": "新增或变化的长期事实一句话；没有则空串"}\n'
+            "profile 只提取值得长期记住的：身高/风格偏好/禁忌/已确认的选择/反复强调的要求，"
+            "总数 ≤10 条；对话琐事不进 profile。")
+        dialog = json.dumps({"old_summary": old_summary, "dialog": dialog},
+                            ensure_ascii=False)
+        resp = _llm(deps, [{"role": "system", "content": system},
+                           {"role": "user", "content": dialog}],
+                    max_tokens=900, temperature=0.2)
+        text = resp.get("content") or ""
+        text = re.sub(r"<think>[\s\S]*?</think>", "", text)
+        m = re.search(r"\{[\s\S]*\}", text)
+        if not m:
+            return False
+        data = json.loads(m.group(0))
+        summary = str(data.get("summary") or "").strip()
+        if not summary:
+            return False
+        facts["dialog_summary"] = summary[:300]
+        profile = facts.get("user_profile") or {}
+        for item in data.get("profile") or []:
+            if isinstance(item, dict) and item.get("key"):
+                profile[str(item["key"])[:30]] = str(item.get("value", ""))[:100]
+        if profile:
+            facts["user_profile"] = dict(list(profile.items())[:10])
+        save_state(conn, order_no, state)
+        log.info("chat 滚动摘要更新 order_no=%s len=%d profile=%d",
+                 order_no, len(facts["dialog_summary"]), len(facts.get("user_profile") or {}))
+        return True
+    except Exception as exc:  # noqa: BLE001
+        log.warning("chat 滚动摘要失败 order_no=%s: %s", order_no, exc)
+        return False
 
 
 # ------------------------------------------------------------------
@@ -355,6 +508,16 @@ def build_tool_specs() -> list:
         _spec("get_storylab_film", "查「故事片场」短片任务的状态与成片链接（排队中/制作中/已完成）。"
               "用户问“短片剪好了吗/我的片子呢/视频好了吗“时用；完成后给用户查看入口。",
               {}),
+        _spec("remember_fact", "把用户明确要求记住的长期事实写进记忆（用户说“记住/以后都按这个/"
+              "我的身高是“等时用）。key 用简短标识（如 heights、style_pref、avoid），value 是具体内容。",
+              {"key": {"type": "string"}, "value": {"type": "string"}},
+              ["key", "value"]),
+        _spec("recall_past", "翻我们的历史对话记录（可引用记忆）。用户话语含「我说过/上次/之前的/"
+              "回头/记不记得」时必须先调本工具再回答，禁止凭当前窗口印象编造。",
+              {"query": {"type": "string"}, "when": {"type": "string"},
+               "topic": {"type": "string",
+                         "enum": ["storylab", "makeup", "moka", "photo_ops", "feedback", "prefs", "chat"]}},
+              ["query"]),
         _spec("update_selection", "修改用户的拍摄选择（套装/场景/动作/妆容/身高备注等，只能用资产库里的值；"
               "身高是自由文本，如“新郎183cm新娘165cm“）。",
               {"fields": {"type": "object",
@@ -634,6 +797,98 @@ def _tool_get_storylab_film(ctx, args) -> dict:
             "note": "故事片场短片" + ("排队中" if status == "queued" else "制作中")}
 
 
+# ------------------------------------------------------------------
+# P2/P3 记忆工具：remember_fact（直写）与 recall_past（检索）
+# ------------------------------------------------------------------
+def _tool_remember_fact(ctx, args) -> dict:
+    """用户明确要求记住的长期事实 → facts.user_profile（写类但无副作用，直接执行）。"""
+    key = str(args.get("key") or "").strip()[:30]
+    value = str(args.get("value") or "").strip()[:200]
+    if not key or not value:
+        return {"ok": False, "reason": "key/value 必填"}
+    facts = ctx["state"].setdefault("facts", {})
+    profile = facts.setdefault("user_profile", {})
+    profile[key] = value
+    facts["user_profile"] = dict(list(profile.items())[:10])
+    return {"ok": True, "silent": True, "action": {"type": "none"},
+            "note": "已记住 {}：{}".format(key, value[:40])}
+
+
+_RECALL_STOP = ("的", "了", "我", "你", "您", "是", "在", "和", "就", "都", "要", "说",
+                "那个", "什么", "怎么", "时候", "上次", "之前", "刚才", "我们", "你们",
+                "有没有", "用", "呢", "吗", "啊", "呀", "哦", "把", "被", "还", "一个",
+                "一下", "这个", "那种", "想", "要", "问", "告诉", "记得", "记不记得",
+                "来着", "来着呀", "来着吗")
+
+
+def _recall_terms(query: str) -> list:
+    text = query or ""
+    for w in sorted(set(_RECALL_STOP), key=len, reverse=True):
+        text = text.replace(w, "|")
+    return [t for t in re.split(r"[^一-鿿A-Za-z0-9]+", text) if len(t) >= 2][:3]
+
+
+def _parse_when(when: str):
+    """P3 相对时间窗解析（代码侧，不用 LLM）→ (start, end) ISO 字符串；None 表示不限。
+
+    支持：上次/之前/以前（不限）、昨天、N天前（那一天）、上周（近 7 天）、N天内/近N天。"""
+    w = (when or "").strip()
+    if not w or w in ("上次", "之前", "以前", "早前"):
+        return None
+    now = datetime.now(timezone.utc)
+
+    def iso(dt):
+        return dt.isoformat(timespec="seconds")
+    if w == "昨天":
+        return (iso(now - timedelta(days=2)), iso(now - timedelta(days=1)))
+    m = re.fullmatch(r"(\d+)\s*天前", w)
+    if m:
+        n = int(m.group(1))
+        return (iso(now - timedelta(days=n + 1)), iso(now - timedelta(days=n)))
+    if w in ("上周", "上礼拜"):
+        return (iso(now - timedelta(days=7)), None)
+    m = re.fullmatch(r"(?:近|最近)?(\d+)\s*天(?:内|里)?", w)
+    if m:
+        return (iso(now - timedelta(days=int(m.group(1)))), None)
+    return None
+
+
+def _tool_recall_past(ctx, args) -> dict:
+    """P3 可引用：订单内历史消息检索（关键词 AND + 相对时间窗 + 可选 topic）。"""
+    conn, order_no = ctx["conn"], ctx["order_no"]
+    query = str(args.get("query") or "")
+    terms = _recall_terms(query)
+    if not terms:
+        return {"ok": False, "reason": "query 无有效关键词",
+                "note": "换个更具体的关键词（比如事物名）再翻"}
+    sql = "SELECT id, role, text, created_at FROM mp_chat_messages WHERE order_no=?"
+    params: list = [order_no]
+    for t in terms:
+        sql += " AND text LIKE ?"
+        params.append("%" + t + "%")
+    win = _parse_when(args.get("when"))
+    if win:
+        if win[0]:
+            sql += " AND created_at >= ?"
+            params.append(win[0])
+        if win[1]:
+            sql += " AND created_at <= ?"
+            params.append(win[1])
+    topic = args.get("topic")
+    if topic in TOPIC_NAMES:
+        sql += " AND topic = ?"
+        params.append(topic)
+    sql += " ORDER BY id DESC LIMIT 5"
+    rows = conn.execute(sql, params).fetchall()
+    hits = [{"at": str(r[3])[:10], "role": r[1], "excerpt": (r[2] or "")[:80]}
+            for r in rows]
+    if hits:
+        return {"ok": True, "hits": hits, "terms": terms,
+                "note": "翻到 {} 条记录，回答时自然引用（可带大概时间）".format(len(hits))}
+    return {"ok": True, "hits": [], "terms": terms,
+            "note": "没有找到匹配的记录——如实告诉用户翻不到，不要编"}
+
+
 def _tool_update_selection(ctx, args) -> dict:
     conn, order_no, deps = ctx["conn"], ctx["order_no"], ctx["deps"]
     order = deps["get_order"](conn, order_no)
@@ -756,6 +1011,7 @@ READ_TOOLS = {
     "material_ask": _tool_material_ask,
     "collect_prefs": _tool_collect_prefs,
     "get_storylab_film": _tool_get_storylab_film,
+    "recall_past": _tool_recall_past,
 }
 
 #: LLM 绕过工具、直接按旧协议在 action 里发的类型 → 路由回工具执行
@@ -1061,6 +1317,8 @@ PERSONA_SYS = """你是「徐大恩 LuckyNemo」小程序的创作小助手，�
 【输出纪律】只输出一个 JSON 对象，不要 markdown 代码块，不要 <think> 思维过程。
 要么输出最终回复 {"final_reply": "对用户说的话", "action": {...}}，
 要么调用一个工具（需要信息时用工具查，不要编）。action 只能是工具返回里给的形态或 {"type": "none"}。
+final_reply 是给用户看的自然话术：绝不允许出现 recall_past(query=、final_reply、{"tool": 这类
+协议字样——协议是写给你自己执行的，用户只看得到话术。
 
 【花样纪律】每轮的确认语/开场白必须换花样：同一订单内"收到～""好嘞"这类 ack 不许用
 第二次；确认类问句（"你是想…吗"）同一订单也不许重复问。宁可具体、不可模板。
@@ -1100,6 +1358,17 @@ final_reply："想做一张这种韩式极简风的专属大片对吧？回我�
 【素材问答纪律】回答"有没有 xx 镜头"必须先调 material_ask，只依据返回的 caption 作答：
 有就指出哪段，没有就如实说"我理解的片段里还没发现"，严禁编造（漏报也算编造）。
 
+【回忆纪律】（可引用记忆）用户话语含"我说过/上次/之前的/回头/记不记得"时，必须先调
+recall_past 再回答——禁止凭当前窗口印象编造"你上次说"。recall_past 翻不到就老实说
+"翻了一下我们的记录，没找到你说的那条"。用户明确说"记住/以后都按这个"时用
+remember_fact 写进记忆。引用时自然带出来（可提大概时间），别像背书。
+注意：用户没问历史时，绝不主动说「翻到了～你上次说…」这类引用话术——那是回忆专用句式。
+
+【few-shot 4·引用历史】
+用户：我之前说过喜欢什么风格来着？
+→ 先调 recall_past(query="风格")，拿到结果后用自己的话回答："翻到了～你之前提过想要电影感叙事！"
+（关键词尽量选消息里最可能有实义的词；翻不到就如实说没找到）
+
 【图片消息】用户消息里会注明带了几张图，并附图片内容的客观描述（VLM 识别）。
 描述是人物照片+用户说明是谁/说做底图 → save_chat_images（严禁只回"已收到"）；
 描述是范例图+用户说想要这样的 → custom_moka；UI 截图+用户问"你看这个" → 走反馈流程。
@@ -1111,19 +1380,28 @@ final_reply："想做一张这种韩式极简风的专属大片对吧？回我�
 事件只注入一次，用户问起进度/成片时主动报喜并引导查看（成片用 get_storylab_film 查）。"""
 
 
-def build_system_prompt(conn, order_no, body, deps, state, events, storylab_text) -> str:
+def build_system_prompt(conn, order_no, body, deps, state, events, storylab_text,
+                        dialog: str = "") -> str:
     parts = [PERSONA_SYS, "【订单状态】\n" + _order_summary(conn, order_no, deps)]
     facts = state.get("facts") or {}
-    if facts:
-        parts.append("【记住的事实】\n" + "\n".join("- {}：{}".format(k, v) for k, v in facts.items()))
+    summary = str(facts.get("dialog_summary") or "")
+    profile = facts.get("user_profile") or {}
+    loose = {k: v for k, v in facts.items()
+             if k not in ("dialog_summary", "user_profile")}
+    if loose:
+        parts.append("【记住的事实】\n" + "\n".join("- {}：{}".format(k, v) for k, v in loose.items()))
+    if summary:
+        parts.append("【我们的对话至今】\n" + summary[:300])
+    if profile:
+        parts.append("【我记住的你】\n" + "\n".join(
+            "- {}：{}".format(k, str(v)[:60]) for k, v in list(profile.items())[:10]))
     pc = state.get("pending_confirm")
     if pc:
         parts.append("【待用户确认的提案】{}：{}\n用户回「好/确认」即执行，回「算了」即取消"
                      .format(pc["tool"], pc.get("summary", "")))
     if events:
         parts.append("【刚刚发生】\n" + "\n".join("- " + str(e.get("text", "")) for e in events))
-    dialog = "\n".join(list(body.history or [])[-12:]) or "（本轮刚开始）"
-    parts.append("【最近对话】\n" + dialog)
+    parts.append("【最近对话】\n" + (dialog or "（本轮刚开始）"))
     if storylab_text:
         parts.append("【素材理解】（回答素材问题只能依据这些 caption）\n" + storylab_text)
     else:
@@ -1164,7 +1442,18 @@ def _history_messages(history: list) -> list:
 # 主入口
 # ------------------------------------------------------------------
 def run(conn, body, deps) -> dict:
-    """智能体对话主入口。入参同 /api/mp/chat，返回 {{"reply", "action"}}（前端协议不变）。"""
+    """智能体对话主入口（含 P1 全量留痕）。入参同 /api/mp/chat，返回 {reply, action}。"""
+    out = _run(conn, body, deps)
+    try:
+        record_chat_turn(conn, body.order_no, body, out.get("reply", ""),
+                         out.get("action"), deps)
+    except Exception as exc:  # noqa: BLE001 - 留痕失败绝不阻塞回复
+        log.warning("chat 留痕异常 order_no=%s: %s", body.order_no, exc)
+    return out
+
+
+def _run(conn, body, deps) -> dict:
+    """智能体对话主循环。历史上下文取自 mp_chat_messages（P1），body.history 仅兜底。"""
     order_no = body.order_no
     order = deps["get_order"](conn, order_no)
     if not order:
@@ -1228,9 +1517,12 @@ def run(conn, body, deps) -> dict:
     # ---- 1) agent 循环（≤4 轮） ----
     storylab_summary = deps["storylab_summary"](conn, order_no)
     storylab_text = deps["storylab_summary_text"](storylab_summary) if storylab_summary else ""
-    sys_prompt = build_system_prompt(conn, order_no, body, deps, state, events, storylab_text)
+    dialog = load_recent_dialog(conn, order_no, body, rounds=6)
+    sys_prompt = build_system_prompt(conn, order_no, body, deps, state, events,
+                                     storylab_text, dialog=dialog)
     # 历史只进 system prompt【最近对话】（与旧路径一致）：以 assistant 角色注入
     # 会让模型模仿自然语言回复、破坏 JSON 输出纪律（实测反馈 #53 场景踩中）。
+    # 数据源=mp_chat_messages 最近 6 轮（P1），当前轮尚未写入故天然是"之前的对话"。
     msgs = [{"role": "system", "content": sys_prompt}]
     msgs.append({"role": "user", "content": build_user_text(body, deps)})
 
@@ -1308,6 +1600,7 @@ def run(conn, body, deps) -> dict:
             "navigate_card": _tool_navigate_card,
             "show_result": _tool_show_result,
             "show_uploads": _tool_show_uploads,
+            "remember_fact": _tool_remember_fact,
         }.get(tool)
         if result is None:
             msgs.append({"role": "user", "content": "[系统] 工具 {} 不可用".format(tool)})
@@ -1415,9 +1708,9 @@ def run(conn, body, deps) -> dict:
     if storylab_text:
         reply = deps["storylab_fact_check"](conn, order_no, body.message or "", reply)
 
-    # ---- 6) 复读兜底（反馈 #53） ----
+    # ---- 6) 复读兜底（反馈 #53）：数据源同步为 DB 组装的 dialog ----
     last_ai = ""
-    for h in reversed(list(body.history or [])[-12:]):
+    for h in reversed(dialog.splitlines()):
         if h.startswith("助手："):
             last_ai = h[len("助手："):].strip()
             break

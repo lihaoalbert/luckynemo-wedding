@@ -62,6 +62,21 @@ chat_agent._llm = _counting_llm
 _REAL_M3 = app._m3_chat
 
 
+# ---- P2 摘要触发：测试内不真开后台线程，改为记录"本应触发"的事件 ----
+ROLLUP_TRIGGERS: list = []
+
+
+def _fake_maybe_rollup(conn, order_no, deps):
+    n = conn.execute(
+        "SELECT COUNT(*) FROM mp_chat_messages WHERE order_no=? AND role='user'",
+        (order_no,)).fetchone()[0]
+    if n and n % 10 == 0:
+        ROLLUP_TRIGGERS.append((order_no, n))
+
+
+chat_agent._maybe_rollup = _fake_maybe_rollup
+
+
 def _counting_m3(system, user):
     LLM_CALLS["old"] += 1
     return _REAL_M3(system, user)
@@ -73,6 +88,7 @@ app._m3_chat = _counting_m3
 DEPS = dict(app._MP_CHAT_AGENT_DEPS)
 DEPS["vlm"] = lambda keys: ("手机界面截图：小程序聊天页，里面是一张刚生成的婚纱照预览，画面略模糊")
 DEPS["signed_url"] = lambda key, expire=3600: "https://oss.example/" + key
+DEPS["db_factory"] = app._db
 
 NOW = "2026-08-29T00:00:00+00:00"
 ORDER = "LN-TEST-001"
@@ -408,6 +424,163 @@ def run_all():
             check(("完成" in reply) or ("定妆" in reply), "S7 reply 感知到完成事件")
         run_turns("S7", ORDER, [{"message": "我的定妆照生成好了吗", "check": t}])
 
+    @scenario("S9 全量留痕 + topic 打标（P1/P3）")
+    def s9():
+        wipe(ORDER)
+        conn = app._db()
+        conn.execute("DELETE FROM mp_chat_messages WHERE order_no=?", (ORDER,))
+        conn.commit()
+        conn.close()
+        run_turns("S9", ORDER, [{"message": "把我们的花絮做成一个搞笑视频"}])
+        conn = app._db()
+        rows = conn.execute(
+            "SELECT role, topic, action_json FROM mp_chat_messages WHERE order_no=?"
+            " ORDER BY id", (ORDER,)).fetchall()
+        conn.close()
+        check(len(rows) == 2, "S9 留痕 user+assistant 两行")
+        check(rows[0][0] == "user" and rows[1][0] == "assistant", "S9 角色成对")
+        check(rows[0][1] == "storylab", "S9 topic 打标 storylab")
+        check(json.loads(rows[1][2] or "{}").get("type") == "storylab_trailer",
+              "S9 assistant 行含 action 快照")
+
+    @scenario("S10 历史端点：分页/倒序/重签（P1）")
+    def s10():
+        wipe(ORDER)
+        conn = app._db()
+        conn.execute("DELETE FROM mp_chat_messages WHERE order_no=?", (ORDER,))
+        for i in range(25):
+            conn.execute(
+                "INSERT INTO mp_chat_messages(order_no,role,text,images_json,topic,created_at)"
+                " VALUES(?,?,?,?,?,?)",
+                (ORDER, "user" if i % 2 == 0 else "assistant",
+                 "第%d条测试消息" % i,
+                 json.dumps(["materials/x/%d.jpg" % i]) if i == 24 else None,
+                 "chat", "2026-08-29T10:%02d:00+00:00" % (i % 60)))
+        conn.commit()
+        conn.close()
+        r1 = json.loads(app.mp_chat_history(ORDER, 0, 10).body)
+        items = r1["items"]
+        check(len(items) == 10 and r1["has_more"], "S10 第一页 10 条且 has_more")
+        check(items[0]["id"] > items[-1]["id"], "S10 倒序")
+        r2 = json.loads(app.mp_chat_history(ORDER, items[-1]["id"], 10).body)
+        check(r2["items"] and r2["items"][0]["id"] < items[-1]["id"],
+              "S10 before_id 游标分页无重叠")
+        with_img = [it for it in items if it["images"]]
+        check(len(with_img) == 1 and "OSSAccessKeyId=" in with_img[0]["images"][0],
+              "S10 images 重签 24h（真实签名 URL）")
+
+    @scenario("S11 记忆注入：新会话（history 空）能引用刚说过的话（P1）")
+    def s11():
+        wipe(ORDER)
+        conn = app._db()
+        conn.execute("DELETE FROM mp_chat_messages WHERE order_no=?", (ORDER,))
+        conn.commit()
+        conn.close()
+        run_turns("S11", ORDER, [{"message": "故事片场的基调我想要爆笑吐槽风的"}])
+        def t(reply, action, ctx):
+            check("爆笑" in reply, "S11 新会话引用到之前说的基调（DB 注入 dialog）")
+        run_turns("S11b", ORDER, [{"message": "我刚才说要什么基调？", "check": t}])
+
+    @scenario("S12 recall_past：翻旧账引用（P3）")
+    def s12():
+        wipe(ORDER)
+        conn = app._db()
+        conn.execute("DELETE FROM mp_chat_messages WHERE order_no=?", (ORDER,))
+        conn.execute("DELETE FROM mp_chat_state WHERE order_no=?", (ORDER,))
+        conn.execute(
+            "INSERT INTO mp_chat_messages(order_no,role,text,topic,created_at) VALUES(?,?,?,?,?)",
+            (ORDER, "user", "我想好了，情绪基调要爆笑吐槽风这种风格，越搞笑越好", "prefs", NOW))
+        conn.execute(
+            "INSERT INTO mp_chat_messages(order_no,role,text,topic,created_at) VALUES(?,?,?,?,?)",
+            (ORDER, "assistant", "记下来啦，爆笑吐槽风！", "prefs", NOW))
+        for i in range(14):  # 14 条填充，把目标消息顶出最近 6 轮窗口
+            conn.execute(
+                "INSERT INTO mp_chat_messages(order_no,role,text,topic,created_at) VALUES(?,?,?,?,?)",
+                (ORDER, "user" if i % 2 == 0 else "assistant", "闲聊填充 %d" % i,
+                 "chat", "2026-08-29T11:%02d:00+00:00" % i))
+        conn.commit()
+        conn.close()
+        def t(reply, action, ctx):
+            check("爆笑" in reply, "S12 reply 引用到爆笑吐槽风（recall_past 路径）")
+        run_turns("S12", ORDER, [{"message": "上次我说要什么风格？", "check": t}])
+        conn = app._db()
+        conn.execute("DELETE FROM mp_chat_messages WHERE order_no=?", (ORDER,))
+        conn.commit()
+        conn.close()
+
+    @scenario("S13 清除对话记录：历史清空 + summary/profile 重置（P2）")
+    def s13():
+        conn = app._db()
+        conn.execute(
+            "INSERT INTO mp_chat_messages(order_no,role,text,topic,created_at) VALUES(?,?,?,?,?)",
+            (ORDER, "user", "测试清除", "chat", NOW))
+        state = chat_agent.load_state(conn, ORDER)
+        state.setdefault("facts", {})["dialog_summary"] = "旧摘要"
+        state["facts"]["user_profile"] = {"heights": "173cm"}
+        chat_agent.save_state(conn, ORDER, state)
+        conn.commit()
+        conn.close()
+        r = json.loads(app.mp_chat_history_delete(ORDER).body)
+        check(r.get("ok"), "S13 DELETE 端点 ok")
+        conn = app._db()
+        n = conn.execute("SELECT COUNT(*) FROM mp_chat_messages WHERE order_no=?",
+                         (ORDER,)).fetchone()[0]
+        conn.close()
+        check(n == 0, "S13 历史已清空")
+        state = chat_agent.load_state(conn2 := app._db(), ORDER)
+        check(not state["facts"].get("dialog_summary"), "S13 dialog_summary 已重置")
+        check(not state["facts"].get("user_profile"), "S13 user_profile 已重置")
+        conn2.close()
+
+    @scenario("S14 滚动摘要：直调摘要函数（P2，合成消息不真跑 10 轮）")
+    def s14():
+        wipe(ORDER)
+        conn = app._db()
+        conn.execute("DELETE FROM mp_chat_messages WHERE order_no=?", (ORDER,))
+        dialog = [
+            ("user", "他身高183，我165，记住了"),
+            ("assistant", "记住啦，新郎183新娘165～"),
+            ("user", "我喜欢复古港风的妆容，以后都按这个来"),
+            ("assistant", "记上：复古港风妆容偏好 ✅"),
+            ("user", "把我们的花絮做成搞笑视频"),
+            ("assistant", "好呀，先定个调调"),
+            ("user", "爆笑吐槽风"),
+            ("assistant", "嘿嘿，这个好玩！"),
+            ("user", "不要出现宾客正脸"),
+            ("assistant", "禁区记下了"),
+            ("user", "婚礼现场播，纯背景音乐"),
+            ("assistant", "齐活！你的「故事片场」开机准备完成"),
+        ]
+        for role, text in dialog:
+            conn.execute(
+                "INSERT INTO mp_chat_messages(order_no,role,text,topic,created_at) VALUES(?,?,?,?,?)",
+                (ORDER, role, text, "chat", NOW))
+        conn.commit()
+        conn.close()
+        conn = app._db()
+        ok = chat_agent.rollup_summary(conn, ORDER, DEPS)
+        state = chat_agent.load_state(conn, ORDER)
+        conn.close()
+        summary = state["facts"].get("dialog_summary") or ""
+        profile = state["facts"].get("user_profile") or {}
+        check(ok and summary, "S14 摘要生成成功")
+        check(len(summary) <= 300, "S14 摘要 ≤300 字（实际 %d）" % len(summary))
+        check(bool(profile), "S14 user_profile 有提取：%s" % list(profile)[:5])
+        check(any("183" in str(v) for v in profile.values()), "S14 profile 含身高事实")
+        conn = app._db()
+        conn.execute("DELETE FROM mp_chat_messages WHERE order_no=?", (ORDER,))
+        before = len(ROLLUP_TRIGGERS)
+        for i in range(9):  # 9 条 + record_chat_turn 的 1 条 = 第 10 轮触发
+            conn.execute(
+                "INSERT INTO mp_chat_messages(order_no,role,text,topic,created_at) VALUES(?,?,?,?,?)",
+                (ORDER, "user", "msg%d" % i, "chat", NOW))
+        conn.commit()
+        chat_agent.record_chat_turn(conn, ORDER, app.MpChatIn(
+            order_no=ORDER, message="第10条", images=[], history=[]), "回复", {"type": "none"}, DEPS)
+        conn.close()
+        check(len(ROLLUP_TRIGGERS) > before, "S14 第 10 轮触发摘要节拍（fake 记录到 %s）"
+              % (str(ROLLUP_TRIGGERS[-1]) if ROLLUP_TRIGGERS else None))
+
     s1()
     s2()
     s3()
@@ -416,6 +589,12 @@ def run_all():
     s6()
     s7()
     s8()
+    s9()
+    s10()
+    s11()
+    s12()
+    s13()
+    s14()
 
 
 # ------------------------------------------------------------------
