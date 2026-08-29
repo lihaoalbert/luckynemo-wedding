@@ -2579,18 +2579,21 @@ def _mp_storylab_summary(conn: sqlite3.Connection, order_no: str) -> dict | None
 
 def _mp_storylab_summary_text(summary: dict) -> str:
     """打标摘要 → system prompt 注入文本（聚合事实 + 逐段一行，输入瘦身只带关键列）。"""
+    moment_parts = ["{}{}段".format(k, v) for k, v in summary["moments"].items()]
+    moments_txt = "、".join(moment_parts) if moment_parts else "暂无"
     lines = [
-        f"- 共理解 {summary['total']} 段视频花絮"
-        f"（时刻分布：{'、'.join(f'{k}{v}段' for k, v in summary['moments'].items()) or '暂无'}；"
-        f"高光(≥4分) {summary['highlight4']} 段）",
+        "- 共理解 {} 段视频花絮（时刻分布：{}；高光(≥4分) {} 段）".format(
+            summary["total"], moments_txt, summary["highlight4"]),
     ]
     for i, s in enumerate(summary["tops"], 1):
-        lines.append(f"- 开场候选{i}：{s['caption']}（{s['duration']:.0f}s，高光{s['highlight']}/5"
-                     f"{f'，高光窗口{s['window']}' if s['window'] else ''}）")
+        win = "，高光窗口{}".format(s["window"]) if s["window"] else ""
+        lines.append("- 开场候选{}：{}（{:.0f}s，高光{}/5{}）".format(
+            i, s["caption"], s["duration"], s["highlight"], win))
     lines.append("- 逐段标签（时长/时刻类型/情绪/高光/画面），回答素材问题时必须先核对这些 caption：")
     for s in sorted(summary["segs"], key=lambda x: -(x["highlight"] or 0)):
-        lines.append(f"  · {s['caption']} | {s['duration']:.0f}s | {s['moment_type']} | {s['emotion']}"
-                     f" | 高光{s['highlight']}/5 | {s['scene'][:30]}")
+        lines.append("  · {} | {:.0f}s | {} | {} | 高光{}/5 | {}".format(
+            s["caption"], s["duration"], s["moment_type"], s["emotion"],
+            s["highlight"], s["scene"][:30]))
     return "\n".join(lines)
 
 
@@ -2715,11 +2718,18 @@ def _vlm_describe_images(keys: list[str]) -> str:
 
 
 def _mp_chat_user_text(body: MpChatIn) -> str:
-    """用户消息 + 图片附注（有图先过 VLM 识别内容，反馈 #40）。"""
+    """用户消息 + 图片/视频附注（图片先过 VLM 识别内容，反馈 #40）。
+    视频只标注不入 VLM（避免整段视频被 base64 拉去识图），storylab 打标由 worker 异步做。"""
     text = body.message.strip() or "（只发了图片，没说话）"
-    if body.images:
-        desc = _vlm_describe_images(body.images)
-        text += f"\n[用户同时发了 {len(body.images)} 张图片"
+    video_ext = (".mp4", ".mov", ".m4v", ".3gp", ".avi")
+    vids = [k for k in body.images if k.lower().endswith(video_ext)]
+    imgs = [k for k in body.images if k not in vids]
+    if vids:
+        text += (f"\n[用户同时上传了 {len(vids)} 段视频，已存入相册并排队自动理解，"
+                 f"理解完成后可以聊素材/做片子]")
+    if imgs:
+        desc = _vlm_describe_images(imgs)
+        text += f"\n[用户同时发了 {len(imgs)} 张图片"
         if desc:
             text += f"，图片内容：{desc}"
         text += "]"

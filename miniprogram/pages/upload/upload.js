@@ -59,6 +59,55 @@ Page({
     });
   },
 
+  // storylab 视频花絮：登记到 A 相册（contact=order_no，服务端自动触发素材理解；
+  // 相册各处查询都带 image/% 过滤，视频行不影响照片流程）
+  chooseVideo() {
+    wx.chooseMedia({
+      count: 3,
+      mediaType: ['video'],
+      sourceType: ['album', 'camera'],
+      success: (res) => {
+        res.tempFiles.forEach(f => this.uploadVideo(f));
+      },
+    });
+  },
+
+  uploadVideo(f) {
+    const thumb = f.thumbTempFilePath || f.tempFilePath;
+    const files = this.data.files.concat([{
+      path: thumb, status: '签名中', progress: 0, role: 'A', slot: '',
+      slotName: '视频', isVideo: true,
+    }]);
+    this.setData({ files });
+    const idx = files.length - 1;
+    const name = (f.tempFilePath.split('/').pop() || 'video.mp4');
+    const ext = (name.split('.').pop() || 'mp4').toLowerCase();
+    const ctype = { mp4: 'video/mp4', mov: 'video/quicktime', m4v: 'video/mp4', '3gp': 'video/3gpp' }[ext] || 'video/mp4';
+    app.req('/api/uploads/sign', 'POST', {
+      contact: this.data.order.order_no,
+      filename: name,
+      content_type: ctype,
+      size: f.size || 1,
+      slot: '',
+    }).then(signed => {
+      this.setStatus(idx, '上传中', 40);
+      wx.uploadFile({
+        url: signed.url,
+        filePath: f.tempFilePath,
+        name: 'file',
+        formData: signed.fields,
+        success: (r) => {
+          if (r.statusCode >= 200 && r.statusCode < 300) {
+            this.setStatus(idx, '完成', 100);
+          } else {
+            this.setStatus(idx, '失败', 0);
+          }
+        },
+        fail: () => this.setStatus(idx, '失败', 0),
+      });
+    }).catch(e => this.setStatus(idx, '失败：' + e.message, 0));
+  },
+
   upload(path, role, slot) {
     const files = this.data.files.concat([{
       path, status: '签名中', progress: 0, role, slot,

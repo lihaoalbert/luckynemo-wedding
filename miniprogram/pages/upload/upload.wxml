@@ -71,6 +71,12 @@
     <button class="btn sub-btn" bindtap="chooseB">+ 上传更多照片（合照/生活照）</button>
   </view>
 
+  <!-- 视频花絮（storylab：上传后 AI 自动理解素材，可在对话里聊镜头/做预告片） -->
+  <view class="section">
+    <view class="sec-title serif">视频花絮（可选，做故事短片用）</view>
+    <button class="btn sub-btn" bindtap="chooseVideo">+ 上传视频花絮（≤60 秒/段）</button>
+  </view>
+
   <!-- 上传进度 -->
   <view class="files" wx:if="{{files.length}}">
     <view class="file" wx:for="{{files}}" wx:key="index">

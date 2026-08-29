@@ -444,17 +444,56 @@ Page({
     this._si.stop();
   },
 
-  // ---- 聊天里发图片（反馈截图 / 新底图两用）----
+  // ---- 聊天里发图片/视频（反馈截图 / 新底图两用；视频走 storylab 素材理解）----
   chooseImage() {
     if (!this.data.order) return;
     wx.chooseMedia({
       count: 3 - this.data.pendingImages.length,
-      mediaType: ['image'],
+      mediaType: ['image', 'video'],
       success: (res) => {
-        res.tempFiles.forEach(f => this.uploadChatImage(f.tempFilePath));
+        res.tempFiles.forEach(f => {
+          const isVideo = !!f.thumbTempFilePath
+            || (f.tempFilePath.split('.').pop() || '').toLowerCase() === 'mp4'
+            || (f.duration || 0) > 0;
+          if (isVideo) this.uploadChatVideo(f);
+          else this.uploadChatImage(f.tempFilePath);
+        });
         this.setData({ inputMode: 'text' });
       },
     });
+  },
+
+  // 聊天里发视频：登记到 A 相册（contact=order_no），服务端自动触发素材理解打标
+  uploadChatVideo(f) {
+    const thumb = f.thumbTempFilePath || f.tempFilePath;
+    const pendingImages = this.data.pendingImages.concat([{ path: thumb, key: '', status: '上传中', isVideo: true }]);
+    this.setData({ pendingImages });
+    const idx = pendingImages.length - 1;
+    const name = (f.tempFilePath.split('/').pop() || 'video.mp4');
+    app.req('/api/uploads/sign', 'POST', {
+      contact: this.data.order.order_no,
+      filename: name,
+      content_type: 'video/mp4',
+      size: f.size || 1,
+    }).then(signed => {
+      wx.uploadFile({
+        url: signed.url,
+        filePath: f.tempFilePath,
+        name: 'file',
+        formData: signed.fields,
+        success: (r) => {
+          const imgs = this.data.pendingImages.slice();
+          imgs[idx].status = r.statusCode < 300 ? '完成' : '失败';
+          imgs[idx].key = signed.fields.key;
+          this.setData({ pendingImages: imgs });
+        },
+        fail: () => {
+          const imgs = this.data.pendingImages.slice();
+          imgs[idx].status = '失败';
+          this.setData({ pendingImages: imgs });
+        },
+      });
+    }).catch(() => {});
   },
 
   uploadChatImage(path) {
