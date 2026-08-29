@@ -1,6 +1,6 @@
 # 徐大恩（LuckyNemo）项目状态存档
 
-> 最后更新：2026-08-12
+> 最后更新：2026-08-29
 > 恢复方式：把这个文件给 Kimi 看，或直接说"继续 LuckyNemo 项目"
 > 记录机制：见根目录 `AGENTS.md`——会话中状态有变化就当更新本文件，文末追加更新日志
 
@@ -55,6 +55,14 @@
 - **视频生成规范（2026-08-06 用户定）**：①不用首尾帧，默认 r2v 多模态参考生视频；②人物/场景/道具资产先生成（assets 子命令 → refs_manifest.json）才能生视频；③多参数接口按模型精准适配（方舟/MiniMax 各自 client 校验：互斥、≤9 张、分辨率档位）。i2v 旧模式保留为 `--mode i2v` 兜底。**人物资产规范：人=脸+服装+妆容绑定的形象卡（换装/换妆即新资产），版式 16:9：左脸正面特写+右侧全身正/侧/背三视图、纯白背景无边框（代码常量 CHAR_SHEET_LAYOUT 自动套用）；声明 `{"base": 照片, "prompt": 服装妆容}` 即以本人照片为身份参考生成**。**场景资产规范：2x2 四宫格同空间四方向关联视图（每格 9:16 竖版：正面/反打/左立面/右立面，1.6m/35mm 全景无人物，SCENE_GRID_TEMPLATE 自动组装；尺寸 1440x2560，勿超 Seedream 462 万像素）**。**构图参考（layouts，实验中）：简易图（剪影/火柴人线稿）不含人脸服装细节，--layouts 目录按 shot_XX.png 约定，参考列表末位 +"仅参考构图"锚定**
 - 状态：分镜与管线（--ratio/--size）已 dry-run 验证；2026-08-04 首样 E2E 首跑 draft 发现**视频变脸**（首帧正常、片中漂成模板脸，根因：i2v 只传首帧无身份锚点 + Mini 保持力弱）。已实测三条路（shot_05 对照）：①首帧+参考图混传 → 方舟 400 互斥，接口层不支持；②**标准版 i2v（仅首帧）身份保持合格**；③**Mini r2v（首帧降为图片1参考 + 新人照片身份锚点）也稳**，pipeline 已加 `--char-refs` 支持该模式。v1 废片存档 `film/clips_draft_v1_变脸废弃/`。结论：draft=Mini r2v（--char-refs）、final=标准版 i2v；新人正面照已入库素材库（新娘 asset-20260804102400-5lg5m / 新郎 asset-20260804102408-qzbhg，组 group-20260804093915-slq4k）。**注意：r2v 模式参考图会把场景往参考图带（海滩照片曾致 shot_16 中段棚景漂成海滩），场景敏感的镜头走 i2v**。全量 20 镜 Mini r2v 草稿已完成并逐镜品控：19/20 通过无变脸，shot_16 场景漂移用标准版 i2v 单独补出（进 clips_final/）；草稿粗剪 `film/roughcut_draft.mp4`（91.8s 带 BGM）已交用户审阅，确认后跑剩余 19 镜定稿
 - r2v 新范式落地（2026-08-06）：分镜加顶层 assets 声明（characters/scenes/props）+ 每镜 refs 标签；`assets` 子命令生成 3 场景（white_studio/dark_studio/night_street，四宫格竖版 1440x2560 已品控合规）+ 3 道具（bouquet/ring/veil）并入新素材组 group-20260806222635-z8mjw；manifest `film/refs_assets/refs_manifest.json`；人物形象卡（bride_gown/groom_suit，asset-20260806225621-242d7 / asset-20260806225706-84ktz）shot_05 服装锁定验证通过；构图参考定为剪影版（`layouts` 子命令首帧转剪影，20 镜已生成 `film/layouts/`）；每镜 refs.characters 精确化（单人镜单卡）。分镜按用户要求剪到 17 镜 76s；全量 17 镜草稿品控 16/17 通过后补齐，76.7s 粗剪 `film/roughcut_draft_v2.mp4` 已出。**2026-08-07 用户审片结论：不满意，细节待讨论——①人物不像（侧脸镜头为主，与反馈 #26 同源：人脸三视图资产已生成入库待验证——bride_gown_face asset-20260807082318-f6x2h / groom_suit_face asset-20260807082405-2d5j6，正/左/右脸部特写、不参考服装、侧脸原照参考，版式品控合格；r2v 组装自动紧随形象卡。characters 声明支持可选 side 侧面原照列表）②运镜奇怪（待用户具体指出镜头）。暂停生成类投入，等细节讨论后再迭代**
+
+## 二点六、storylab（真实素材×AI 创作，2026-08-29，storylab 分支）
+
+- 方向：真人实拍照片/视频 + AI 生成故事感作品；首个验证单「婚礼花絮→预告片」已人工完成（50s 竖屏粗剪，`films/benben-xuchi/_storylab_trailer/`）。方向文档 `research/2026-08-真实素材AI创作方向探索.md`
+- **P4 素材理解自动化已跑通（2026-08-29）**：`tools/luckynemo-toolkit/luckynemo/storylab_ingest.py`（CLI：`python -m luckynemo.storylab_ingest <素材目录> --out <输出目录> [--variant v2] [--stage all|ingest|storyboard|report]`）。v1 流程：ffprobe → 每段抽 4 帧 → MiniMax abab6.5s-chat VLM 打标（严格 JSON+raw_decode 容错，每段缓存断点续跑）→ materials.json → M3 三段式推荐分镜 → REPORT.md。首跑：15/15 段成功，黄金镜头 3/3 命中
+- **v2 已落地（2026-08-29，--variant v2，产物 materials_v2/storyboard_v2/REPORT_v2）**：修 v1 三短板——①10 帧时间戳 + highlight_window 高光窗口估计 + 音轨 RMS 音峰提示，分镜入点后验钳制（开场入点 32.0s→6.4s，人工参照 13.5s）②本地帧间差分 motion_score（ffmpeg gray 缩略帧，免费），高档高光保底+1 ③书挡式首尾呼应（prompt 约束 + 同素材复用重叠>50% 自动平移到音峰候选窗的后验双保险）；moment_type 改受控枚举+别名归一。真实占比 87%→93%（=人工），漏选 1→2 但 ca952d54 补回。v2 新坑已修：M3 思维链烧光 max_tokens 致 JSON 截断（prompt 瘦身+输出纪律+解析重试），think 段内首个花括号陷阱（_first_json_object 先剥 think）
+- 产物：`films/benben-xuchi/_storylab_p4/`（gitignore 覆盖；v1 与 v2 产物并存，缓存 cache/ 与 cache_v2/ 独立断点续跑）。素材口径：intake_20260724 实际 15 段非 raw 视频（含 2 段 4K 的 `_raw.mp4` 同内容原片，打标自动跳过、剪辑时应回切 4K）
+- 已知边界：入点/出点为 highlight_window 秒级估计（v3 二轮 2fps 细定位）；音频只有能量无语义（ASR 未接）；无人脸身份聚类；帧间差分对慢速大景别动感（骑马）不敏感。v3 方向见 REPORT_v2.md §⑤
 
 ## 三、模卡（一键同款，2026-08-01 引入）
 
@@ -112,6 +120,9 @@
 - `server/`（后端本地副本，ECS /opt/luckynemo/server 为生产）
 
 ## 更新日志
+
+- 2026-08-29 **storylab P4 素材理解自动化 v1 跑通**（storylab 分支 worktree `/Users/app/LuckyNemo-Wedding-storylab`，未提交）：新增 `tools/luckynemo-toolkit/luckynemo/storylab_ingest.py`（VLM 打标+推荐分镜+对照报告一条 CLI），对主仓 `referrence/刘奔奔&徐驰/intake_20260724/` 15 段花絮全量打标（MiniMax abab6.5s-chat 15 次+ M3 分镜 1 次，15/15 成功 0 重试），产物落 `films/benben-xuchi/_storylab_p4/`（materials.json/storyboard.json/storyboard.md/REPORT.md/frames/cache）。黄金镜头 3/3 命中、机器漏选 1（ca952d54）、多选 2（bfb1f89c/ccdc6253）。caption 抽 3 段与抽帧对照目检无胡编。v1 三短板（入点拍脑袋/动感低估/无书挡）登记在 REPORT.md §⑤
+- 2026-08-29 **storylab P4 v2 迭代完成**（storylab 分支 worktree，未提交）：`storylab_ingest.py` 升级 schema v2（`--variant v2` 产物独立不覆盖 v1）：10 帧时间戳打标 + highlight_window 高光窗口 + 本地 motion_score（帧间差分）/音轨 RMS 音峰 + 书挡式分镜约束 + 入点钳制/书挡平移双后验 + moment_type 受控枚举归一。15/15 打标成功（VLM 15 次 0 重试，LLM 分镜 2 次成功+3 次截断重试），产物 `films/benben-xuchi/_storylab_p4/` 新增 materials_v2.json/storyboard_v2.{json,md}/REPORT_v2.md/frames_v2//cache_v2/。验收：开场入点 32.0→6.4s（人工 13.5s）、骑手段 空镜H3→欢庆H4 且进高潮段、书挡结构出现（收尾平移到 39.8-43.1s）、枚举收敛（独处 5→0 段）。过程中修两个新坑：M3 思维链烧光输出预算致 JSON 截断（prompt 瘦身+输出纪律+重试）、think 段内首个 `{` 陷阱（先剥 think 再 raw_decode）
 
 - 2026-08-12 两个前端小需求（用户提出）：①相册页（pages/photos）长按照片的 ActionSheet 加「提意见重生成」（插在海报与删除之间，单张有效；系列组图整组格仍只有保存/删除，组内单张修改走结果页长按）——复用 /api/mp/revise，定妆照也走 target=photo 图像编辑；②定妆页（pages/makeup）妆造列表「原图直出版」（spec.use_original）排序置顶（applyGender 内稳定排序）。均纯前端，**需微信开发者工具上传后生效**
 - 2026-08-12 反馈 #46/#47 处理完毕（未处理清零，AXEZ 测试结果页+重生成）：①**#47 实锤修复（重生成"用模板里的发型"不生效）**——edit_photo 只送成片底图，模型看不到模板；worker 新增 `_template_ref_for_result` 回溯底图来源任务（template_photo 按 template_id/custom_template_key、template_series 按 urls 里 oss_key 匹配的变体 id），找到则模板图作图2参考传入+提示词"提及模板参照图2"，chat 和 revise 两条修图链路都受益；ECS 已同步重启，用 AXEZ 真实系列片回溯到 hyd06.png 冒烟通过。②**#46 结果页五连修**：标题不写死（result.json 默认"成片出炉"，js 按场景 setNavigationBarTitleText：系列"系列组图出炉"/单人"你的成片"）；眉标+主标动态化（单人"看看，是不是你？"）；系列只有 1 张时按单张渲染（修单张九宫格"左圆角右直角"错乱）；「模板 vs 成片」弃用 lastSeries 暂存（换路径会张冠李戴），改按 result.series_id 查 catalog 取标题+首模板封面，对比块"你的脸"改"你的成片"；充值卡按用户拍板改 **quotaLeft（免费余+付费余）≤0 才显示**。仅前端改动（result 页 js/wxml/wxss/json），**需微信开发者工具上传后生效**。两条均已回复标 done
