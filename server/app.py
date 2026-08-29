@@ -30,6 +30,7 @@ from typing import Optional
 from urllib.parse import quote
 
 import requests
+import chat_agent
 import db_compat
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
@@ -259,6 +260,12 @@ def _migrate() -> None:
     mo_cols = [r[1] for r in conn.execute("PRAGMA table_info(mp_orders)")]
     if "storylab_prefs" not in mo_cols:
         conn.execute("ALTER TABLE mp_orders ADD COLUMN storylab_prefs TEXT DEFAULT ''")
+    # chat 智能体会话状态（chat_agent.py，order_no 主键；events 由 worker 完成钩子追加）
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS mp_chat_state("
+        "order_no TEXT PRIMARY KEY,"
+        "state_json TEXT, updated_at TEXT NOT NULL)"
+    )
     conn.commit()
     # 存量订单迁移：已认证通过的订单视为成员 A 已认证
     for row in conn.execute(
@@ -2777,9 +2784,71 @@ _STORYLAB_ASK_MARK = {
 }
 
 
+def _mp_chat_agent_deps() -> dict:
+    """组装 chat_agent 的依赖注入（查订单/签名/storylab 三函数/资产校验等），避免循环 import。"""
+    site = Path(_env("SITE_DIR", "/var/www/luckynemo"))
+
+    def load_assets() -> dict:
+        try:
+            makeup_ids = {m["id"] for m in _load_makeup_catalog(site)}
+        except Exception:
+            makeup_ids = set()
+        try:
+            valid_scenes = set(re.findall(r'"name":\s*"([^"]+)"',
+                                          (site / "scenes/data.js").read_text(encoding="utf-8")))
+        except Exception:
+            valid_scenes = set()
+        try:
+            valid_sets = set(re.findall(r'"id":\s*"(set-\d+)"',
+                                        (site / "wardrobe/data.js").read_text(encoding="utf-8")))
+        except Exception:
+            valid_sets = set()
+        all_poses = {p for g in list(MP_POSES.values()) + list(MP_POSES_SOLO.values()) for p in g}
+        return {"makeup_ids": makeup_ids, "valid_scenes": valid_scenes,
+                "valid_sets": valid_sets, "all_poses": all_poses}
+
+    return {
+        "llm": {"key": MINIMAX_KEY, "base": MINIMAX_BASE, "model": "abab6.5s-chat"},
+        "get_order": _mp_get_order,
+        "touch": _mp_touch,
+        "recompute_auth": _mp_recompute_auth,
+        "delete_assets": _delete_assets,
+        "signed_url": oss_signed_get_url,
+        "vlm": _vlm_describe_images,
+        "storylab_summary": _mp_storylab_summary,
+        "storylab_summary_text": _mp_storylab_summary_text,
+        "storylab_fact_check": _mp_storylab_fact_check,
+        "load_assets": load_assets,
+        "load_makeup_catalog": lambda: _load_makeup_catalog(site),
+        "site_dir": site,
+        "now": _now,
+        "log": log,
+    }
+
+
+_MP_CHAT_AGENT_DEPS = _mp_chat_agent_deps()
+
+
 @app.post("/api/mp/chat")
 def mp_chat(body: MpChatIn) -> JSONResponse:
-    """自然语言对话：理解意图 → 回复 + 动作（跳转/改选择/重出定妆照）。"""
+    """自然语言对话：理解意图 → 回复 + 动作（跳转/改选择/重出定妆照）。
+
+    MP_CHAT_AGENT=1 时走 chat_agent 智能体架构（会话状态 + 工具循环 + 确认通道）；
+    否则旧路径（单轮 M3 + if-elif）原样保留。前端协议两者完全一致。
+    """
+    if _env("MP_CHAT_AGENT", "0") == "1":
+        conn = _db()
+        try:
+            out = chat_agent.run(conn, body, _MP_CHAT_AGENT_DEPS)
+            return JSONResponse({"ok": True, **out})
+        except HTTPException:
+            raise
+        except Exception as exc:  # noqa: BLE001 - 智能体路径整体兜底，不影响可用性
+            log.warning("mp chat agent 失败：%s", exc)
+            return JSONResponse({"ok": True, "reply": "我刚才走神了一下，你再说一次好吗？",
+                                 "action": {"type": "none"}})
+        finally:
+            conn.close()
     conn = _db()
     try:
         order, ctx, makeup_job = _mp_chat_context(conn, body.order_no)

@@ -1385,6 +1385,47 @@ def notify_photo_done(order_no: str, kind: str, count: int = 1) -> None:
         log(f"订阅消息发送异常 order={order_no}: {e}")
 
 
+def _push_chat_event(order_no: str, kind: str) -> None:
+    """job 完成事件追加进 mp_chat_state.events（chat_agent 观察闭环，2026-08-29）。
+
+    事件由 chat 下一轮注入 system prompt（消费即清）。无状态行则创建；
+    任何异常吞掉不挡交付。
+    """
+    try:
+        label = PHOTO_KIND_LABEL.get(kind, "")
+        if kind == "storylab_ingest":
+            label = "素材理解"
+        text = f"「{label or kind}」任务已完成，结果已入相册"
+        now = _now_iso()
+        conn = db()
+        row = conn.execute("SELECT state_json FROM mp_chat_state WHERE order_no=?",
+                           (order_no,)).fetchone()
+        if row and row[0]:
+            try:
+                state = json.loads(row[0])
+                if not isinstance(state, dict):
+                    state = {}
+            except Exception:  # noqa: BLE001
+                state = {}
+        else:
+            state = {"goal": None, "stage": "open", "slots": {}, "pending_confirm": None,
+                     "facts": {}, "events": [], "turn": 0}
+        events = state.get("events") or []
+        events.append({"kind": "job_done", "job_kind": kind, "text": text, "at": now})
+        state["events"] = events[-10:]
+        sj = json.dumps(state, ensure_ascii=False)
+        if row:
+            conn.execute("UPDATE mp_chat_state SET state_json=?, updated_at=? WHERE order_no=?",
+                         (sj, now, order_no))
+        else:
+            conn.execute("INSERT INTO mp_chat_state(order_no,state_json,updated_at)"
+                         " VALUES(?,?,?)", (order_no, sj, now))
+        conn.commit()
+        conn.close()
+    except Exception as e:  # noqa: BLE001
+        log(f"chat event 写入失败（忽略）order={order_no}: {e}")
+
+
 def _maybe_ref_reward(order_no: str) -> None:
     """裂变奖励（2026-08-07）：受邀订单首次生成成功 → 邀请人 +1 张免费额度（只奖一次）。
 
@@ -1433,6 +1474,7 @@ def main() -> None:
                 conn.close()
                 try:
                     run_job(job_id, order_no, kind, json.loads(payload_json))
+                    _push_chat_event(order_no, kind)  # 完成事件 → chat_agent 观察闭环
                 except Exception as e:
                     log(f"job#{job_id} 失败：{e}")
                     fail_job(job_id, str(e)[:500])

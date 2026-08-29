@@ -232,6 +232,11 @@ MYSQL_SCHEMA = [
        tags_json TEXT, status VARCHAR(16) NOT NULL DEFAULT 'ok',
        error TEXT, created_at VARCHAR(40) NOT NULL,
        INDEX idx_sl_order (order_no)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
+    # chat 智能体会话状态（chat_agent.py，order_no 主键；events 由 worker 完成钩子追加）
+    """CREATE TABLE IF NOT EXISTS mp_chat_state(
+       order_no VARCHAR(64) PRIMARY KEY,
+       state_json TEXT, updated_at VARCHAR(40) NOT NULL
+       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
 ]
 
 _ensured = False
