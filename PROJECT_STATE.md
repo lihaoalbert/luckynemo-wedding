@@ -1,6 +1,6 @@
 # 徐大恩（LuckyNemo）项目状态存档
 
-> 最后更新：2026-08-28
+> 最后更新：2026-09-20
 > 恢复方式：把这个文件给 Kimi 看，或直接说"继续 LuckyNemo 项目"
 > 记录机制：见根目录 `AGENTS.md`——会话中状态有变化就当更新本文件，文末追加更新日志
 
@@ -95,7 +95,7 @@
 ## 五、待办清单（重启后接着干）
 
 1. **观察裁脸换脸上线后表现**（8-23 上线）：①worker 日志"裁脸换脸完成 x/2"成功率与失败原因分布；②YuNet 检不出脸的侧脸/遮挡镜头会静默交付一遍图（像不像仍靠三视图锚定）；③双人"按性别对应"是否有换错人的个例
-2. **小程序前端发版**（积压 4 文件）：makeup.js/wxml（锚点 baseRole 修复+隐藏 Vidu）、generating.js（观众模式）、result.js/photos.js（revise 跳生成中页+按最新任务渲染）——微信开发者工具上传并提审
+2. **小程序前端发版**（积压 4 文件）：makeup.js/wxml（锚点 baseRole 修复+隐藏 Vidu）、generating.js（观众模式）、result.js/photos.js（revise 跳生成中页+按最新任务渲染）——微信开发者工具上传并提审。**+9-20 推广 P0 埋点 6 文件**（app.js/chat.js/me.js/result.js/photos.js/utils/track.js，可随同批上传）；**飞书群建自定义机器人拿 webhook 配 ECS `.env` `LARK_BOT_WEBHOOK` 后重启 worker**（不配则日报静默跳过）
 3. **奔奔徐驰问卷回收** → 跑样品首单（最先做：克隆声音试听）
 4. OSS 控制台配生命周期：`materials/` `stories/` 前缀 30 天自动删（兑现"交付即删"）
 5. 清理测试数据：飞书 4 条"测试"记录（订单表 LN20260721-IHA/U6M/3DD 等、问卷表 2 条）、OSS 4 个测试对象、奔奔徐驰目录之外的 LN20260721-* 前缀
@@ -127,6 +127,7 @@
 
 ## 更新日志
 
+- 2026-09-20 **自动化推广 v1 启动 + P0 观测层上线（94b955b 已部署推送）**：规划「内容自产→站内裂变→数据回收→每周迭代」闭环（原则：邀请有礼不碰分享红线/外发素材必带 AI 角标/机器建议人拍板）。P0 落地：①新表 `mp_events`（event/order_no/openid/props_json，双路迁移）+ `mp_meta`（kv，日报防重跑）；②`POST /api/mp/event`（9 事件白名单+props 2000 字截断+静默 200）+ helper `_log_event`；③服务端埋点：建单 order_create（带 ref 补 arrive_ref source=server）、`_vp_grant` pay_success、worker `_finish` gen_done（makeup_photo 补 makeup_done）、`_maybe_ref_reward` invite_reward、`/api/uploads/sign` upload；④前端新增 `utils/track.js`，挂点 app.js onLaunch（visit/arrive_ref）+ chat/me/result/photos 4 处 onShareAppMessage + photos 海报保存 poster_save；⑤worker 每日漏斗日报 `_daily_report`（UTC+8 切天、北京日界换算 UTC 边界匹配 UTC 口径 created_at、每 600 tick 检查、飞书自定义机器人 webhook `LARK_BOT_WEBHOOK` 未配置则跳过）。线上冒烟：RDS 两表自动建出、event 端点白名单/写入 ✓、冒烟行已清理、worker 启动日志"日报模块已挂载"✓。**待：①飞书群建自定义机器人拿 webhook 配 ECS `.env` `LARK_BOT_WEBHOOK` 后重启 worker ②前端 6 文件（app.js/chat/me/result/photos/track.js）需微信开发者工具上传 ③跨组文件 app.py/mp_worker.py/db_compat.py 群里同步**。注意：事件 created_at 是 UTC ISO 串（app._now/worker._now_iso），切天勿直接按本地日期前缀比较。后续阶段：P1 种草素材工厂（watermark.py+gen_promo.py）→ P2 受邀者免费额度 1→2 + 首组成片裂变引导 → P3 每周热度周报
 - 2026-08-29 **对话记忆体系三期上线（991d2a4 已部署推送）**：P1 全量留痕（`mp_chat_messages` 表+历史端点分页重签+服务端组装最近 6 轮注入替代前端 history+前端只读回看"加载更早"，副作用 action 绝不重执行）；P2 工作记忆（每 10 轮滚动摘要 ≤300 字 + user_profile 长期事实沉淀 + `remember_fact` 第 25 工具 + me 页「清除对话记录」）；P3 可引用（topic 打标 + `recall_past` 第 26 工具时间窗检索 + 回忆纪律"先查再答"）。合规：worker 每 100 tick 清扫 30 天前消息+摘要（交付即删兑现）。回归 S1-S14 共 77 断言全绿。**生产实证：记住"无厘头反转"→ 清空历史再问"我刚才说什么风格"→ 贱萌口吻翻出来**（"翻到了～你之前提过想要无厘头反转风格！"）。已知行为：收集流激活期所有消息被当答案（"记住"也会被吃掉，by design）；前端 chat/me 5 文件**已由用户上传发布**（8-29 晚，历史回看/清除入口线上可用）
 
 - 2026-08-29 **对话记忆体系三期连做（P1 全量留痕 + P2 工作记忆 + P3 可引用，未提交未部署）**：**P1** 新表 `mp_chat_messages`（双路迁移）每轮写 user+assistant 两行（action 快照+topic+images，失败不阻塞回复；新路径 chat_agent.run 出口写、旧路径 mp_chat 出口同样写）；`GET/DELETE /api/mp/chat/history`（before_id 倒序分页、images 重签 24h、DELETE 重置 facts 摘要/画像）；新路径对话上下文改从 DB 取最近 6 轮原文（body.history 兜底），防复读 guard 数据源同步。**P2** `facts.dialog_summary` 滚动摘要（每满 10 轮 user 消息后台线程更新，abab6.5s-chat，旧摘要+近10轮→新摘要 ≤300 字，顺带提取长期事实合并 user_profile ≤10 条）+ 第 25 工具 `remember_fact`（直写）+ me 页「清除对话记录」入口（showModal→DELETE→toast）。**P3** topic 正则打标（storylab/makeup/moka/photo_ops/feedback/prefs/chat）+ 第 26 工具 `recall_past`（query 分词前 3 实词 AND 检索 + when 相对时间窗[昨天/N天前/上周/上次]代码解析 + 可选 topic，倒序 5 条摘录）+【回忆纪律】（必须先 recall 再答、翻不到如实说）+ 引用 few-shot。**合规**：worker 每 100 tick `_chat_ttl_sweep` 删 30 天前消息 + 对应 facts 摘要/画像置空（cutoff Python 侧算 ISO 字符串，双库语法零差异）。**前端**（本次已授权动 miniprogram）：chat 页 resume 时拉历史渲染只读气泡 +「加载更早」分页，历史 action 只渲染查看类入口（navigate 按钮/show_result/show_uploads 附图，副作用类绝不重新执行——红线）；me 页帮助区加清除入口。**回归 S1-S14 共 77 断言 ALL GREEN（16 次 LLM ≤25）**：S9 留痕+topic/S10 分页倒序重签/S11 新会话引用（DB 注入）/S12 recall 翻旧账/S13 清除/S14 摘要+profile+触发节拍；旧 S1-S8 零回退。踩坑修复：few-shot 示例话术被模型整段模仿（连非历史问都背"翻到了～你上次说"）→ 示例换内容+【回忆纪律】加"非回忆不问历史"禁令+【输出纪律】禁协议字样入话术。node --check 2 文件过。**待：群里同步（跨组 app.py/mp_worker.py/db_compat.py + miniprogram 3 文件）→ 提交 → 部署（chat 服务+worker 都重启；mp_chat_messages 表自动建）**
