@@ -1,5 +1,6 @@
 // 相册（生成的照片二级页）：类型筛选 + 系列整组收叠 + 全屏滑动 + 保存/海报/删除
 const app = getApp();
+const { track } = require('../../utils/track');
 
 // 筛选维度：全部 / 定妆照 / 同款大片（单张）/ 系列组图
 const CHIPS = [
@@ -195,7 +196,10 @@ Page({
         success: (r) => {
           wx.saveImageToPhotosAlbum({
             filePath: r.tempFilePath,
-            success: () => wx.showToast({ title: '海报已存相册，去朋友圈晒吧' }),
+            success: () => {
+              track('poster_save');
+              wx.showToast({ title: '海报已存相册，去朋友圈晒吧' });
+            },
             fail: () => wx.showToast({ title: '保存失败，检查相册权限', icon: 'none' }),
           });
         },
@@ -281,6 +285,7 @@ Page({
   },
 
   onShareAppMessage() {
+    track('share', { from: 'photos' });
     // 分享卡片带最新成品图（5:4 裁切由微信处理；P1 裂变）
     const img = this.data.photos.length ? this.data.photos[0].url
       : 'https://luckynemo.ibi.ren/moka/templates/mk005.png';

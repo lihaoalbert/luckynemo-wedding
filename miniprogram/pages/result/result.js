@@ -1,5 +1,6 @@
 // 结果页：免费成片 + 付费升级（4 元/张 或 52 套餐 · 20 张）+ 下载分享
 const app = getApp();
+const { track } = require('../../utils/track');
 
 Page({
   data: {
@@ -188,6 +189,7 @@ Page({
   },
 
   onShareAppMessage() {
+    track('share', { from: 'result' });
     const order = this.data.order || {};
     return {
       title: '不出门，拍好婚纱照 📷 新用户免费送 1 张',

@@ -59,6 +59,8 @@ OSS_ENDPOINT = f"https://{OSS_BUCKET}.{ENV.get('OSS_REGION', 'oss-cn-shanghai')}
 MP_APPID = ENV.get("MP_APPID", "")
 MP_SECRET = ENV.get("MP_SECRET", "")
 MP_SUB_TMPL = ENV.get("MP_SUB_TMPL", "IlIzXgigktofL--1YSNksEv_3snoOCS8Vhc-_Co67xs")
+#: 每日漏斗日报推送目标：飞书自定义机器人 webhook（未配置则跳过推送，仅本地汇总）
+LARK_BOT_WEBHOOK = ENV.get("LARK_BOT_WEBHOOK", "")
 
 
 def log(msg: str) -> None:
@@ -1453,6 +1455,9 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
     conn.execute("UPDATE mp_jobs SET status='done', result_json=?, updated_at=datetime('now') WHERE id=?",
                  (json.dumps({"url": url, "oss_key": key}), job_id))
     conn.execute("UPDATE mp_orders SET status='done', updated_at=datetime('now') WHERE order_no=?", (order_no,))
+    _log_event(conn, "gen_done", order_no, "", {"kind": kind})
+    if kind == "makeup_photo":
+        _log_event(conn, "makeup_done", order_no, "", {"kind": kind})
     conn.commit()
     conn.close()
     _maybe_ref_reward(order_no)
@@ -1524,6 +1529,24 @@ def notify_photo_done(order_no: str, kind: str, count: int = 1) -> None:
         log(f"订阅消息发送异常 order={order_no}: {e}")
 
 
+#: 埋点事件白名单（与 app.py 的 MP_EVENT_WHITELIST 同步）：漏斗统计 + 每日日报
+_EVENT_WHITELIST = ("visit", "share", "arrive_ref", "order_create", "upload",
+                    "makeup_done", "gen_done", "pay_success", "poster_save", "invite_reward")
+
+
+def _log_event(conn, event: str, order_no: str = "", openid: str = "", props: dict = None) -> None:
+    """写一条埋点事件（轻量、不抛异常：埋点失败不阻塞业务；由调用方统一 commit）。"""
+    if event not in _EVENT_WHITELIST:
+        return
+    try:
+        props_json = json.dumps(props or {}, ensure_ascii=False)[:2000]
+        conn.execute(
+            "INSERT INTO mp_events(event,order_no,openid,props_json,created_at) VALUES(?,?,?,?,?)",
+            (event, order_no or "", openid or "", props_json, _now_iso()))
+    except Exception as e:  # noqa: BLE001
+        log(f"event 写入失败（忽略）{event}: {e}")
+
+
 def _push_chat_event(order_no: str, kind: str) -> None:
     """job 完成事件追加进 mp_chat_state.events（chat_agent 观察闭环，2026-08-29）。
 
@@ -1583,6 +1606,8 @@ def _maybe_ref_reward(order_no: str) -> None:
     if referrer and referrer[0] != order_no:
         conn.execute("UPDATE mp_orders SET free_quota=? WHERE order_no=?",
                      ((referrer[1] or 20) + 1, referrer[0]))
+        _log_event(conn, "invite_reward", referrer[0], "",
+                   {"from_order": order_no, "ref": row[0]})
         log(f"裂变奖励：{order_no} 首次生成成功，邀请人 {referrer[0]} +1 张免费额度")
     conn.execute("UPDATE mp_orders SET ref_rewarded=1 WHERE order_no=?", (order_no,))
     conn.commit()
@@ -1599,6 +1624,8 @@ def fail_job(job_id: int, err: str) -> None:
 
 #: 对话记录 TTL 清扫节拍（每 100 tick ≈ 8 分钟一次）
 _TTL_TICK = 0
+#: 每日漏斗日报节拍（每 600 tick ≈ 50 分钟检查一次日期）
+_DAILY_TICK = 0
 
 
 def _chat_ttl_sweep() -> None:
@@ -1634,16 +1661,97 @@ def _chat_ttl_sweep() -> None:
         log(f"对话 TTL 清扫失败（忽略）：{e}")
 
 
+# ---------------- 每日漏斗日报（P0 观测层，2026-09-20） ----------------
+#: 汇总昨日 mp_events → 飞书自定义机器人文本消息；mp_meta(daily_report_last) 记最后跑批日期防重跑
+_EVENT_LABELS = [("visit", "访问"), ("share", "分享"), ("arrive_ref", "到访ref"),
+                 ("order_create", "新单"), ("upload", "上传"), ("makeup_done", "定妆"),
+                 ("gen_done", "生成"), ("pay_success", "付费"), ("poster_save", "海报"),
+                 ("invite_reward", "裂变奖励")]
+
+
+def _daily_report_text(conn, yesterday: str, today: str) -> str:
+    """组装昨日漏斗日报文本。yesterday/today 为北京时间日期串（YYYY-MM-DD）。
+
+    注意 mp_events.created_at 是 UTC ISO 串（app._now / worker _now_iso 都是 UTC），
+    所以北京日界要先换算成 UTC ISO 边界再比较（串比较双库通用）。"""
+    import datetime as _dt
+    bj = _dt.timezone(_dt.timedelta(hours=8))
+
+    def _bj_day_utc(d: str) -> str:
+        return (_dt.datetime.fromisoformat(d).replace(tzinfo=bj)
+                .astimezone(_dt.timezone.utc).isoformat(timespec="seconds"))
+
+    start, end = _bj_day_utc(yesterday), _bj_day_utc(today)
+    counts = {r[0]: r[1] for r in conn.execute(
+        "SELECT event, COUNT(*) FROM mp_events WHERE created_at >= ? AND created_at < ?"
+        " GROUP BY event", (start, end)).fetchall()}
+    funnel = conn.execute(
+        "SELECT COUNT(DISTINCT a.order_no), COUNT(DISTINCT c.order_no), COUNT(DISTINCT g.order_no)"
+        " FROM mp_events a"
+        " LEFT JOIN mp_events c ON c.order_no=a.order_no AND c.event='order_create'"
+        " LEFT JOIN mp_events g ON g.order_no=a.order_no AND g.event='gen_done'"
+        " WHERE a.event='arrive_ref' AND a.order_no != ''"
+        " AND a.created_at >= ? AND a.created_at < ?",
+        (start, end)).fetchone()
+    total_orders = conn.execute("SELECT COUNT(*) FROM mp_orders").fetchone()[0]
+    total_events = conn.execute("SELECT COUNT(*) FROM mp_events").fetchone()[0]
+    line1 = " · ".join(f"{label} {counts.get(ev, 0)}" for ev, label in _EVENT_LABELS)
+    return (f"【徐大恩日报】{yesterday}\n"
+            f"{line1}\n"
+            f"裂变漏斗：arrive_ref {funnel[0]} → 建单 {funnel[1]} → 生成 {funnel[2]}\n"
+            f"累计：订单 {total_orders} · 事件 {total_events}")
+
+
+def _daily_report() -> None:
+    """每天首次检测到北京时间日期变了就跑一次昨日日报；推送失败只记日志不阻塞主循环。"""
+    conn = None
+    try:
+        import datetime as _dt
+        bj = _dt.timezone(_dt.timedelta(hours=8))  # UTC+8：按中国日历日切天
+        now = _dt.datetime.now(bj).date()
+        today, yesterday = now.isoformat(), (now - _dt.timedelta(days=1)).isoformat()
+        conn = db()
+        row = conn.execute("SELECT v FROM mp_meta WHERE k='daily_report_last'").fetchone()
+        if row and row[0] == today:
+            conn.close()
+            return
+        text = _daily_report_text(conn, yesterday, today)
+        conn.execute(
+            "INSERT INTO mp_meta(k,v) VALUES('daily_report_last',?)"
+            " ON CONFLICT(k) DO UPDATE SET v=excluded.v", (today,))
+        conn.commit()
+        conn.close()
+        conn = None
+        if not LARK_BOT_WEBHOOK:
+            log(f"日报（未配置 LARK_BOT_WEBHOOK，仅记录）：{text.replace(chr(10), ' | ')}")
+            return
+        r = requests.post(LARK_BOT_WEBHOOK,
+                          json={"msg_type": "text", "content": {"text": text}}, timeout=15)
+        if r.json().get("code") not in (0, None):
+            log(f"日报推送失败：{r.text[:200]}")
+        else:
+            log(f"日报已推送（{yesterday}）")
+    except Exception as e:  # noqa: BLE001
+        log(f"日报生成失败（忽略）：{e}")
+    finally:
+        if conn is not None:
+            conn.close()
+
+
 def main() -> None:
     if not _ark_channels():
         log("缺生图通道密钥（IFOCUS_API_KEY / ARK_API_KEY），退出")
         sys.exit(1)
     log("mp_worker 启动")
-    global _TTL_TICK
+    log(f"日报模块已挂载（LARK_BOT_WEBHOOK {'已配置' if LARK_BOT_WEBHOOK else '未配置'}）")
+    global _TTL_TICK, _DAILY_TICK
     while True:
         _TTL_TICK += 1
         if _TTL_TICK % 100 == 0:
             _chat_ttl_sweep()
+        _DAILY_TICK += 1
+        if _DAILY_TICK % 600 == 0:  # ≈50 分钟检查一次日期，变了就跑昨日日报
+            _daily_report()
         try:
             conn = db()
             rows = list(conn.execute(

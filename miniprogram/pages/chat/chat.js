@@ -1,6 +1,7 @@
 // 对话流主页：AI 引导完成 上传→定妆→选装→免费生成
 // 注：真人认证环节 2026-08-11 起下线（AUTH_ENABLED=false），视频功能上线时再恢复
 const app = getApp();
+const { track } = require('../../utils/track');
 
 const AUTH_ENABLED = false;  // 真人认证开关：恢复时改 true（后端 MP_REQUIRE_AUTH 同步设 1）
 
@@ -704,6 +705,7 @@ Page({
   },
 
   onShareAppMessage() {
+    track('share', { from: 'chat' });
     const order = this.data.order || {};
     if (order.mode === 'couple' && order.share_token) {
       return {

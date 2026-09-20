@@ -1,5 +1,6 @@
 // 我的：额度 / 邀请有礼 / 资产区（相册·收藏·上传照片）/ 人脸三视图 / 个人信息（折叠）/ 帮助
 const app = getApp();
+const { track } = require('../../utils/track');
 
 Page({
   data: {
@@ -123,6 +124,7 @@ Page({
   },
 
   onShareAppMessage() {
+    track('share', { from: 'me' });
     const order = this.data.order || {};
     if (order.mode === 'couple' && order.share_token) {
       return {

@@ -244,6 +244,16 @@ MYSQL_SCHEMA = [
        action_json TEXT, images_json TEXT, topic VARCHAR(32) DEFAULT 'chat',
        created_at VARCHAR(40) NOT NULL,
        INDEX idx_chat_msg_order (order_no, id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
+    # 推广埋点事件流水（P0 观测层，2026-09-20）：漏斗统计与每日日报数据源
+    """CREATE TABLE IF NOT EXISTS mp_events(
+       id INT PRIMARY KEY AUTO_INCREMENT,
+       event VARCHAR(32) NOT NULL, order_no VARCHAR(64) DEFAULT '',
+       openid VARCHAR(64) DEFAULT '', props_json TEXT,
+       created_at VARCHAR(40) NOT NULL,
+       INDEX idx_events_created (created_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
+    # worker 轻量 kv（日报跑批日期防重等）
+    """CREATE TABLE IF NOT EXISTS mp_meta(
+       k VARCHAR(64) PRIMARY KEY, v TEXT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
 ]
 
 _ensured = False

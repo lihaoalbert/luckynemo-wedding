@@ -276,6 +276,20 @@ def _migrate() -> None:
     )
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_chat_msg_order ON mp_chat_messages(order_no, id)")
+    # 推广埋点事件流水（P0 观测层，2026-09-20）：漏斗统计与每日日报数据源
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS mp_events("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "event TEXT NOT NULL, order_no TEXT DEFAULT '', openid TEXT DEFAULT '',"
+        "props_json TEXT DEFAULT '{}', created_at TEXT NOT NULL)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_events_created ON mp_events(created_at)")
+    # worker 轻量 kv（日报跑批日期防重等）
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS mp_meta("
+        "k TEXT PRIMARY KEY, v TEXT DEFAULT '')"
+    )
     conn.commit()
     # 存量订单迁移：已认证通过的订单视为成员 A 已认证
     for row in conn.execute(
@@ -317,6 +331,25 @@ def _db() -> sqlite3.Connection:
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+#: 埋点事件白名单（P0 观测层，与 mp_worker.py 同步）：漏斗统计 + 每日日报
+MP_EVENT_WHITELIST = ("visit", "share", "arrive_ref", "order_create", "upload",
+                      "makeup_done", "gen_done", "pay_success", "poster_save", "invite_reward")
+
+
+def _log_event(conn, event: str, order_no: str = "", openid: str = "",
+               props: Optional[dict] = None) -> None:
+    """写一条埋点事件（轻量、不抛异常：埋点失败不阻塞业务；由调用方统一 commit）。"""
+    if event not in MP_EVENT_WHITELIST:
+        return
+    try:
+        props_json = json.dumps(props or {}, ensure_ascii=False)[:2000]
+        conn.execute(
+            "INSERT INTO mp_events(event,order_no,openid,props_json,created_at) VALUES(?,?,?,?,?)",
+            (event, order_no or "", openid or "", props_json, _now()))
+    except Exception as e:  # noqa: BLE001
+        log.warning("event 写入失败（忽略）%s: %s", event, e)
 
 
 # ------------------------------------------------------------------
@@ -571,6 +604,8 @@ def upload_sign(body: UploadSignIn) -> JSONResponse:
             "INSERT INTO uploads(contact,filename,oss_key,size,content_type,created_at,slot) VALUES(?,?,?,?,?,?,?)",
             (who, body.filename, key, body.size, body.content_type, _now(), slot),
         )
+        _log_event(conn, "upload", body.order_no or "", "",
+                   {"slot": slot, "content_type": body.content_type, "size": body.size})
         conn.commit()
         # storylab：视频素材登记且属于小程序订单 → 幂等触发素材理解任务（天然幂等：
         # 已有 tags 行或 queued/running 任务时不重复；worker 逐段也按 tags 表去重）
@@ -1159,6 +1194,30 @@ class MpFeedbackIn(BaseModel):
     images: list[str] = Field(default_factory=list, max_length=3)  # OSS keys
 
 
+class MpEventIn(BaseModel):
+    event: str = Field(min_length=1, max_length=32)
+    order_no: str = Field(default="", max_length=50)
+    openid: str = Field(default="", max_length=64)
+    props: dict = Field(default_factory=dict)
+
+
+@app.post("/api/mp/event")
+def mp_event_track(body: MpEventIn) -> JSONResponse:
+    """推广埋点（P0 观测层）：白名单校验 + props 截断（2000 字符）。
+    埋点不阻塞：非法 event 静默拒收，写入失败也只记日志，一律 200。"""
+    if body.event not in MP_EVENT_WHITELIST:
+        return JSONResponse({"ok": False})
+    conn = _db()
+    try:
+        _log_event(conn, body.event, body.order_no, body.openid, body.props)
+        conn.commit()
+    except Exception as e:  # noqa: BLE001
+        log.warning("mp event 接口写入失败（忽略）%s: %s", body.event, e)
+    finally:
+        conn.close()
+    return JSONResponse({"ok": True})
+
+
 @app.post("/api/mp/feedback")
 def mp_feedback_create(body: MpFeedbackIn) -> JSONResponse:
     """意见反馈提交（bug / 功能期望 / 其他，文字+图片）。"""
@@ -1497,6 +1556,12 @@ def mp_order_create(body: MpOrderIn) -> JSONResponse:
             _mp_member_upsert(conn, order_no, "A", auth_ok=1,
                               byted_token=auth[0] or "", asset_group_id=auth[1] or "")
             log.info("mp order %s 继承历史认证 role=A", order_no)
+        _log_event(conn, "order_create", order_no, _vp_openid(body.open_token),
+                   {"ref": bool(body.ref)})
+        # 带 ref 建单补一条服务端 arrive_ref（前端 onLaunch 也会上报，props.source 区分）
+        if body.ref:
+            _log_event(conn, "arrive_ref", order_no, _vp_openid(body.open_token),
+                       {"ref": body.ref, "source": "server"})
         conn.commit()
         log.info("mp order created order_no=%s ref=%s", order_no, body.ref or "-")
         return JSONResponse({"ok": True, "order": _mp_get_order(conn, order_no)})
@@ -2025,6 +2090,9 @@ def _vp_grant(conn: sqlite3.Connection, pay: sqlite3.Row) -> None:
         conn.execute(
             "UPDATE mp_orders SET paid_count=paid_count+?, updated_at=? WHERE order_no=?",
             (pay["grant_count"], _now(), pay["order_no"]))
+        _log_event(conn, "pay_success", pay["order_no"], pay["openid"],
+                   {"out_trade_no": pay["out_trade_no"], "product": pay["product"],
+                    "coins": pay["coins"], "grant_count": pay["grant_count"]})
         log.info("vpay 到账 out_trade_no=%s order_no=%s +%d 张",
                  pay["out_trade_no"], pay["order_no"], pay["grant_count"])
 

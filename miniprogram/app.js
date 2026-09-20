@@ -1,6 +1,7 @@
 // 徐大恩 LuckyNemo 小程序
 // v1：设备 token 做订单归属（AppID 下来后换 wx.login openid）
 const API_BASE = 'https://luckynemo.ibi.ren';
+const { track } = require('./utils/track');
 //: 订阅消息模板（MP 后台模板 73339「内容生成成功通知」）：生成完成时微信服务通知推送
 const SUB_TMPL_ID = 'IlIzXgigktofL--1YSNksEv_3snoOCS8Vhc-_Co67xs';
 
@@ -23,6 +24,8 @@ App({
       const scene = decodeURIComponent(query.scene);
       if (scene.startsWith('r_')) this.globalData.ref = scene.slice(2);
     }
+    track('visit');
+    if (this.globalData.ref) track('arrive_ref', { ref: this.globalData.ref });
     // 优先用 wx.login 换 openid；失败回退设备 token（开发期兜底）
     // tokenPromise：页面在拿到 token 之前不得创建订单（否则 422）
     this.globalData.tokenPromise = new Promise((resolve) => {
