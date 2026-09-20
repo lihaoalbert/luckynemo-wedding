@@ -59,6 +59,8 @@ OSS_ENDPOINT = f"https://{OSS_BUCKET}.{ENV.get('OSS_REGION', 'oss-cn-shanghai')}
 MP_APPID = ENV.get("MP_APPID", "")
 MP_SECRET = ENV.get("MP_SECRET", "")
 MP_SUB_TMPL = ENV.get("MP_SUB_TMPL", "IlIzXgigktofL--1YSNksEv_3snoOCS8Vhc-_Co67xs")
+#: 邀请奖励到账通知模板（P2，MP 后台「活动奖励到账通知」类模板待申请；空=该推送路径不生效）
+MP_SUB_TMPL_REWARD = ENV.get("MP_SUB_TMPL_REWARD", "")
 #: 每日漏斗日报推送目标：飞书自定义机器人 webhook（未配置则跳过推送，仅本地汇总）
 LARK_BOT_WEBHOOK = ENV.get("LARK_BOT_WEBHOOK", "")
 
@@ -422,9 +424,11 @@ def run_template_series(job_id: int, order_no: str, payload: dict) -> None:
                  (json.dumps({"urls": urls, "total": total, "series_id": series_id},
                              ensure_ascii=False), job_id))
     conn.execute("UPDATE mp_orders SET status='done', updated_at=datetime('now') WHERE order_no=?", (order_no,))
+    _log_event(conn, "gen_done", order_no, "", {"kind": "template_series", "count": len(urls)})
     conn.commit()
     conn.close()
     _maybe_ref_reward(order_no)
+    _maybe_first_result_nudge(order_no)
     notify_photo_done(order_no, "template_series", len(urls))
     log(f"job#{job_id} template_series 完成 {series_id} 共 {len(urls)} 张")
 
@@ -1461,6 +1465,8 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
     conn.commit()
     conn.close()
     _maybe_ref_reward(order_no)
+    if kind in _RESULT_KINDS:
+        _maybe_first_result_nudge(order_no)
     if kind in PHOTO_KIND_LABEL:
         notify_photo_done(order_no, kind, 1)
     log(f"job#{job_id} 完成 -> {key}")
@@ -1491,10 +1497,10 @@ def _wx_access_token() -> str:
     return data["access_token"]
 
 
-def notify_photo_done(order_no: str, kind: str, count: int = 1) -> None:
-    """生成完成 → 订阅消息推送（无订阅凭证/未配置时静默跳过）。"""
-    if not (MP_APPID and MP_SECRET and MP_SUB_TMPL):
-        return
+def _send_subscribe(order_no: str, template_id: str, label: str, count: int = 1,
+                    page: str = "pages/photos/photos") -> bool:
+    """订阅消息发送公共段：取订单 openid → 消耗一张 mp_subs 凭证（先消耗再发，不重试）
+    → 调微信 subscribe/send。返回是否实际发出（无凭证/非微信身份返回 False）。"""
     conn = db()
     row = conn.execute("SELECT open_token FROM mp_orders WHERE order_no=?", (order_no,)).fetchone()
     openid = row[0][3:] if row and row[0] and row[0].startswith("wx-") else ""
@@ -1509,13 +1515,12 @@ def notify_photo_done(order_no: str, kind: str, count: int = 1) -> None:
             conn.commit()
     conn.close()
     if not sub:
-        return
-    label = PHOTO_KIND_LABEL.get(kind, "照片")
+        return False
     try:
         r = requests.post(
             f"https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token={_wx_access_token()}",
-            json={"touser": openid, "template_id": MP_SUB_TMPL,
-                  "page": "pages/photos/photos",
+            json={"touser": openid, "template_id": template_id,
+                  "page": page,
                   "data": {"short_thing1": {"value": label},
                            "number2": {"value": count},
                            "time3": {"value": time.strftime("%Y年%-m月%-d日 %H:%M")}}},
@@ -1523,10 +1528,30 @@ def notify_photo_done(order_no: str, kind: str, count: int = 1) -> None:
         resp = r.json()
         if resp.get("errcode"):
             log(f"订阅消息发送失败 order={order_no}: {resp}")
-        else:
-            log(f"订阅消息已推送 order={order_no} {label}x{count}")
+            return False
+        log(f"订阅消息已推送 order={order_no} {label}x{count}")
+        return True
     except Exception as e:
         log(f"订阅消息发送异常 order={order_no}: {e}")
+        return False
+
+
+def notify_photo_done(order_no: str, kind: str, count: int = 1) -> None:
+    """生成完成 → 订阅消息推送（无订阅凭证/未配置时静默跳过）。"""
+    if not (MP_APPID and MP_SECRET and MP_SUB_TMPL):
+        return
+    _send_subscribe(order_no, MP_SUB_TMPL, PHOTO_KIND_LABEL.get(kind, "照片"), count)
+
+
+def notify_invite_reward(order_no: str) -> None:
+    """邀请奖励到账 → 订阅消息推送（P2 占位：MP_SUB_TMPL_REWARD 模板未申请前为空，静默跳过）。
+
+    模板字段结构与 73339 对齐：short_thing1=邀请奖励 / number2=1 / time3=到账时间；
+    语义不完全贴合是已知妥协，MP 后台「活动奖励到账通知」类模板申请通过后配 .env 即生效。
+    """
+    if not (MP_APPID and MP_SECRET and MP_SUB_TMPL_REWARD):
+        return
+    _send_subscribe(order_no, MP_SUB_TMPL_REWARD, "邀请奖励", 1, page="pages/me/me")
 
 
 #: 埋点事件白名单（与 app.py 的 MP_EVENT_WHITELIST 同步）：漏斗统计 + 每日日报
@@ -1547,19 +1572,20 @@ def _log_event(conn, event: str, order_no: str = "", openid: str = "", props: di
         log(f"event 写入失败（忽略）{event}: {e}")
 
 
-def _push_chat_event(order_no: str, kind: str) -> None:
+def _push_chat_event(order_no: str, kind: str, event_kind: str = "job_done", text: str = "") -> None:
     """job 完成事件追加进 mp_chat_state.events（chat_agent 观察闭环，2026-08-29）。
 
     事件由 chat 下一轮注入 system prompt（消费即清）。无状态行则创建；
-    任何异常吞掉不挡交付。
+    任何异常吞掉不挡交付。event_kind/text 可覆盖默认（P2 裂变引导等自定义事件）。
     """
     try:
-        label = PHOTO_KIND_LABEL.get(kind, "")
-        if kind == "storylab_ingest":
-            label = "素材理解"
-        if kind == "storylab_film":
-            label = "故事片场短片"
-        text = f"「{label or kind}」任务已完成，结果已入相册"
+        if not text:
+            label = PHOTO_KIND_LABEL.get(kind, "")
+            if kind == "storylab_ingest":
+                label = "素材理解"
+            if kind == "storylab_film":
+                label = "故事片场短片"
+            text = f"「{label or kind}」任务已完成，结果已入相册"
         now = _now_iso()
         conn = db()
         row = conn.execute("SELECT state_json FROM mp_chat_state WHERE order_no=?",
@@ -1575,7 +1601,7 @@ def _push_chat_event(order_no: str, kind: str) -> None:
             state = {"goal": None, "stage": "open", "slots": {}, "pending_confirm": None,
                      "facts": {}, "events": [], "turn": 0}
         events = state.get("events") or []
-        events.append({"kind": "job_done", "job_kind": kind, "text": text, "at": now})
+        events.append({"kind": event_kind, "job_kind": kind, "text": text, "at": now})
         state["events"] = events[-10:]
         sj = json.dumps(state, ensure_ascii=False)
         if row:
@@ -1588,6 +1614,32 @@ def _push_chat_event(order_no: str, kind: str) -> None:
         conn.close()
     except Exception as e:  # noqa: BLE001
         log(f"chat event 写入失败（忽略）order={order_no}: {e}")
+
+
+#: 成片类 kind（不含定妆照 makeup_photo / 模板制作 custom_moka）：P2 首组成片判定用
+_RESULT_KINDS = ("template_photo", "template_series", "duo_photo",
+                 "solo_photo", "free_photo", "paid_photo")
+
+
+def _maybe_first_result_nudge(order_no: str) -> None:
+    """P2 裂变引导（2026-09-20）：订单首组成片完成 → 注入 first_result_share_nudge 事件。
+
+    判定：当前 job 置 done 后，该订单 done 的成片类 job 数恰为 1（单 worker 串行，天然幂等）。
+    事件经 chat 下一轮注入 system prompt，由 AI 以人设口吻提示"晒给好友、双方加赠"；
+    纯提示不强制，分享动作本身不奖励（红线）。
+    """
+    conn = db()
+    n = conn.execute(
+        "SELECT COUNT(*) FROM mp_jobs WHERE order_no=? AND status='done'"
+        " AND kind IN ('template_photo','template_series','duo_photo','solo_photo','free_photo','paid_photo')",
+        (order_no,)).fetchone()[0]
+    conn.close()
+    if n == 1:
+        _push_chat_event(
+            order_no, "first_result", event_kind="first_result_share_nudge",
+            text="用户的第一组照片成片刚完成。请用人设口吻顺带提一句：把大片晒给好友，"
+                 "好友完成体验后双方都能得加赠额度。只是提示，不强制、不要反复叨扰。")
+        log(f"首组成片裂变引导已注入 order={order_no}")
 
 
 def _maybe_ref_reward(order_no: str) -> None:
@@ -1603,15 +1655,19 @@ def _maybe_ref_reward(order_no: str) -> None:
         return
     referrer = conn.execute("SELECT order_no, free_quota FROM mp_orders WHERE share_token=?",
                             (row[0],)).fetchone()
+    rewarded_to = None
     if referrer and referrer[0] != order_no:
         conn.execute("UPDATE mp_orders SET free_quota=? WHERE order_no=?",
                      ((referrer[1] or 20) + 1, referrer[0]))
         _log_event(conn, "invite_reward", referrer[0], "",
                    {"from_order": order_no, "ref": row[0]})
+        rewarded_to = referrer[0]
         log(f"裂变奖励：{order_no} 首次生成成功，邀请人 {referrer[0]} +1 张免费额度")
     conn.execute("UPDATE mp_orders SET ref_rewarded=1 WHERE order_no=?", (order_no,))
     conn.commit()
     conn.close()
+    if rewarded_to:
+        notify_invite_reward(rewarded_to)  # 模板未配置时静默跳过（P2 占位）
 
 
 def fail_job(job_id: int, err: str) -> None:
@@ -1663,6 +1719,34 @@ def _chat_ttl_sweep() -> None:
 
 # ---------------- 每日漏斗日报（P0 观测层，2026-09-20） ----------------
 #: 汇总昨日 mp_events → 飞书自定义机器人文本消息；mp_meta(daily_report_last) 记最后跑批日期防重跑
+import datetime as _dt  # noqa: E402  日报/周报共用的时区与日期换算（UTC+8 切天）
+
+_BJ = _dt.timezone(_dt.timedelta(hours=8))
+
+
+def _bj_day_utc(d: str) -> str:
+    """北京日期 d（YYYY-MM-DD）的 00:00 对应的 UTC ISO 串（mp_events.created_at 是 UTC 口径）。"""
+    return (_dt.datetime.fromisoformat(d).replace(tzinfo=_BJ)
+            .astimezone(_dt.timezone.utc).isoformat(timespec="seconds"))
+
+
+def _lark_send(text: str, tag: str = "报告") -> bool:
+    """POST 飞书自定义机器人（msg_type=text）；未配置 LARK_BOT_WEBHOOK 时仅记录日志。返回是否发出。"""
+    if not LARK_BOT_WEBHOOK:
+        log(f"{tag}（未配置 LARK_BOT_WEBHOOK，仅记录）：{text.replace(chr(10), ' | ')}")
+        return False
+    try:
+        r = requests.post(LARK_BOT_WEBHOOK,
+                          json={"msg_type": "text", "content": {"text": text}}, timeout=15)
+        if r.json().get("code") not in (0, None):
+            log(f"{tag}推送失败：{r.text[:200]}")
+            return False
+        return True
+    except Exception as e:  # noqa: BLE001
+        log(f"{tag}推送异常（忽略）：{e}")
+        return False
+
+
 _EVENT_LABELS = [("visit", "访问"), ("share", "分享"), ("arrive_ref", "到访ref"),
                  ("order_create", "新单"), ("upload", "上传"), ("makeup_done", "定妆"),
                  ("gen_done", "生成"), ("pay_success", "付费"), ("poster_save", "海报"),
@@ -1674,13 +1758,6 @@ def _daily_report_text(conn, yesterday: str, today: str) -> str:
 
     注意 mp_events.created_at 是 UTC ISO 串（app._now / worker _now_iso 都是 UTC），
     所以北京日界要先换算成 UTC ISO 边界再比较（串比较双库通用）。"""
-    import datetime as _dt
-    bj = _dt.timezone(_dt.timedelta(hours=8))
-
-    def _bj_day_utc(d: str) -> str:
-        return (_dt.datetime.fromisoformat(d).replace(tzinfo=bj)
-                .astimezone(_dt.timezone.utc).isoformat(timespec="seconds"))
-
     start, end = _bj_day_utc(yesterday), _bj_day_utc(today)
     counts = {r[0]: r[1] for r in conn.execute(
         "SELECT event, COUNT(*) FROM mp_events WHERE created_at >= ? AND created_at < ?"
@@ -1706,9 +1783,7 @@ def _daily_report() -> None:
     """每天首次检测到北京时间日期变了就跑一次昨日日报；推送失败只记日志不阻塞主循环。"""
     conn = None
     try:
-        import datetime as _dt
-        bj = _dt.timezone(_dt.timedelta(hours=8))  # UTC+8：按中国日历日切天
-        now = _dt.datetime.now(bj).date()
+        now = _dt.datetime.now(_BJ).date()
         today, yesterday = now.isoformat(), (now - _dt.timedelta(days=1)).isoformat()
         conn = db()
         row = conn.execute("SELECT v FROM mp_meta WHERE k='daily_report_last'").fetchone()
@@ -1722,17 +1797,178 @@ def _daily_report() -> None:
         conn.commit()
         conn.close()
         conn = None
-        if not LARK_BOT_WEBHOOK:
-            log(f"日报（未配置 LARK_BOT_WEBHOOK，仅记录）：{text.replace(chr(10), ' | ')}")
-            return
-        r = requests.post(LARK_BOT_WEBHOOK,
-                          json={"msg_type": "text", "content": {"text": text}}, timeout=15)
-        if r.json().get("code") not in (0, None):
-            log(f"日报推送失败：{r.text[:200]}")
-        else:
+        if _lark_send(text, "日报"):
             log(f"日报已推送（{yesterday}）")
     except Exception as e:  # noqa: BLE001
         log(f"日报生成失败（忽略）：{e}")
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+# ---------------- 每周热度周报 + 上新提案（P3，2026-09-21） ----------------
+#: 每周一（北京时间）首次 tick 跑上一周（7 天）：漏斗 + 模卡热度榜 + 反馈聚类（LLM）+ 规则式上新提案。
+#: 防重跑：mp_meta(weekly_report_last)=ISO 周（如 2026-W38）；热度快照存 mp_meta(weekly_hot_prev) 做环比。
+
+
+def _weekly_funnel_text(conn, start_utc: str, end_utc: str) -> tuple[str, dict]:
+    """近 7 天 mp_events 计数 + 裂变漏斗（写法与日报一致）。返回 (文本行, counts)。"""
+    counts = {r[0]: r[1] for r in conn.execute(
+        "SELECT event, COUNT(*) FROM mp_events WHERE created_at >= ? AND created_at < ?"
+        " GROUP BY event", (start_utc, end_utc)).fetchall()}
+    funnel = conn.execute(
+        "SELECT COUNT(DISTINCT a.order_no), COUNT(DISTINCT c.order_no), COUNT(DISTINCT g.order_no)"
+        " FROM mp_events a"
+        " LEFT JOIN mp_events c ON c.order_no=a.order_no AND c.event='order_create'"
+        " LEFT JOIN mp_events g ON g.order_no=a.order_no AND g.event='gen_done'"
+        " WHERE a.event='arrive_ref' AND a.order_no != ''"
+        " AND a.created_at >= ? AND a.created_at < ?",
+        (start_utc, end_utc)).fetchone()
+    line = " · ".join(f"{label} {counts.get(ev, 0)}" for ev, label in _EVENT_LABELS)
+    return (f"{line}\n裂变漏斗：arrive_ref {funnel[0]} → 建单 {funnel[1]} → 生成 {funnel[2]}"
+            f" · 奖励发放 {counts.get('invite_reward', 0)}"), counts
+
+
+def _weekly_hot(conn, since_local: str) -> tuple[list, list, dict]:
+    """近 7 天模卡系列热度：template_series 每单计 1 + template_photo 每张计 1（归集逻辑
+    与 app._moka_hot_counts 等价，worker 不 import app）。返回 (top5, flop5, counts)。
+
+    since_local 是 mp_jobs.updated_at 的口径（datetime('now')/NOW()=服务器本地=北京时间）。"""
+    moka_path = SITE_DIR / "moka" / "index.json"
+    if not moka_path.is_file():
+        return [], [], {}
+    moka_data = json.loads(moka_path.read_text(encoding="utf-8"))
+    tpl_series = {t["id"]: t.get("series", "") for t in moka_data.get("templates", [])}
+    titles = {s["id"]: s.get("title", s["id"]) for s in moka_data.get("series", [])}
+    counts: dict = {}
+    for kind, pj in conn.execute(
+            "SELECT kind, payload_json FROM mp_jobs WHERE status='done'"
+            " AND kind IN ('template_series','template_photo') AND updated_at >= ?",
+            (since_local,)).fetchall():
+        try:
+            p = json.loads(pj or "{}")
+        except (TypeError, json.JSONDecodeError):
+            continue
+        sid = p.get("series_id", "") if kind == "template_series" \
+            else tpl_series.get(p.get("template_id", ""), "")
+        if sid:
+            counts[sid] = counts.get(sid, 0) + 1
+    # Top5：本周有量的降序；Flop5：全库系列按本周量升序（含 0 量的，才看得出低迷）
+    ranked = sorted(counts.items(), key=lambda kv: -kv[1])
+    top = [(sid, titles.get(sid, sid), n) for sid, n in ranked[:5]]
+    all_series = sorted(((sid, n) for sid, n in
+                         [(s, counts.get(s, 0)) for s in titles]), key=lambda kv: kv[1])
+    flop = [(sid, titles.get(sid, sid), n) for sid, n in all_series[:5]]
+    return top, flop, counts
+
+
+def _weekly_feedback_text(conn, start_utc: str, end_utc: str) -> str:
+    """近 7 天 mp_feedback 聚类：≥2 条且有 MINIMAX_KEY 时 LLM 一次调用聚成 3-5 个主题；
+    超时/失败/无 key 降级为纯列表（类型: 原文前 50 字）。"""
+    rows = conn.execute(
+        "SELECT type, text FROM mp_feedback WHERE created_at >= ? AND created_at < ?"
+        " ORDER BY id DESC LIMIT 50", (start_utc, end_utc)).fetchall()
+    if not rows:
+        return "本周无反馈"
+    items = [{"type": r[0], "text": (r[1] or "")[:300]} for r in rows]
+    if len(items) >= 2 and MINIMAX_KEY:
+        try:
+            # 文本模型与 storylab 分镜生成同款（abab6.5s-chat 在当前 TokenPlan 不可用，2061）
+            model = ENV.get("MINIMAX_LLM_MODEL", "MiniMax-M3")
+            r = requests.post(
+                f"{MINIMAX_BASE}/chat/completions",
+                headers={"Authorization": f"Bearer {MINIMAX_KEY}"},
+                json={"model": model, "max_tokens": 1500, "temperature": 0.3,
+                      "messages": [{"role": "user", "content": (
+                          "你是运营助理。以下是小程序最近 7 天的用户反馈（JSON 数组，字段 type/text）。"
+                          "请聚类成 3-5 个主题，只输出 JSON 数组，每个元素 "
+                          '{"title": 主题名, "count": 该主题反馈条数, "summary": 一句摘要}，'
+                          "不要输出任何其他文字。\n" + json.dumps(items, ensure_ascii=False))}]},
+                timeout=60)
+            out = r.json()["choices"][0]["message"]["content"].strip()
+            out = re.sub(r"```(?:json)?", "", out).strip()
+            start = out.find("[")
+            topics = json.loads(out[start:]) if start >= 0 else []
+            lines = [f"· {t.get('title', '?')}（{t.get('count', '?')} 条）：{t.get('summary', '')}"
+                     for t in topics if isinstance(t, dict)]
+            if lines:
+                return "\n".join(lines)
+        except Exception as e:  # noqa: BLE001
+            log(f"反馈聚类 LLM 失败（降级纯列表）：{e}")
+    return "\n".join(f"· [{it['type']}] {it['text'][:50]}" for it in items)
+
+
+def _weekly_proposals(top: list, flop: list, counts: dict, prev: dict) -> list:
+    """规则式上新提案（不用 LLM 决策）：环比上周热度快照，Top 建议补变体、Flop 建议下架观察。"""
+    props = []
+    for sid, title, n in top:
+        p = prev.get(sid)
+        if p is None:
+            props.append(f"「{title}」本周 {n} 次（新上榜）→ 热度待观察，下周再看是否补变体")
+        elif n >= 3 and n > p:
+            props.append(f"「{title}」本周 {n} 次，环比上周 {p} 次上升 → 建议用 gen_variants.py 补变体")
+        elif n >= 3:
+            props.append(f"「{title}」本周 {n} 次，环比持平/回落（上周 {p} 次）→ 维持，观察一周")
+    for sid, title, n in flop:
+        if n == 0:
+            props.append(f"「{title}」本周 0 生成 → 建议下架观察或换封面图")
+    return props[:6] or ["本周数据量不足，暂无上新/下架建议"]
+
+
+def _weekly_report_text(conn, end_date, week_label: str, prev: dict) -> tuple[str, dict]:
+    """组装周报文本（过去 7 天 = [end_date-7, end_date)，北京时间口径）。返回 (文本, 本周热度counts)。"""
+    start_date = end_date - _dt.timedelta(days=7)
+    start_utc, end_utc = _bj_day_utc(start_date.isoformat()), _bj_day_utc(end_date.isoformat())
+    since_local = _dt.datetime.combine(start_date, _dt.time.min).strftime("%Y-%m-%d %H:%M:%S")
+    funnel_text, _counts = _weekly_funnel_text(conn, start_utc, end_utc)
+    top, flop, counts = _weekly_hot(conn, since_local)
+    feedback_text = _weekly_feedback_text(conn, start_utc, end_utc)
+    proposals = _weekly_proposals(top, flop, counts, prev)
+    fmt = lambda rows, empty: ("\n".join(f"{i + 1}. {t} ×{n}" for i, (s, t, n) in enumerate(rows))  # noqa: E731
+                               if rows else empty)
+    text = (f"【徐大恩周报】{week_label}（{start_date:%m-%d} ~ {(end_date - _dt.timedelta(days=1)):%m-%d}）\n"
+            f"— 漏斗（7 天）—\n{funnel_text}\n"
+            f"— 模卡热度 Top5 —\n{fmt(top, '本周无模卡生成')}\n"
+            f"— 模卡热度 Flop5 —\n{fmt(flop, '—')}\n"
+            f"— 反馈聚类 —\n{feedback_text}\n"
+            f"— 上新提案 —\n" + "\n".join(f"· {p}" for p in proposals))
+    return text, counts
+
+
+def _weekly_report() -> None:
+    """每周一（北京时间）首次 tick 跑上一周周报；推送失败只记日志不阻塞主循环。"""
+    conn = None
+    try:
+        now = _dt.datetime.now(_BJ).date()
+        if now.weekday() != 0:
+            return
+        iso = now.isocalendar()
+        week_label = f"{iso[0]}-W{iso[1]:02d}"
+        conn = db()
+        row = conn.execute("SELECT v FROM mp_meta WHERE k='weekly_report_last'").fetchone()
+        if row and row[0] == week_label:
+            conn.close()
+            return
+        prev_row = conn.execute("SELECT v FROM mp_meta WHERE k='weekly_hot_prev'").fetchone()
+        try:
+            prev = json.loads(prev_row[0]) if prev_row and prev_row[0] else {}
+        except (TypeError, json.JSONDecodeError):
+            prev = {}
+        text, counts = _weekly_report_text(conn, now, week_label, prev)
+        conn.execute(
+            "INSERT INTO mp_meta(k,v) VALUES('weekly_report_last',?)"
+            " ON CONFLICT(k) DO UPDATE SET v=excluded.v", (week_label,))
+        conn.execute(
+            "INSERT INTO mp_meta(k,v) VALUES('weekly_hot_prev',?)"
+            " ON CONFLICT(k) DO UPDATE SET v=excluded.v",
+            (json.dumps(counts, ensure_ascii=False),))
+        conn.commit()
+        conn.close()
+        conn = None
+        if _lark_send(text, "周报"):
+            log(f"周报已推送（{week_label}）")
+    except Exception as e:  # noqa: BLE001
+        log(f"周报生成失败（忽略）：{e}")
     finally:
         if conn is not None:
             conn.close()
@@ -1744,6 +1980,7 @@ def main() -> None:
         sys.exit(1)
     log("mp_worker 启动")
     log(f"日报模块已挂载（LARK_BOT_WEBHOOK {'已配置' if LARK_BOT_WEBHOOK else '未配置'}）")
+    log("周报模块已挂载（每周一北京时间首次 tick 跑上一周周报）")
     global _TTL_TICK, _DAILY_TICK
     while True:
         _TTL_TICK += 1
@@ -1752,6 +1989,7 @@ def main() -> None:
         _DAILY_TICK += 1
         if _DAILY_TICK % 600 == 0:  # ≈50 分钟检查一次日期，变了就跑昨日日报
             _daily_report()
+            _weekly_report()  # 仅每周一（北京时间）生效，同节拍检查
         try:
             conn = db()
             rows = list(conn.execute(

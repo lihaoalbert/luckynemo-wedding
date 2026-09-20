@@ -1541,10 +1541,12 @@ def mp_order_create(body: MpOrderIn) -> JSONResponse:
             secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4)
         )
         share_token = secrets.token_hex(8)
+        # P2 受邀者侧激励（2026-09-20）：带 ref 的受邀订单首单免费额度 1→2（奖励仍绑"好友完成体验"，不碰分享动作）
         conn.execute(
             "INSERT INTO mp_orders(order_no,open_token,status,share_token,ref,free_quota,created_at,updated_at)"
-            " VALUES(?,?,?,?,?,1,?,?)",
-            (order_no, body.open_token, "created", share_token, body.ref or "", _now(), _now()),
+            " VALUES(?,?,?,?,?,?,?,?)",
+            (order_no, body.open_token, "created", share_token, body.ref or "",
+             2 if body.ref else 1, _now(), _now()),
         )
         conn.execute(
             "INSERT OR IGNORE INTO mp_devices(order_no,open_token,role,created_at) VALUES(?,?,?,?)",

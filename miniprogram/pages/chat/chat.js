@@ -233,6 +233,9 @@ Page({
   notifyNewPhotos(jobs) {
     const PHOTO_KINDS = ['makeup_photo', 'template_photo', 'template_series', 'duo_photo',
                          'solo_photo', 'free_photo', 'paid_photo'];
+    // 成片类（不含定妆照）：P2 首组成片裂变引导判定用，与 worker _RESULT_KINDS 同步
+    const RESULT_KINDS = ['template_photo', 'template_series', 'duo_photo',
+                          'solo_photo', 'free_photo', 'paid_photo'];
     const done = jobs.filter(j => PHOTO_KINDS.includes(j.kind) && j.status === 'done'
                              && j.result && (j.result.url || (j.result.urls || []).length));
     const maxId = done.reduce((m, j) => Math.max(m, j.id || 0), 0);
@@ -245,6 +248,12 @@ Page({
         .reduce((s, j) => s + ((j.result.urls || []).length || 1), 0);
       this.push('ai', `你的 ${n} 张新照片生成好啦 ✨ 点这里查看，长按可以保存到手机相册`,
         { text: '查看新照片 →', page: '/pages/photos/photos' });
+      // P2 首组成片裂变引导：这批新照片含本单第一组成片时追加一句提示（纯提示不强制，分享动作本身不奖励）
+      const newResults = done.filter(j => RESULT_KINDS.includes(j.kind) && (j.id || 0) > seen);
+      const oldResults = done.filter(j => RESULT_KINDS.includes(j.kind) && (j.id || 0) <= seen);
+      if (newResults.length && !oldResults.length) {
+        this.push('ai', '第一组大片出炉 🎉 偷偷说一句：晒给好友，TA 也完成体验的话，你俩都能多领 1 张加赠～不晒也行，我才不会催你（真的）');
+      }
     }
   },
 
