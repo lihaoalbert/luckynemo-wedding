@@ -1792,9 +1792,17 @@ def mp_catalog() -> dict:
         raise HTTPException(status_code=500, detail=f"目录数据缺失：{exc}")
 
 
+#: 热度计数进程内缓存（5 分钟）：catalog 每次全扫 mp_jobs 太贵，热度不需要实时
+_HOT_CACHE_TTL = 300.0
+_hot_cache: dict = {"ts": 0.0, "data": {}}
+
+
 def _moka_hot_counts() -> dict:
     """各系列真实生成次数（template_series 每单计 1 + template_photo 每张计 1），
     叠加在 series.hot_base 运营基数上（决策：热门人数=运营基数+真实计数）。"""
+    now = time.monotonic()
+    if _hot_cache["ts"] and now - _hot_cache["ts"] < _HOT_CACHE_TTL:
+        return _hot_cache["data"]
     site = Path(_env("SITE_DIR", "/var/www/luckynemo"))
     moka_path = site / "moka" / "index.json"
     if not moka_path.is_file():
@@ -1820,6 +1828,8 @@ def _moka_hot_counts() -> dict:
             sid = tpl_series.get(p.get("template_id", ""), "")
         if sid:
             counts[sid] = counts.get(sid, 0) + 1
+    _hot_cache["ts"] = now
+    _hot_cache["data"] = counts
     return counts
 
 
