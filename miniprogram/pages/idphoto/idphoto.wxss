@@ -1,0 +1,59 @@
+/* 证件照规格选择页：大卡 + 分组列表 + 授权层 */
+.page { padding: 40rpx 32rpx 80rpx; }
+
+.idp-head { margin-bottom: 40rpx; }
+.idp-head .h1 { margin: 8rpx 0 12rpx; }
+
+.idp-sec-title { font-size: 34rpx; font-weight: 600; margin: 48rpx 0 24rpx; }
+
+/* 热门大卡：2 列 */
+.hot-grid { display: flex; flex-wrap: wrap; gap: 24rpx; }
+.hot-card {
+  width: calc(50% - 12rpx); box-sizing: border-box;
+  background: var(--surface); border: 1rpx solid var(--hairline);
+  border-radius: 28rpx; padding: 32rpx 28rpx;
+}
+.hot-name { font-size: 44rpx; font-weight: 600; }
+.hot-size { font-size: 22rpx; color: var(--gold); margin-top: 6rpx; }
+.hot-sub { font-size: 24rpx; color: var(--ink-soft); margin-top: 12rpx; line-height: 1.5; }
+.hot-go { font-size: 24rpx; color: var(--accent); font-weight: 600; margin-top: 16rpx; }
+
+/* 分组列表 */
+.spec-list { padding: 8rpx 32rpx; }
+.spec-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 28rpx 0; border-bottom: 1rpx solid var(--hairline);
+}
+.spec-row:last-child { border-bottom: none; }
+.spec-name { font-size: 30rpx; font-weight: 600; }
+.spec-hot { font-size: 24rpx; margin-left: 8rpx; }
+.spec-sub { font-size: 24rpx; color: var(--ink-soft); margin-top: 4rpx; }
+.spec-meta { font-size: 22rpx; color: var(--ink-soft); text-align: right; line-height: 1.6; flex-shrink: 0; margin-left: 24rpx; }
+
+.idp-foot {
+  margin-top: 64rpx; text-align: center;
+  font-size: 22rpx; color: rgba(59, 44, 40, 0.45);
+}
+
+/* 授权确认层 */
+.consent-mask {
+  position: fixed; inset: 0; z-index: 99;
+  background: rgba(59, 44, 40, 0.5);
+  display: flex; align-items: center; justify-content: center;
+}
+.consent-card {
+  width: 600rpx; background: var(--surface); border-radius: 32rpx; padding: 48rpx 40rpx;
+}
+.consent-title { font-size: 40rpx; font-weight: 600; text-align: center; }
+.consent-body { font-size: 26rpx; color: var(--ink-soft); margin-top: 24rpx; line-height: 1.8; }
+.consent-check { display: flex; align-items: center; margin-top: 36rpx; }
+.check-box {
+  width: 40rpx; height: 40rpx; border-radius: 10rpx;
+  border: 2rpx solid var(--hairline); margin-right: 20rpx;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28rpx; color: #fff; box-sizing: border-box;
+}
+.consent-check.on .check-box { background: var(--accent); border-color: var(--accent); }
+.check-text { font-size: 28rpx; }
+.consent-btn { margin-top: 40rpx; }
+.consent-btn.off { opacity: 0.5; }

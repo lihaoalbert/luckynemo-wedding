@@ -1,0 +1,12 @@
+{
+  "name": "luckynemo-miniprogram",
+  "version": "0.1.0",
+  "description": "徐大恩 LuckyNemo 小程序（证件照功能引入 tfjs/blazeface 端侧人脸检测）",
+  "dependencies": {
+    "@tensorflow/tfjs-core": "^3.21.0",
+    "@tensorflow/tfjs-converter": "^3.21.0",
+    "@tensorflow/tfjs-backend-webgl": "^3.21.0",
+    "@tensorflow-models/blazeface": "^0.0.7",
+    "fetch-wechat": "^0.0.3"
+  }
+}

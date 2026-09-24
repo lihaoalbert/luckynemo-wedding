@@ -16,7 +16,9 @@
     "pages/feedback/feedback",
     "pages/moka/moka",
     "pages/moka_series/moka_series",
-    "pages/moka_fav/moka_fav"
+    "pages/moka_fav/moka_fav",
+    "pages/idphoto/idphoto",
+    "pages/idphoto_shoot/idphoto_shoot"
   ],
   "tabBar": {
     "color": "#8a7f78",
@@ -50,6 +52,10 @@
     "WechatSI": {
       "version": "0.3.5",
       "provider": "wx069ba97219f66d99"
+    },
+    "tfjsPlugin": {
+      "version": "0.2.0",
+      "provider": "wx6afed118d9e81df9"
     }
   }
 }

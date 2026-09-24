@@ -1,0 +1,51 @@
+<view class="page">
+  <view class="idp-head">
+    <view class="eyebrow">AI 小导演</view>
+    <view class="h1 serif">证件照</view>
+    <view class="sub">2 元起，拍的时候就合规——AI 实时指挥构图，合格才按快门</view>
+  </view>
+
+  <!-- 热门规格大卡 -->
+  <view class="idp-sec-title serif">🔥 大家都在拍</view>
+  <view class="hot-grid">
+    <view class="hot-card" wx:for="{{hot}}" wx:key="id" data-id="{{item.id}}" bindtap="pickSpec">
+      <view class="hot-name serif">{{item.name}}</view>
+      <view class="hot-size">{{item.sizeText}} · {{item.bgText}}底</view>
+      <view class="hot-sub">{{item.sub}}</view>
+      <view class="hot-go">去拍 →</view>
+    </view>
+  </view>
+
+  <!-- 全部分组 -->
+  <block wx:for="{{groups}}" wx:key="name" wx:for-item="group">
+    <view class="idp-sec-title serif">{{group.name}}</view>
+    <view class="spec-list card">
+      <view class="spec-row" wx:for="{{group.items}}" wx:key="id" wx:for-item="item"
+            data-id="{{item.id}}" bindtap="pickSpec">
+        <view class="spec-main">
+          <view class="spec-name">{{item.name}}<text class="spec-hot" wx:if="{{item.hot}}">🔥</text></view>
+          <view class="spec-sub">{{item.sub}}</view>
+        </view>
+        <view class="spec-meta">
+          <view>{{item.sizeText}}</view>
+          <view>{{item.bgText}}底</view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <view class="idp-foot">AI 辅助拍摄与排版，不适用于身份证/护照等官方证件场景</view>
+
+  <!-- 首次进入：拍摄授权确认层 -->
+  <view class="consent-mask" wx:if="{{consentVisible}}">
+    <view class="consent-card">
+      <view class="consent-title serif">拍摄前请确认</view>
+      <view class="consent-body">镜头要对着人脸拍摄啦～请确认你是本人，或被摄者已经同意拍摄。照片只用于生成你的证件照，绝不乱跑。</view>
+      <view class="consent-check {{consentChecked ? 'on' : ''}}" bindtap="toggleConsent">
+        <view class="check-box">{{consentChecked ? '✓' : ''}}</view>
+        <view class="check-text">本人或被摄者已同意拍摄</view>
+      </view>
+      <button class="btn consent-btn {{consentChecked ? '' : 'off'}}" bindtap="confirmConsent">好的，开拍 📸</button>
+    </view>
+  </view>
+</view>

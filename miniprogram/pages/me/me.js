@@ -49,6 +49,10 @@ Page({
     wx.navigateTo({ url: '/pages/moka_fav/moka_fav' });
   },
 
+  goIdphoto() {
+    wx.navigateTo({ url: '/pages/idphoto/idphoto' });
+  },
+
   goOrders() {
     wx.navigateTo({ url: '/pages/orders/orders' });
   },

@@ -33,6 +33,10 @@ const PAGE_CARDS = {
     img: 'https://luckynemo.ibi.ren/wardrobe/img/婚纱/nz-001.jpg',
     title: '高级定制', desc: '服装、场景、动作，自己搭配',
   },
+  '/pages/idphoto/idphoto': {
+    img: 'https://luckynemo.ibi.ren/hongzhuang/styles/hz001.png',
+    title: '证件照 · 2 元起', desc: 'AI 小导演实时指挥，拍的时候就合规',
+  },
 };
 
 // 操作类动作的入口按钮文案（反馈 #40：不再自动执行/自动跳页，一律给入口让用户确认后自己点）

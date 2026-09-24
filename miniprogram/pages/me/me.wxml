@@ -28,6 +28,7 @@
     <!-- 资产区 -->
     <view class="card">
       <view class="link-row" bindtap="goPhotos">相册（{{photos.length}} 张）<text class="arrow">→</text></view>
+      <view class="link-row" bindtap="goIdphoto">证件照（2 元起 · AI 指挥拍摄）<text class="arrow">→</text></view>
       <view class="link-row" bindtap="goFav">我的收藏<text class="arrow">→</text></view>
       <view class="link-row" bindtap="goUploads">我上传的照片（{{uploadsCount}} 张）<text class="arrow">→</text></view>
       <view class="privacy-note">照片仅用于为你生成作品，交付即删</view>

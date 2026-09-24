@@ -33,3 +33,12 @@ miniprogram/            # 微信小程序工程（微信开发者工具直接导
 4. **支付**：微信支付商户号；开通前 result 页走客服微信核销（已内置引导 LuckyNemo2026）
 5. **真人认证回调**：认证服务商回调地址对接到 /api/mp/auth-pass（当前为人工/客服核验）
 6. 真机预览：`project.config.json` 里 `urlCheck:false` 仅供开发，发布前必须配域名白名单
+
+## npm 构建（证件照 BlazeFace 依赖）
+
+证件照拍摄页（pages/idphoto_shoot）用 tfjs + BlazeFace 做端侧人脸检测，首次引入了 npm 依赖（见 package.json）：
+
+1. 在 `miniprogram/` 目录执行 `npm install`（依赖包本身不进包体积，模型权重网络加载）。
+2. 微信开发者工具 → 菜单「工具」→「构建 npm」（每次新增/升级依赖后都要重新构建）。
+3. tfjs 依赖官方插件 `tfjsPlugin`（app.json 已声明，provider `wx6afed118d9e81df9`），首次使用需在小程序管理后台「设置 → 第三方服务 → 插件管理」添加该插件。
+4. 未构建 npm / 插件未添加 / 模型加载失败时，拍摄页自动降级为手动模式（无自动判定，可手动按快门），不阻塞功能。

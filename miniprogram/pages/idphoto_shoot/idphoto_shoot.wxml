@@ -1,0 +1,100 @@
+<view class="shoot">
+  <!-- 相机（常驻挂载，其他状态用不透明层盖住；帧回调只在 shooting 态消费） -->
+  <camera wx:if="{{state !== 'nocamera'}}" class="cam" device-position="{{devicePosition}}"
+          flash="off" binderror="onCameraError"></camera>
+  <canvas type="2d" id="guides" class="guides"></canvas>
+
+  <!-- 顶部信息条 -->
+  <view class="topbar" wx:if="{{state === 'shooting' || state === 'countdown'}}">
+    <view class="chip">{{spec.name}} · {{spec.w}}×{{spec.h}}</view>
+    <view class="chip model" wx:if="{{modelText}}">{{modelText}}</view>
+  </view>
+
+  <!-- 拍摄中：大字指引 + 台词卡 -->
+  <view class="coach" wx:if="{{state === 'shooting'}}">
+    <view class="hint {{okNow ? 'ok' : ''}}">{{hint}}</view>
+    <view class="cue">
+      <view class="cue-tag">照着喊 👇</view>
+      <view class="cue-text">“{{cue}}”</view>
+    </view>
+    <view class="coach-btns">
+      <button class="mini-btn" bindtap="switchCamera">🔄 换镜头</button>
+      <button class="mini-btn snap" wx:if="{{manualMode}}" bindtap="manualShot">📸 手动拍摄</button>
+    </view>
+  </view>
+
+  <!-- 达标倒计时 -->
+  <view class="count-mask" wx:if="{{state === 'countdown'}}">
+    <view class="count-hint">很好，保持不动！</view>
+    <view class="count-num">{{count}}</view>
+  </view>
+
+  <!-- 预览确认 -->
+  <view class="panel" wx:if="{{state === 'preview'}}">
+    <view class="panel-title serif">这张怎么样？</view>
+    <image class="panel-img" src="{{photoPath}}" mode="aspectFit"></image>
+    <view class="panel-tip" wx:if="{{uploading}}">原片偷偷上传中…（不耽误你看）</view>
+    <view class="btn-row">
+      <button class="btn ghost" bindtap="retake">重拍</button>
+      <button class="btn" bindtap="usePhoto" disabled="{{uploading}}">用这张 →</button>
+    </view>
+  </view>
+
+  <!-- 选底色 -->
+  <view class="panel" wx:if="{{state === 'bgcolor'}}">
+    <view class="panel-title serif">挑个底色</view>
+    <image class="panel-img small" src="{{photoPath}}" mode="aspectFit"></image>
+    <view class="bg-row">
+      <view class="bg-block {{bgSelected === item.key ? 'on' : ''}}" wx:for="{{bgOptions}}" wx:key="key"
+            style="background: {{item.color}};" data-key="{{item.key}}" bindtap="pickBg">
+        <text class="bg-name">{{item.name}}</text>
+      </view>
+    </view>
+    <button class="btn wide" bindtap="confirmBg">就这个底色，导出 →</button>
+    <view class="panel-tip">高清证件照导出 2 元 / 张</view>
+  </view>
+
+  <!-- 付费墙 -->
+  <view class="panel" wx:if="{{state === 'paywall'}}">
+    <view class="panel-title serif">最后一步</view>
+    <view class="pay-desc">2 元导出换底排版后的高清证件照（{{spec.w}}×{{spec.h}}px），无水印，导出即净片。</view>
+    <button class="btn gold wide" bindtap="pay" disabled="{{paying}}">{{paying ? '等待支付到账…' : '支付 2 元，导出'}}</button>
+    <button class="btn ghost wide" wx:if="{{paying}}" bindtap="repaid">我已完成支付 →</button>
+    <button class="btn ghost wide" bindtap="retake">不导了，重拍一张</button>
+  </view>
+
+  <!-- 冲印中 -->
+  <view class="panel" wx:if="{{state === 'processing'}}">
+    <view class="panel-title serif">冲印中</view>
+    <view class="wash">
+      <view class="wash-dot"></view>
+      <view class="wash-dot d2"></view>
+      <view class="wash-dot d3"></view>
+    </view>
+    <view class="panel-tip">换底、排版、精修中…大概几十秒，别走开</view>
+  </view>
+
+  <!-- 成片 -->
+  <view class="panel" wx:if="{{state === 'done'}}">
+    <view class="panel-title serif">出炉啦 🎉</view>
+    <image class="panel-img" src="{{resultUrl}}" mode="aspectFit" data-url="{{resultUrl}}" bindtap="previewResult"></image>
+    <button class="btn wide" data-url="{{resultUrl}}" bindtap="savePhoto">保存到相册</button>
+    <block wx:if="{{printUrl}}">
+      <image class="panel-img print" src="{{printUrl}}" mode="aspectFit" data-url="{{printUrl}}" bindtap="previewResult"></image>
+      <button class="btn ghost wide" data-url="{{printUrl}}" bindtap="savePhoto">保存打印排版版</button>
+    </block>
+    <button class="btn ghost wide" bindtap="again">再来一张</button>
+    <!-- 导流卡 -->
+    <view class="moka-card" bindtap="goMoka">
+      <view class="moka-title serif">顺便拍套写真？</view>
+      <view class="moka-sub">证件照都这么好看了，婚纱照不得美翻 →</view>
+    </view>
+  </view>
+
+  <!-- 相机权限被拒 -->
+  <view class="panel" wx:if="{{state === 'nocamera'}}">
+    <view class="panel-title serif">需要相机权限</view>
+    <view class="panel-tip">证件照要用相机拍哦，去设置里打开相机权限吧</view>
+    <button class="btn wide" bindtap="openSetting">去设置 →</button>
+  </view>
+</view>
