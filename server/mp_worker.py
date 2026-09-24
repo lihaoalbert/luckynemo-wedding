@@ -1212,7 +1212,103 @@ def build_photo_prompt(payload: dict, scene_txt: str) -> str:
     )
 
 
+# ---------------- AI 证件照拍摄助手（2026-09-24） ----------------
+#: 证件照规格表（spec_id → 像素尺寸）：与前端规格库对齐，尺寸按 300dpi 常用标准
+IDPHOTO_SPECS = {
+    "yicun": {"size": (295, 413), "name": "一寸"},
+    "xiaoyicun": {"size": (260, 378), "name": "小一寸"},
+    "dayicun": {"size": (390, 567), "name": "大一寸"},
+    "ercun": {"size": (413, 579), "name": "二寸"},
+    "jianli": {"size": (480, 640), "name": "简历照"},
+    "kaoyan": {"size": (480, 640), "name": "考研报名"},
+    "siliuji": {"size": (240, 320), "name": "四六级"},
+    "jiaoshi": {"size": (295, 413), "name": "教师资格证"},
+    "meiqian": {"size": (600, 600), "name": "美国签证"},
+    "riqian": {"size": (531, 531), "name": "日本签证"},
+}
+#: 证件照标准底色
+IDPHOTO_BG = {"white": (255, 255, 255), "blue": (67, 142, 219), "red": (255, 0, 0)}
+_rembg_session = None
+
+
+def _rembg():
+    """惰性加载 rembg 抠图会话（u2net_human_seg，onnxruntime CPU，全局复用）。"""
+    global _rembg_session
+    if _rembg_session is None:
+        from rembg import new_session
+        _rembg_session = new_session("u2net_human_seg")
+    return _rembg_session
+
+
+def run_idphoto(job_id: int, order_no: str, payload: dict) -> None:
+    """证件照导出：下载原片 → rembg 抠图 → 纯色换底 → 以人脸为中心按 spec 裁剪排版。"""
+    import io
+
+    from PIL import Image
+    from rembg import remove
+
+    spec_id = str(payload.get("spec_id") or "yicun")
+    spec = IDPHOTO_SPECS.get(spec_id) or IDPHOTO_SPECS["yicun"]
+    bg_name = str(payload.get("bg_color") or "white")
+    bg = IDPHOTO_BG.get(bg_name, IDPHOTO_BG["white"])
+    photo_key = str(payload.get("photo_oss_key") or "")
+    if not photo_key:
+        raise RuntimeError("证件照任务缺 photo_oss_key")
+    src = oss_get(photo_key, TMP / f"{order_no}_idphoto_src.jpg")
+    img = Image.open(src).convert("RGB")
+    cut = remove(img, session=_rembg())  # RGBA，与原图同尺寸
+    W, H = cut.size
+    sw, sh = spec["size"]
+    aspect = sw / sh
+    fb = payload.get("face_box") or {}
+    try:
+        fx, fy = float(fb.get("x", 0)), float(fb.get("y", 0))
+        fw, fh = float(fb.get("w", 0)), float(fb.get("h", 0))
+    except (TypeError, ValueError, AttributeError):
+        fx = fy = fw = fh = 0.0
+    if fw > 0 and fh > 0:
+        # 端侧人脸框（相对坐标）：头部（含头发）≈1.6 倍人脸框，证件照头部占照片高约 2/3
+        face_h = fh * H
+        crop_h = face_h * 1.6 / 0.67
+        top = fy * H - face_h * 0.6
+        cx = (fx + fw / 2) * W
+    else:
+        # 无端侧人脸框：按抠图 alpha 包围盒上 2/3 估算头部位置
+        bbox = cut.getchannel("A").getbbox()
+        if not bbox:
+            raise RuntimeError("抠图结果为空（未检测到人物）")
+        crop_h = float(bbox[3] - bbox[1])
+        top = float(bbox[1])
+        cx = (bbox[0] + bbox[2]) / 2
+    crop_w = crop_h * aspect
+    if crop_w > W:
+        # 人像太宽超出画面时按宽度反推裁窗
+        crop_w, crop_h = float(W), W / aspect
+    left = min(max(cx - crop_w / 2, 0.0), max(W - crop_w, 0.0))
+    top = min(max(top, 0.0), max(H - crop_h, 0.0))
+    canvas = Image.new("RGB", (W, H), bg)
+    canvas.paste(cut, (0, 0), cut)
+    out = canvas.crop((int(left), int(top), int(left + crop_w), int(top + crop_h)))
+    out = out.resize((sw, sh), Image.LANCZOS)
+    buf = io.BytesIO()
+    out.save(buf, format="JPEG", quality=95)
+    key = f"results/{order_no}/{uuid.uuid4().hex[:8]}.jpg"
+    url = oss_put_url(key, buf.getvalue(), "image/jpeg")
+    conn = db()
+    conn.execute("UPDATE mp_jobs SET status='done', result_json=?, updated_at=datetime('now') WHERE id=?",
+                 (json.dumps({"url": url, "oss_key": key}), job_id))
+    conn.execute("UPDATE mp_orders SET status='done', updated_at=datetime('now') WHERE order_no=?",
+                 (order_no,))
+    _log_event(conn, "gen_done", order_no, "", {"kind": "idphoto"})
+    conn.commit()
+    conn.close()
+    log(f"job#{job_id} idphoto 完成 {spec['name']}/{bg_name} -> {key}")
+
+
 def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
+    if kind == "idphoto":
+        run_idphoto(job_id, order_no, payload)
+        return
     if kind == "custom_moka":
         run_custom_moka(job_id, order_no, payload)
         return
@@ -1478,7 +1574,8 @@ def run_job(job_id: int, order_no: str, kind: str, payload: dict) -> None:
 #: 模板 73339「内容生成成功通知」：short_thing1=内容类型 / number2=生成数量 / time3=生成时间
 PHOTO_KIND_LABEL = {"makeup_photo": "定妆照", "template_photo": "同款大片",
                     "template_series": "系列组图", "duo_photo": "双人合照",
-                    "solo_photo": "个人写真", "free_photo": "婚纱照", "paid_photo": "婚纱照"}
+                    "solo_photo": "个人写真", "free_photo": "婚纱照", "paid_photo": "婚纱照",
+                    "idphoto": "证件照"}
 _wx_token_cache: dict = {}
 
 
@@ -1556,7 +1653,9 @@ def notify_invite_reward(order_no: str) -> None:
 
 #: 埋点事件白名单（与 app.py 的 MP_EVENT_WHITELIST 同步）：漏斗统计 + 每日日报
 _EVENT_WHITELIST = ("visit", "share", "arrive_ref", "order_create", "upload",
-                    "makeup_done", "gen_done", "pay_success", "poster_save", "invite_reward")
+                    "makeup_done", "gen_done", "pay_success", "poster_save", "invite_reward",
+                    "idphoto_enter", "idphoto_consent", "idphoto_spec_pick", "idphoto_shot",
+                    "idphoto_pass", "idphoto_export_pay", "idphoto_to_moka")
 
 
 def _log_event(conn, event: str, order_no: str = "", openid: str = "", props: dict = None) -> None:
@@ -1618,7 +1717,7 @@ def _push_chat_event(order_no: str, kind: str, event_kind: str = "job_done", tex
 
 #: 成片类 kind（不含定妆照 makeup_photo / 模板制作 custom_moka）：P2 首组成片判定用
 _RESULT_KINDS = ("template_photo", "template_series", "duo_photo",
-                 "solo_photo", "free_photo", "paid_photo")
+                 "solo_photo", "free_photo", "paid_photo", "idphoto")
 
 
 def _maybe_first_result_nudge(order_no: str) -> None:

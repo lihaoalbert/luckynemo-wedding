@@ -2,3 +2,6 @@ fastapi>=0.110
 uvicorn[standard]>=0.29
 requests>=2.31
 PyMySQL>=1.1  # RDS MySQL 后端（DB_BACKEND=mysql 时启用，db_compat.py）
+pillow>=10  # mp_worker 证件照排版（裁脸/face_sheet 已用，此前靠隐式依赖）
+rembg>=2.0  # AI 证件照抠图（u2net_human_seg）
+onnxruntime>=1.17  # rembg CPU 推理后端

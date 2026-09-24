@@ -22,6 +22,7 @@ import re
 import secrets
 import sqlite3
 import string
+import sys
 import time
 import uuid
 from datetime import datetime, timezone
@@ -133,6 +134,7 @@ CREATE TABLE IF NOT EXISTS mp_orders (
   auth_ok INTEGER DEFAULT 0,
   free_used INTEGER DEFAULT 0,
   paid_count INTEGER DEFAULT 0,
+  idphoto_count INTEGER DEFAULT 1,
   selection_json TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -180,6 +182,9 @@ def _migrate() -> None:
     # 免费修订次数（反馈 #41/#45：不满意可提意见重生成，每单免费 3 次）
     if "revise_used" not in cols:
         conn.execute("ALTER TABLE mp_orders ADD COLUMN revise_used INTEGER NOT NULL DEFAULT 0")
+    # 证件照额度（2026-09-24 AI 证件照拍摄助手：与写真额度池隔离，每单默认 1 次免费体验）
+    if "idphoto_count" not in cols:
+        conn.execute("ALTER TABLE mp_orders ADD COLUMN idphoto_count INTEGER DEFAULT 1")
     # 设备表：协同创作（新娘/新郎两台手机同一订单）
     conn.execute(
         "CREATE TABLE IF NOT EXISTS mp_devices("
@@ -335,7 +340,9 @@ def _now() -> str:
 
 #: 埋点事件白名单（P0 观测层，与 mp_worker.py 同步）：漏斗统计 + 每日日报
 MP_EVENT_WHITELIST = ("visit", "share", "arrive_ref", "order_create", "upload",
-                      "makeup_done", "gen_done", "pay_success", "poster_save", "invite_reward")
+                      "makeup_done", "gen_done", "pay_success", "poster_save", "invite_reward",
+                      "idphoto_enter", "idphoto_consent", "idphoto_spec_pick", "idphoto_shot",
+                      "idphoto_pass", "idphoto_export_pay", "idphoto_to_moka")
 
 
 def _log_event(conn, event: str, order_no: str = "", openid: str = "",
@@ -782,15 +789,42 @@ MP_REQUIRE_AUTH = _env("MP_REQUIRE_AUTH", "0") == "1"
 #: 商品表：代币「金币」1 元 = 1 币（MP 后台已配，发布后不可改）；价格须整数元
 #: per_photo=4 币→1 张额度，pack52=52 币→20 张额度（2026-08-07 调价：原 49 币→50 张）
 #: iOS/Android 同价（用户会跨平台比价，费率差异当获客成本；iOS 通道费率 12%）
+#: grant_field 决定到账落哪个额度列：写真类进 paid_count，证件照（2026-09-24）进 idphoto_count（额度池隔离）
 VP_PRODUCTS = {
-    "per_photo": {"coins": 4, "grant": 1, "title": "4 元/张"},
-    "pack52": {"coins": 52, "grant": 20, "title": "52 元 · 20 张"},
+    "per_photo": {"coins": 4, "grant": 1, "title": "4 元/张", "grant_field": "paid_count"},
+    "pack52": {"coins": 52, "grant": 20, "title": "52 元 · 20 张", "grant_field": "paid_count"},
+    "idphoto2": {"coins": 2, "grant": 1, "title": "证件照 2 元/张", "grant_field": "idphoto_count"},
 }
 #: 本站对外地址（拼认证回调用）
 PUBLIC_BASE = _env("PUBLIC_BASE", "https://luckynemo.ibi.ren")
 #: MiniMax（性别识别等轻量多模态调用）
 MINIMAX_KEY = _env("MINIMAX_API_KEY", "")
 MINIMAX_BASE = _env("MINIMAX_BASE_URL", "https://api.minimaxi.com/v1")
+#: 证件照拍摄助手 TTS 音色（音色待定，用户拍板后可改；MiniMax 预置亲和女声）
+TTS_VOICE_ID = "presenter_female"
+#: TTS 限流：每 openid 每分钟 30 次（内存滑动窗口，进程重启清零可接受）
+_TTS_RATE: dict = {}
+_TTS_RATE_LIMIT = 30
+
+
+def oss_exists(key: str) -> bool:
+    """OSS HEAD 探测对象是否存在（TTS 缓存命中判定）。"""
+    expires = str(int(time.time()) + 600)
+    resource = f"/{OSS_BUCKET}/{key}"
+    sign = _oss_sign_string(OSS_SK, f"HEAD\n\n\n{expires}\n{resource}")
+    r = requests.head(f"{OSS_ENDPOINT}/{quote(key)}?OSSAccessKeyId={OSS_AK}"
+                      f"&Expires={expires}&Signature={quote(sign)}", timeout=15)
+    return r.status_code == 200
+
+
+def _minimax_tts_client():
+    """惰性导入 toolkit MiniMaxClient（路径序与 mp_worker._storylab_mod 一致）。"""
+    for p in (_env("TOOLKIT_DIR", ""), "/opt/luckynemo/toolkit",
+              str(SERVER_DIR.parent / "tools" / "luckynemo-toolkit")):
+        if p and Path(p).is_dir() and p not in sys.path:
+            sys.path.insert(0, p)
+    from luckynemo.minimax_client import MiniMaxClient
+    return MiniMaxClient(api_key=MINIMAX_KEY, base_url=MINIMAX_BASE)
 
 
 def ifocus_call(action: str, payload: dict) -> dict:
@@ -1342,7 +1376,7 @@ def _mp_recompute_auth(conn: sqlite3.Connection, order_no: str) -> bool:
 
 def _mp_get_order(conn: sqlite3.Connection, order_no: str) -> dict | None:
     row = conn.execute(
-        "SELECT order_no,open_token,status,auth_ok,free_used,paid_count,selection_json,created_at,updated_at,asset_group_id,byted_token,auth_url,mode,share_token,free_quota,revise_used"
+        "SELECT order_no,open_token,status,auth_ok,free_used,paid_count,selection_json,created_at,updated_at,asset_group_id,byted_token,auth_url,mode,share_token,free_quota,revise_used,idphoto_count"
         " FROM mp_orders WHERE order_no=?", (order_no,),
     ).fetchone()
     if not row:
@@ -1355,7 +1389,7 @@ def _mp_get_order(conn: sqlite3.Connection, order_no: str) -> dict | None:
         "byted_token": row[10] or "", "auth_url": row[11] or "",
         "mode": row[12] or "",
         "share_token": row[13] or "", "free_quota": row[14] if row[14] is not None else 1,
-        "revise_used": row[15] or 0,
+        "revise_used": row[15] or 0, "idphoto_count": row[16] if row[16] is not None else 1,
         "members": _mp_members(conn, order_no),
     }
 
@@ -1982,6 +2016,15 @@ def mp_job_create(body: MpJobIn) -> JSONResponse:
             _mp_touch(conn, body.order_no,
                       free_used=(order["free_used"] or 0) + use_free,
                       paid_count=order["paid_count"] - need_paid, status="generating")
+        elif body.kind == "idphoto":
+            # AI 证件照：独立额度池（idphoto_count），不与写真额度混扣；新单默认 1 次免费体验
+            if not (body.payload or {}).get("photo_oss_key"):
+                raise HTTPException(status_code=400, detail="缺拍摄照片（photo_oss_key）")
+            if order["idphoto_count"] > 0:
+                _mp_touch(conn, body.order_no,
+                          idphoto_count=order["idphoto_count"] - 1, status="generating")
+            else:
+                raise HTTPException(status_code=403, detail="证件照导出 2 元/张，请先充值")
         else:
             _mp_touch(conn, body.order_no, status="generating")
         conn.execute(
@@ -2073,6 +2116,50 @@ def mp_revise(body: MpReviseIn) -> JSONResponse:
         conn.close()
 
 
+class MpTtsIn(BaseModel):
+    open_token: str = Field(min_length=6, max_length=120)
+    text: str = Field(min_length=1, max_length=200)
+
+
+@app.post("/api/mp/tts")
+def mp_tts(body: MpTtsIn) -> JSONResponse:
+    """证件照拍摄助手语音引导：MiniMax TTS 合成，按 md5(voice+text) 缓存到 OSS tts/ 前缀。
+    命中缓存直接返回签名 URL（24h），未命中合成后上传再返回。"""
+    openid = _vp_openid(body.open_token)
+    if not openid:
+        raise HTTPException(status_code=401, detail="需要登录态，请重启小程序后再试")
+    now = time.time()
+    hits = [t for t in _TTS_RATE.get(openid, []) if now - t < 60]
+    if len(hits) >= _TTS_RATE_LIMIT:
+        raise HTTPException(status_code=429, detail="语音请求太频繁，请稍后再试")
+    hits.append(now)
+    _TTS_RATE[openid] = hits
+    text = re.sub(r"[\x00-\x1f\x7f]", "", body.text).strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="语音文案为空")
+    if len(text) > 60:
+        raise HTTPException(status_code=400, detail="语音文案最长 60 字")
+    if not MINIMAX_KEY:
+        raise HTTPException(status_code=503, detail="语音服务未配置（MINIMAX_API_KEY）")
+    key = f"tts/{hashlib.md5((TTS_VOICE_ID + text).encode('utf-8')).hexdigest()}.mp3"
+    if oss_exists(key):
+        return JSONResponse({"ok": True, "url": oss_signed_get_url(key, expire=86400)})
+    tmp = DATA_DIR / "tts_tmp" / f"{uuid.uuid4().hex[:8]}.mp3"
+    tmp.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        _minimax_tts_client().synthesize(text, tmp, voice_id=TTS_VOICE_ID)
+        oss_put(key, tmp.read_bytes(), "audio/mpeg")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log.warning("tts 合成失败 openid=%s err=%s", openid, str(exc)[:200])
+        raise HTTPException(status_code=502, detail="语音合成失败，请稍后再试")
+    finally:
+        tmp.unlink(missing_ok=True)
+    log.info("tts 合成并缓存 key=%s text=%s", key, text[:20])
+    return JSONResponse({"ok": True, "url": oss_signed_get_url(key, expire=86400)})
+
+
 # ---------------- 微信虚拟支付（代币模式） ----------------
 # 商品即额度：用户付 4/52 币 → 到账 1/20 张 paid_count。
 # 到账以 Midas 发货推送（/api/mp/vpay/notify）为准，客户端 confirm 为补偿通道（内测期信任客户端
@@ -2094,13 +2181,17 @@ def _vp_openid(open_token: str) -> str:
 
 
 def _vp_grant(conn: sqlite3.Connection, pay: sqlite3.Row) -> None:
-    """到账（幂等）：created → paid 才加额度。"""
+    """到账（幂等）：created → paid 才加额度；按商品 grant_field 路由到对应额度列。"""
     cur = conn.execute(
         "UPDATE mp_pay_orders SET status='paid', paid_at=? WHERE out_trade_no=? AND status='created'",
         (_now(), pay["out_trade_no"]))
     if cur.rowcount == 1:
+        product = VP_PRODUCTS.get(pay["product"]) or {}
+        grant_field = product.get("grant_field", "paid_count")
+        if grant_field not in ("paid_count", "idphoto_count"):
+            grant_field = "paid_count"
         conn.execute(
-            "UPDATE mp_orders SET paid_count=paid_count+?, updated_at=? WHERE order_no=?",
+            f"UPDATE mp_orders SET {grant_field}={grant_field}+?, updated_at=? WHERE order_no=?",
             (pay["grant_count"], _now(), pay["order_no"]))
         _log_event(conn, "pay_success", pay["order_no"], pay["openid"],
                    {"out_trade_no": pay["out_trade_no"], "product": pay["product"],
@@ -2344,10 +2435,14 @@ def _handle_ios_refund(content: dict) -> None:
         conn.execute("UPDATE mp_pay_orders SET status='refunded' WHERE out_trade_no=?",
                      (pay["out_trade_no"],))
         # 回收未消费额度（地板 0 在 Python 侧算：MySQL 的 MAX() 是聚合函数，与 SQLite 标量 MAX(a,b) 方言冲突）
-        row = conn.execute("SELECT paid_count FROM mp_orders WHERE order_no=?",
+        product = VP_PRODUCTS.get(pay["product"]) or {}
+        grant_field = product.get("grant_field", "paid_count")
+        if grant_field not in ("paid_count", "idphoto_count"):
+            grant_field = "paid_count"
+        row = conn.execute(f"SELECT {grant_field} FROM mp_orders WHERE order_no=?",
                            (pay["order_no"],)).fetchone()
         new_count = max(0, (row[0] or 0) - pay["grant_count"]) if row else 0
-        conn.execute("UPDATE mp_orders SET paid_count=?, updated_at=? WHERE order_no=?",
+        conn.execute(f"UPDATE mp_orders SET {grant_field}=?, updated_at=? WHERE order_no=?",
                      (new_count, _now(), pay["order_no"]))
         conn.commit()
         log.info("iOS 退款善后完成：out_trade_no=%s order_no=%s 回收 %d 张，剩余付费额度 %d",
@@ -2566,6 +2661,7 @@ def mp_me(order_no: str) -> JSONResponse:
                 "free_total": order["free_quota"],
                 "free_left": max(0, order["free_quota"] - (order["free_used"] or 0)),
                 "paid_left": order["paid_count"],
+                "idphoto_count": order["idphoto_count"],
             },
             "uploads": uploads,
             "photos": photos,

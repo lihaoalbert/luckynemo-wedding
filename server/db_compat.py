@@ -170,6 +170,7 @@ MYSQL_SCHEMA = [
        order_no VARCHAR(64) UNIQUE, open_token VARCHAR(128) NOT NULL,
        status VARCHAR(16) NOT NULL DEFAULT 'created',
        auth_ok INT DEFAULT 0, free_used INT DEFAULT 0, paid_count INT DEFAULT 0,
+       idphoto_count INT DEFAULT 1,
        selection_json TEXT, created_at VARCHAR(40) NOT NULL, updated_at VARCHAR(40) NOT NULL,
        asset_group_id VARCHAR(64) DEFAULT '', byted_token VARCHAR(128) DEFAULT '',
        auth_url TEXT, mode VARCHAR(16) DEFAULT '', share_token VARCHAR(32) DEFAULT '',
@@ -264,6 +265,8 @@ MYSQL_ALTERS = [
     "ALTER TABLE mp_orders ADD COLUMN revise_used INT NOT NULL DEFAULT 0",
     # storylab 预告片偏好收集结果（chat storylab_trailer 动作落库，JSON 文本）
     "ALTER TABLE mp_orders ADD COLUMN storylab_prefs TEXT",
+    # 证件照额度（AI 证件照拍摄助手，与写真额度池隔离，每单默认 1 次免费体验）
+    "ALTER TABLE mp_orders ADD COLUMN idphoto_count INT DEFAULT 1",
 ]
 
 
