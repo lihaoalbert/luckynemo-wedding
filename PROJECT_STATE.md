@@ -1,6 +1,6 @@
 # 徐大恩（LuckyNemo）项目状态存档
 
-> 最后更新：2026-09-21
+> 最后更新：2026-09-24
 > 恢复方式：把这个文件给 Kimi 看，或直接说"继续 LuckyNemo 项目"
 > 记录机制：见根目录 `AGENTS.md`——会话中状态有变化就当更新本文件，文末追加更新日志
 
@@ -125,8 +125,22 @@
 - 若进入实装：按 AGENTS.md 拉 `storylab` 独立分支 + worktree（避开小程序组/视频组）
 - 合规要点：真人素材授权留痕产品化（比婚纱照线更敏感）；「补逝去亲人/合成他人」类功能列远期谨慎；未成年人规则前置设计
 
+## 六点六、AI 小导演·证件照拍摄助手（idphoto 分支，2026-09-24 一期已实施，未合并未部署）
+
+产品形态：镜头对被拍者、屏幕对摄影师，AI 实时指引拍摄（屏幕大字指令+台词卡+TTS 语音夸奖），达标自动抓拍；证件照场景做"拍的时候就合规"，**定位 2 元刚需引流品**。产品文档 `research/2026-09-AI小导演产品形态.md`（含竞品验证：国内小程序形态无直接竞品；二期路线：剧本关卡/双人拍摄/运镜指导/分层决策架构）。
+
+- **一期已实施（idphoto 分支，本地验证通过）**：
+  - 前端：`pages/idphoto/`（规格选择大卡 20+ 规格+授权勾选留痕+官方证件免责）+ `pages/idphoto_shoot/`（camera 全屏+canvas overlay 框线+BlazeFace 实时检测 6fps+规则引擎 `utils/idphoto_rules.js`+达标 3-2-1 自动抓拍+底色选择+付费导出+模卡导流卡）；规格库 `utils/idphoto_specs.js`；BlazeFace 封装 `utils/face_detect.js`（tfjsPlugin 插件+npm 注入，全链路降级手动模式）；入口 chat PAGE_CARDS + me 页资产区；**本项目首次引入 npm 构建（miniprogram/package.json）**
+  - 后端：`POST /api/mp/tts`（MiniMax t2a 惰性导入 toolkit 合成，md5 文案 OSS `tts/` 永久缓存，限流 30/min，音色常量 presenter_female 待定）；计费隔离——`VP_PRODUCTS` 加 `idphoto2`（2 币/1 张）+ `mp_orders.idphoto_count` 专用额度列（新单默认 1 次免费，`_vp_grant`/iOS 退款按 grant_field 路由，不污染写真 paid_count 池）；`/api/mp/job` 加 idphoto kind（扣 idphoto_count，不足 403）
+  - worker：`run_idphoto`（mp_worker.py:1243）rembg u2net_human_seg 抠图+标准色换底（白/蓝#438EDB/红）+face_box 居中裁剪排版，实测发丝边缘干净、尺寸精确；新增埋点 7 事件（idphoto_enter/consent/spec_pick/shot/pass/export_pay/to_moka，白名单两处已同步）
+  - 实测：建单/扣费/403/TTS 缓存路径/rembg 出图目检全部通过
+- **上线前阻塞项**：①MP 后台新建 2 元金币商品（已发布商品不可改价，必须新建）②MiniMax Token Plan 已用尽（9-24 实测 2056），需充值否则 TTS 502 ③MP 后台添加 tfjsPlugin 插件 ④ECS 需 `pip install rembg onnxruntime` + 预置 u2net 模型（github 直连慢用 hf-mirror，U2NET_HOME 指向预置目录）⑤真机验证（帧率/发热/低端机/相机权限）+ 开发者工具「构建 npm」后上传发布
+- 测试残留：本地订单 MP20260924-VV0A；OSS `idphoto_test/IMG_1414.jpg` 与 `results/MP20260924-VV0A/*.jpg`（私有桶）
+
 ## 更新日志
 
+- 2026-09-24 **「AI 小导演」证件照拍摄助手一期实施完成（idphoto 分支，未合并未部署）**：详见新增章节「六点六」。前端 pages/idphoto+idphoto_shoot（BlazeFace 实时检测+规则引擎+达标自动抓拍+全链路降级；首次引入 npm 构建+tfjsPlugin）、后端 /api/mp/tts（MiniMax 合成+OSS md5 缓存）+ idphoto2 商品 2 币/张 + idphoto_count 专用额度列（与写真池隔离，新单免费 1 次）、worker run_idphoto rembg 抠图换底排版实测边缘干净；埋点 7 事件。本地全链路验证通过。**阻塞：MP 新建 2 元商品、MiniMax Token Plan 充值、tfjsPlugin 插件添加、ECS 装 rembg+预置 u2net 模型、真机验证后上传发布**。
+- 2026-09-24 **目标市场拓展调研完成（未实施）**：`research/2026-09-目标市场拓展调研-中老年与证件照.md`——三板块分层：婚纱照=利润主线保留不动；**新增目标市场1 中老年女性**（1.61亿银发网民、付费垂直AI写真空档、4元/张 vs 线下4000元套系，建议「芳华」分组 4 系列 MVP + 子女代付送礼场景）；**新增目标市场2 证件照引流**（年需求约5亿人次、搜一搜搜索流量品类、技术近零成本开源方案现成，定位流量生意非利润生意）。合规红线：中老年须人脸单独同意+支付二次确认防误触投诉；证件照不得用于身份证/护照官方场景、回执勿碰自营。**已决策（9-24 用户拍板）：①证件照 2 元起不做限免 ②中老年挂主品牌（「芳华」作模卡第 7 个一级分组）③回执不做不接导流 ④交互统一「大字·可爱·像小游戏」**——方案见文档 §五：两档字号（关怀档 ≥1.4 倍/按钮 ≥112rpx）、三拍出片骨架（选卡→拍一拍→开奖，每屏一个大按钮）、九宫格=集卡玩法、送礼卡（子女付款父母一键拍照）、芳华默认开关怀档、防误触双大按钮二次确认。
 - 2026-09-21 **推广 P1+P2+P3 全部上线（d23ec4a/f610a5c 已部署推送）**：**P1 素材工厂**——`tools/luckynemo-toolkit/luckynemo/watermark.py`（AI 角标 CLI，右下角半透明块，字体复用 ffmpeg_utils 候选）+ `assets/moka/gen_promo.py`（`--series`/`--top N`，每系列产 promo/<日期>/<sid>/ 五件套：card_badged/selfie(虚拟模特素颜自拍)/compare(1:1 2048² 过程对比图)/copy.md(M3 种草文案,四条红线入 prompt)/manifest.json 留痕；`promo/` 已入 .gitignore）；`_moka_hot_counts` 加 5min 进程内缓存（app.py:1801）。hyd/muh 两系列已实跑目检通过（图合规、文案无极限词）。**P2 裂变激活**——受邀订单（ref 非空）free_quota=2（app.py:1544）；首组成片完成注入 `first_result_share_nudge` chat 事件（worker `_maybe_first_result_nudge`，单 worker 串行+计数判定天然幂等），chat.js `notifyNewPhotos` 扩展现有卡片机制追加贱萌引导气泡；`MP_SUB_TMPL_REWARD` 占位+`notify_invite_reward`（模板空即跳过，字段映射沿用 73339 结构），`_send_subscribe` 抽公共。**P3 周报**——worker `_weekly_report`（每周一北京时间，mp_meta `weekly_report_last` 防重跑）：7 天漏斗+模卡 Top/Flop5（归集逻辑等价 app._moka_hot_counts）+反馈 LLM 聚类（**用 MINIMAX_LLM_MODEL 默认 MiniMax-M3——abab6.5s-chat 实测 TokenPlan 不支持 2061**，失败降级纯列表）+规则式上新提案（环比快照存 `weekly_hot_prev`，首周显示"新上榜待观察"）；`_lark_send` 抽公共与日报共用。另修 P0 遗漏：template_series 尾块补 gen_done（系列组图此前不进漏斗）。本地 SQLite 全场景冒烟+真实 M3 调用通过；ECS 两服务 active，启动日志日报/周报模块均挂载；线上 catalog 200/6组/180模板 ✓。**待：①LARK_BOT_WEBHOOK 仍未配（日报周报静默跳过）②MP 后台申请「奖励到账通知」订阅模板后配 MP_SUB_TMPL_REWARD ③chat.js 随前端批次上传 ④推广素材人工终审后发布小红书/视频号（promo/20260920/hyd、muh 两包就绪）**
 - 2026-09-20 **自动化推广 v1 启动 + P0 观测层上线（94b955b 已部署推送）**：规划「内容自产→站内裂变→数据回收→每周迭代」闭环（原则：邀请有礼不碰分享红线/外发素材必带 AI 角标/机器建议人拍板）。P0 落地：①新表 `mp_events`（event/order_no/openid/props_json，双路迁移）+ `mp_meta`（kv，日报防重跑）；②`POST /api/mp/event`（9 事件白名单+props 2000 字截断+静默 200）+ helper `_log_event`；③服务端埋点：建单 order_create（带 ref 补 arrive_ref source=server）、`_vp_grant` pay_success、worker `_finish` gen_done（makeup_photo 补 makeup_done）、`_maybe_ref_reward` invite_reward、`/api/uploads/sign` upload；④前端新增 `utils/track.js`，挂点 app.js onLaunch（visit/arrive_ref）+ chat/me/result/photos 4 处 onShareAppMessage + photos 海报保存 poster_save；⑤worker 每日漏斗日报 `_daily_report`（UTC+8 切天、北京日界换算 UTC 边界匹配 UTC 口径 created_at、每 600 tick 检查、飞书自定义机器人 webhook `LARK_BOT_WEBHOOK` 未配置则跳过）。线上冒烟：RDS 两表自动建出、event 端点白名单/写入 ✓、冒烟行已清理、worker 启动日志"日报模块已挂载"✓。**待：①飞书群建自定义机器人拿 webhook 配 ECS `.env` `LARK_BOT_WEBHOOK` 后重启 worker ②前端 6 文件（app.js/chat/me/result/photos/track.js）需微信开发者工具上传 ③跨组文件 app.py/mp_worker.py/db_compat.py 群里同步**。注意：事件 created_at 是 UTC ISO 串（app._now/worker._now_iso），切天勿直接按本地日期前缀比较。后续阶段：P1 种草素材工厂（watermark.py+gen_promo.py）→ P2 受邀者免费额度 1→2 + 首组成片裂变引导 → P3 每周热度周报
 - 2026-08-29 **对话记忆体系三期上线（991d2a4 已部署推送）**：P1 全量留痕（`mp_chat_messages` 表+历史端点分页重签+服务端组装最近 6 轮注入替代前端 history+前端只读回看"加载更早"，副作用 action 绝不重执行）；P2 工作记忆（每 10 轮滚动摘要 ≤300 字 + user_profile 长期事实沉淀 + `remember_fact` 第 25 工具 + me 页「清除对话记录」）；P3 可引用（topic 打标 + `recall_past` 第 26 工具时间窗检索 + 回忆纪律"先查再答"）。合规：worker 每 100 tick 清扫 30 天前消息+摘要（交付即删兑现）。回归 S1-S14 共 77 断言全绿。**生产实证：记住"无厘头反转"→ 清空历史再问"我刚才说什么风格"→ 贱萌口吻翻出来**（"翻到了～你之前提过想要无厘头反转风格！"）。已知行为：收集流激活期所有消息被当答案（"记住"也会被吃掉，by design）；前端 chat/me 5 文件**已由用户上传发布**（8-29 晚，历史回看/清除入口线上可用）

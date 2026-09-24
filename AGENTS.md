@@ -24,6 +24,7 @@
 - `xhs`：小红书小程序组（`miniprogram-xhs/` 前端 + server/ 小红书登录与支付通道）。独立 worktree：`/Users/app/LuckyNemo-Wedding-xhs`。
 - `douyin`：抖音小程序组（`miniprogram-douyin/` 前端 + server/ 抖音登录与支付通道）。独立 worktree：`/Users/app/LuckyNemo-Wedding-douyin`（2026-08-08 建）。
 - `storylab`：真实素材×AI 创作支线（真实照片/视频 + AI 生成故事感作品）。独立 worktree：`/Users/app/LuckyNemo-Wedding-storylab`（2026-08-29 建，从 main 8ca7729 拉）。方向文档 `research/2026-08-真实素材AI创作方向探索.md`。
+- `idphoto`：「AI 小导演」证件照拍摄助手（端侧 BlazeFace 实时指引 + 规则引擎 + TTS 语音 + 抠图换底排版，2 元引流品）。2026-09-24 从 main 拉，在主仓直接开发。产品文档 `research/2026-09-AI小导演产品形态.md`。
 - 功能分支从 main 拉，完成后 PR 回 main；定期（至少每次开工前）把 main 合回自己的分支，避免长漂移。
 - worktree 不带 `.env`（凭据不进库）：新工作区要用 server/toolkit 时，自己从主仓拷贝对应 `.env`。
 
@@ -37,6 +38,7 @@
 | 小红书组 | `miniprogram-xhs/`（小红书小程序前端，独立框架不复用微信小程序代码）、`server/app.py` 的 xhs 登录/支付通道 |
 | 抖音组 | `miniprogram-douyin/`（抖音小程序前端，tt.* API 体系独立框架）、`server/app.py` 的抖音登录/支付通道 |
 | storylab 组 | `tools/luckynemo-toolkit/luckynemo/storylab*`（新增文件，不动视频组已有文件）、`server/storylab*`（未来 worker 任务）、未来 `miniprogram/pages/storylab/`、storylab 方向 `research/` 文档 |
+| idphoto 组 | `miniprogram/pages/idphoto*/`、`miniprogram/utils/{idphoto_specs,idphoto_rules,face_detect}.js`、`miniprogram/package.json`、`server/app.py` 的 /api/mp/tts 与 idphoto 计费分支、`server/mp_worker.py` 的 idphoto 任务 |
 
 - **跨组文件**（`server/app.py`、`server/mp_worker.py`、各 `index.json`、`PROJECT_STATE.md`）：改动前在群里同步一句，合并时先沟通再合。
 - `PROJECT_STATE.md` 每组各自维护自己领域的章节，更新日志按时间追加不覆盖别人的。
