@@ -134,7 +134,7 @@
   - 后端：`POST /api/mp/tts`（MiniMax t2a 惰性导入 toolkit 合成，md5 文案 OSS `tts/` 永久缓存，限流 30/min，音色常量 presenter_female 待定）；计费隔离——`VP_PRODUCTS` 加 `idphoto2`（2 币/1 张）+ `mp_orders.idphoto_count` 专用额度列（新单默认 1 次免费，`_vp_grant`/iOS 退款按 grant_field 路由，不污染写真 paid_count 池）；`/api/mp/job` 加 idphoto kind（扣 idphoto_count，不足 403）
   - worker：`run_idphoto`（mp_worker.py:1243）rembg u2net_human_seg 抠图+标准色换底（白/蓝#438EDB/红）+face_box 居中裁剪排版，实测发丝边缘干净、尺寸精确；新增埋点 7 事件（idphoto_enter/consent/spec_pick/shot/pass/export_pay/to_moka，白名单两处已同步）
   - 实测：建单/扣费/403/TTS 缓存路径/rembg 出图目检全部通过
-- **上线前阻塞项**：①~~MP 后台配 2 元档位~~（9-24 澄清：代币模式 buyQuantity 任意整数元即可，代币配置只有名称+兑换比例发布不可改，**无需 MP 配置**，idphoto2=2 币直接可用）②MiniMax Token Plan 已用尽（9-24 实测 2056），需充值否则 TTS 502 ③~~tfjsPlugin 插件~~（9-24 已添加）④ECS 需 `pip install rembg onnxruntime` + 预置 u2net 模型（github 直连慢用 hf-mirror，U2NET_HOME 指向预置目录）⑤真机验证（帧率/发热/低端机/相机权限）+ 开发者工具「构建 npm」（先 `cd miniprogram && npm install`）后上传发布
+- **上线前阻塞项**：①~~MP 后台配 2 元档位~~（9-24 澄清：代币模式 buyQuantity 任意整数元即可，代币配置只有名称+兑换比例发布不可改，**无需 MP 配置**，idphoto2=2 币直接可用）②~~MiniMax Token Plan 已用尽~~（9-24 已换 key：LuckyNemo 原用 K1=KidsAI 账号（2056 已尽），换成 K2=luckynemo-server 备用账号——备份在 `/Users/app/dsh-training/dsh-deploy/.mdl-keys.env`（K2 行为两段逗号拼接，**第一段才是真 K2**，第二段=K1）；本地 toolkit `.env` 已换并实测 t2a_v2 合成成功（status 0、49.5KB mp3、ID3 头合法）；**ECS `/opt/luckynemo/server/.env` 与 `toolkit/.env` 待部署时同步换 K2 第一段**） ③~~tfjsPlugin 插件~~（9-24 已添加）④ECS 需 `pip install rembg onnxruntime` + 预置 u2net 模型（github 直连慢用 hf-mirror，U2NET_HOME 指向预置目录）⑤真机验证（帧率/发热/低端机/相机权限）+ 开发者工具「构建 npm」（先 `cd miniprogram && npm install`）后上传发布
 - 测试残留：本地订单 MP20260924-VV0A；OSS `idphoto_test/IMG_1414.jpg` 与 `results/MP20260924-VV0A/*.jpg`（私有桶）
 
 ## 更新日志
