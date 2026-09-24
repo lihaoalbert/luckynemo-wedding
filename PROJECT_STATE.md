@@ -134,7 +134,7 @@
   - 后端：`POST /api/mp/tts`（MiniMax t2a 惰性导入 toolkit 合成，md5 文案 OSS `tts/` 永久缓存，限流 30/min，音色常量 presenter_female 待定）；计费隔离——`VP_PRODUCTS` 加 `idphoto2`（2 币/1 张）+ `mp_orders.idphoto_count` 专用额度列（新单默认 1 次免费，`_vp_grant`/iOS 退款按 grant_field 路由，不污染写真 paid_count 池）；`/api/mp/job` 加 idphoto kind（扣 idphoto_count，不足 403）
   - worker：`run_idphoto`（mp_worker.py:1243）rembg u2net_human_seg 抠图+标准色换底（白/蓝#438EDB/红）+face_box 居中裁剪排版，实测发丝边缘干净、尺寸精确；新增埋点 7 事件（idphoto_enter/consent/spec_pick/shot/pass/export_pay/to_moka，白名单两处已同步）
   - 实测：建单/扣费/403/TTS 缓存路径/rembg 出图目检全部通过
-- **上线前阻塞项**：①MP 后台新建 2 元金币商品（已发布商品不可改价，必须新建）②MiniMax Token Plan 已用尽（9-24 实测 2056），需充值否则 TTS 502 ③MP 后台添加 tfjsPlugin 插件 ④ECS 需 `pip install rembg onnxruntime` + 预置 u2net 模型（github 直连慢用 hf-mirror，U2NET_HOME 指向预置目录）⑤真机验证（帧率/发热/低端机/相机权限）+ 开发者工具「构建 npm」后上传发布
+- **上线前阻塞项**：①MP 后台【虚拟支付→基本配置→代币配置】档位列表新增 2 元=2 金币档位并发布（无"商品"概念，buyQuantity=2 须命中档位，否则报 INVALID_BUY_QUANTITY）②MiniMax Token Plan 已用尽（9-24 实测 2056），需充值否则 TTS 502 ③MP 后台【设置→第三方设置→插件管理→添加插件】按 AppID `wx6afed118d9e81df9` 搜 tfjsPlugin 添加（搜名字可能搜不到；若下架则换 Plan B：wx.createVKSession 原生人脸检测，零插件零 npm）④ECS 需 `pip install rembg onnxruntime` + 预置 u2net 模型（github 直连慢用 hf-mirror，U2NET_HOME 指向预置目录）⑤真机验证（帧率/发热/低端机/相机权限）+ 开发者工具「构建 npm」（先 `cd miniprogram && npm install`）后上传发布
 - 测试残留：本地订单 MP20260924-VV0A；OSS `idphoto_test/IMG_1414.jpg` 与 `results/MP20260924-VV0A/*.jpg`（私有桶）
 
 ## 更新日志
