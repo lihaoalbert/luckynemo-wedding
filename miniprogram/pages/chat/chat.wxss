@@ -99,3 +99,12 @@
   text-align: center; font-size: 24rpx; color: var(--ink-soft, #a89a90);
   padding: 16rpx 0 8rpx;
 }
+
+.quick-entry {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1rpx solid var(--hairline);
+  border-radius: 28rpx; padding: 28rpx 32rpx; margin-bottom: 24rpx;
+}
+.quick-entry-title { font-size: 32rpx; font-weight: 600; color: var(--ink); }
+.quick-entry-desc { font-size: 24rpx; color: var(--ink-soft); margin-top: 8rpx; }
+.quick-entry-arrow { font-size: 36rpx; color: var(--accent); font-weight: 600; }

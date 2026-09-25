@@ -717,6 +717,10 @@ Page({
     wx.previewImage({ urls: [e.currentTarget.dataset.url] });
   },
 
+  goIdphoto() {
+    wx.navigateTo({ url: '/pkg_idphoto/pages/idphoto/idphoto' });
+  },
+
   onShareAppMessage() {
     track('share', { from: 'chat' });
     const order = this.data.order || {};
