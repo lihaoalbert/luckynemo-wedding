@@ -12,8 +12,13 @@
     "uglifyFileName": false,
     "uploadWithSourceMap": true,
     "enhance": false,
-    "packNpmManually": false,
-    "packNpmRelationList": [],
+    "packNpmManually": true,
+    "packNpmRelationList": [
+      {
+        "packageJsonPath": "./pkg_idphoto/package.json",
+        "miniprogramNpmDistDir": "./pkg_idphoto/"
+      }
+    ],
     "minifyWXSS": true,
     "minifyWXML": true,
     "localPlugins": false,

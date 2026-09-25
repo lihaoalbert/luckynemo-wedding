@@ -50,7 +50,7 @@ Page({
   },
 
   goIdphoto() {
-    wx.navigateTo({ url: '/pages/idphoto/idphoto' });
+    wx.navigateTo({ url: '/pkg_idphoto/pages/idphoto/idphoto' });
   },
 
   goOrders() {

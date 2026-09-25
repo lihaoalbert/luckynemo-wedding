@@ -36,9 +36,9 @@ miniprogram/            # 微信小程序工程（微信开发者工具直接导
 
 ## npm 构建（证件照 BlazeFace 依赖）
 
-证件照拍摄页（pages/idphoto_shoot）用 tfjs + BlazeFace 做端侧人脸检测，首次引入了 npm 依赖（见 package.json）：
+证件照拍摄页（pkg_idphoto 分包）用 tfjs + BlazeFace 做端侧人脸检测。因 @tensorflow 依赖约 1.6MB（压缩后），主包会超 2MB 限制，**证件照整体放在 `pkg_idphoto/` 分包，npm 也构建进分包**（project.config.json 已配 `packNpmManually` + `packNpmRelationList`）：
 
-1. 在 `miniprogram/` 目录执行 `npm install`（依赖包本身不进包体积，模型权重网络加载）。
-2. 微信开发者工具 → 菜单「工具」→「构建 npm」（每次新增/升级依赖后都要重新构建）。
-3. tfjs 依赖官方插件 `tfjsPlugin`（app.json 已声明，provider `wx6afed118d9e81df9`），首次使用需在小程序管理后台「设置 → 第三方服务 → 插件管理」添加该插件。
+1. 在 `miniprogram/pkg_idphoto/` 目录执行 `npm install`（依赖包本身不进包体积，模型权重网络加载）。
+2. 微信开发者工具 → 菜单「工具」→「构建 npm」（每次新增/升级依赖后都要重新构建；构建产物在 `pkg_idphoto/miniprogram_npm/`）。
+3. tfjs 依赖官方插件 `tfjsPlugin`（已在 app.json 的 subpackages.pkg_idphoto 内声明，provider `wx6afed118d9e81df9`），首次使用需在小程序管理后台「设置 → 第三方服务 → 插件管理」添加该插件。
 4. 未构建 npm / 插件未添加 / 模型加载失败时，拍摄页自动降级为手动模式（无自动判定，可手动按快门），不阻塞功能。

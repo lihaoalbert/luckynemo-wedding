@@ -50,6 +50,6 @@ Page({
   pickSpec(e) {
     const id = e.currentTarget.dataset.id;
     track('idphoto_spec_pick', { spec_id: id });
-    wx.navigateTo({ url: '/pages/idphoto_shoot/idphoto_shoot?spec_id=' + id });
+    wx.navigateTo({ url: '/pkg_idphoto/pages/idphoto_shoot/idphoto_shoot?spec_id=' + id });
   },
 });
