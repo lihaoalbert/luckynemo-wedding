@@ -2,11 +2,12 @@
 // - 惰性初始化：第一次 detect 时才装依赖、配插件、加载模型（网络加载，不打进包）
 // - 依赖官方 tfjs 插件 tfjsPlugin（app.json 已声明，需在小程序后台添加）+ npm 包
 //   （@tensorflow/tfjs-core / tfjs-converter / tfjs-backend-webgl / @tensorflow-models/blazeface / fetch-wechat）
-// - 模型默认走谷歌中国镜像，可切自有 CDN：把 MODEL_URL 改到 OSS 即可（权重 ~300KB）
-// - 任何一步失败都降级为 manual 模式：detect 恒返回 has_face:true（无框），
+// - 模型自托管在 luckynemo.ibi.ren（tfhub 国内不可达且未进小程序域名白名单，曾致真机加载卡死）；
+//   源文件在 website/models/blazeface/，ECS /var/www/luckynemo/models/blazeface/
+// - 任何一步失败（含 20s 超时）都降级为 manual 模式：detect 恒返回 has_face:true（无框），
 //   拍摄页据此关闭自动抓拍、显示「手动对准框线拍摄」
-const MODEL_URL = 'https://www.gstaticcnapps.cn/tfjs-models/savedmodel/blazeface/model.json';
-const INPUT_SIZE = [128, 128];  // blazeface 默认输入
+const MODEL_URL = 'https://luckynemo.ibi.ren/models/blazeface/model.json';
+const LOAD_TIMEOUT_MS = 20000;
 
 let _state = 'idle';   // idle → loading → ready | manual
 let _model = null;
@@ -19,9 +20,9 @@ function _loadDeps() {
   try {
     const tf = require('@tensorflow/tfjs-core');
     const fetchWechat = require('fetch-wechat');
-    require('@tensorflow/tfjs-backend-webgl');
+    const webgl = require('@tensorflow/tfjs-backend-webgl');
     const blazeface = require('@tensorflow-models/blazeface');
-    return { tf, fetchWechat, blazeface };
+    return { tf, fetchWechat, webgl, blazeface };
   } catch (e) {
     return null;
   }
@@ -38,27 +39,25 @@ async function init() {
 async function _doInit() {
   const deps = _loadDeps();
   if (!deps) { _state = 'manual'; return _state; }
-  const { tf, fetchWechat, blazeface } = deps;
+  const { tf, fetchWechat, webgl, blazeface } = deps;
   try {
     // 官方插件注入 webgl 后端 + fetch polyfill（必须在页面内调，onLaunch 里调会因
-    // offscreen canvas 随页面跳转失效而出错，见 tfjs-wechat README）
+    // offscreen canvas 随页面跳转失效而出错，见 tfjs-wechat README；webgl 必须显式传入，
+    // 否则 tf 注册表里没有任何后端，报 No backend found in registry）
     const plugin = requirePlugin('tfjsPlugin');
     plugin.configPlugin({
       fetchFunc: fetchWechat.fetchFunc(),
       tf,
+      webgl,
       canvas: wx.createOffscreenCanvas(),
-      backendName: 'wechat-webgl-idphoto',
     });
     _tf = tf;
-    try {
-      // 首选 blazeface.load()（tfhub 在线加载）
-      _model = await blazeface.load({ maxFaces: 1 });
-    } catch (e1) {
-      // tfhub 不通时退到镜像/自有 CDN：手动 loadGraphModel + 组装 BlazeFaceModel
-      const tfconv = require('@tensorflow/tfjs-converter');
-      const graph = await tfconv.loadGraphModel(MODEL_URL);
-      _model = new blazeface.BlazeFaceModel(graph, INPUT_SIZE, 1, 0.3, 0.75);
-    }
+    // 直接加载自托管模型（blazeface.load 支持 modelUrl；不试 tfhub：真机域名白名单没有它，会无限挂起）；
+    // 全程包超时，任何挂起都降级 manual，绝不让「上场中」卡死
+    _model = await Promise.race([
+      blazeface.load({ maxFaces: 1, modelUrl: MODEL_URL }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('model load timeout')), LOAD_TIMEOUT_MS)),
+    ]);
     _state = 'ready';
   } catch (e) {
     _state = 'manual';
