@@ -124,10 +124,12 @@ Page({
     this._lastFrameAt = now;
     this._busy = true;
     const w = frame.width, h = frame.height;
-    const light = this._sampleLight(frame.data, w, h);
     faceDetect.detect(frame.data, w, h).then(face => {
       this._busy = false;
       if (this.data.state !== 'shooting') return;
+      // 亮度采样用转正后的帧（与推理同方向，否则阴阳脸左右判反）
+      const rot = faceDetect.lastRotated() || { data: frame.data, w, h };
+      const light = this._sampleLight(rot.data, rot.w, rot.h);
       if (face.has_face && face.w) {
         this._lastFace = { x: face.x, y: face.y, w: face.w, h: face.h };
       }
@@ -215,6 +217,7 @@ Page({
   },
 
   switchCamera() {
+    faceDetect.resetRotation();  // 前后摄帧方向可能不同，重新探测
     this.setData({ devicePosition: this.data.devicePosition === 'back' ? 'front' : 'back' });
   },
 

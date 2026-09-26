@@ -12,8 +12,37 @@ const LOAD_TIMEOUT_MS = 20000;
 let _state = 'idle';   // idle → loading → ready | manual
 let _model = null;
 let _tf = null;
+// 安卓竖屏 onCameraFrame 给横向传感器帧（人脸侧躺，BlazeFace 检不出），
+// 需转正再推理；方向因机型/前后摄而异：开拍后自动探测（轮流试 0/90/270/180，
+// 检出人脸即锁定），换镜头时 resetRotation()
+let _rot = 0;
+let _rotLocked = false;
+let _probeIdx = 0;
+const _PROBE_ROTATIONS = [0, 90, 270, 180];
+let _lastRotated = null;  // {data,w,h} 供页面采样亮度（与推理同方向）
 
 function status() { return _state; }
+function resetRotation() { _rotLocked = false; _probeIdx = 0; _rot = 0; }
+function lastRotated() { return _lastRotated; }
+
+// RGBA 帧旋转（deg ∈ 0/90/180/270 顺时针），返回 {data,w,h}
+function _rotateRGBA(src, w, h, deg) {
+  if (!deg) return { data: src, w, h };
+  const s = new Uint8Array(src);
+  const nw = (deg === 180) ? w : h, nh = (deg === 180) ? h : w;
+  const d = new Uint8Array(s.length);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let dx, dy;
+      if (deg === 90) { dx = h - 1 - y; dy = x; }
+      else if (deg === 270) { dx = y; dy = w - 1 - x; }
+      else { dx = w - 1 - x; dy = h - 1 - y; }
+      const si = (y * w + x) * 4, di = (dy * nw + dx) * 4;
+      d[di] = s[si]; d[di + 1] = s[si + 1]; d[di + 2] = s[si + 2]; d[di + 3] = s[si + 3];
+    }
+  }
+  return { data: d.buffer, w: nw, h: nh };
+}
 
 function _loadDeps() {
   // 构建 npm 之前 require 会抛错，这里统一兜住走降级
@@ -72,18 +101,26 @@ async function detect(frameData, w, h) {
   if (_state !== 'ready' || !_model) return { has_face: true };
   let tensor = null;
   try {
+    // 方向：锁定前按探测序列转正（安卓竖屏横向帧，人脸侧躺检不出）
+    const deg = _rotLocked ? _rot : _PROBE_ROTATIONS[_probeIdx % _PROBE_ROTATIONS.length];
+    const rot = _rotateRGBA(frameData, w, h, deg);
+    _lastRotated = rot;
     // RGBA → RGB（blazeface 输入 3 通道）
-    const src = new Uint8Array(frameData);
-    const rgb = new Uint8Array(w * h * 3);
-    for (let i = 0, j = 0; i < w * h * 4; i += 4, j += 3) {
+    const src = new Uint8Array(rot.data);
+    const rgb = new Uint8Array(rot.w * rot.h * 3);
+    for (let i = 0, j = 0; i < rot.w * rot.h * 4; i += 4, j += 3) {
       rgb[j] = src[i]; rgb[j + 1] = src[i + 1]; rgb[j + 2] = src[i + 2];
     }
-    tensor = _tf.tensor3d(rgb, [h, w, 3]);
+    tensor = _tf.tensor3d(rgb, [rot.h, rot.w, 3]);
     const faces = await _model.estimateFaces(tensor, false);
-    if (!faces || !faces.length) return { has_face: false };
+    if (!faces || !faces.length) {
+      if (!_rotLocked) _probeIdx++;  // 本方向没检出，下一帧换方向试
+      return { has_face: false };
+    }
+    if (!_rotLocked) { _rot = deg; _rotLocked = true; }  // 检出即锁定方向
     const f = faces[0];
-    const x1 = f.topLeft[0] / w, y1 = f.topLeft[1] / h;
-    const x2 = f.bottomRight[0] / w, y2 = f.bottomRight[1] / h;
+    const x1 = f.topLeft[0] / rot.w, y1 = f.topLeft[1] / rot.h;
+    const x2 = f.bottomRight[0] / rot.w, y2 = f.bottomRight[1] / rot.h;
     const lm = f.landmarks || [];
     // landmarks 顺序：右眼、左眼、鼻尖、嘴、右耳、左耳（被摄者视角）
     let yaw = 0, roll = 0;
@@ -104,4 +141,4 @@ async function detect(frameData, w, h) {
   }
 }
 
-module.exports = { init, detect, status, MODEL_URL };
+module.exports = { init, detect, status, resetRotation, lastRotated, MODEL_URL };
