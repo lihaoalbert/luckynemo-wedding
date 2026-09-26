@@ -12,6 +12,8 @@ const LOAD_TIMEOUT_MS = 20000;
 let _state = 'idle';   // idle → loading → ready | manual
 let _model = null;
 let _tf = null;
+let _loadingPromise = null;  // 必须显式声明：真机 app-service.js 是严格模式，
+                             // 未声明赋值会 ReferenceError（模拟器非严格模式不炸，曾因此漏网）
 // 安卓竖屏 onCameraFrame 给横向传感器帧（人脸侧躺，BlazeFace 检不出），
 // 需转正再推理；方向因机型/前后摄而异：开拍后自动探测（轮流试 0/90/270/180，
 // 检出人脸即锁定），换镜头时 resetRotation()
